@@ -416,7 +416,7 @@ main {
 }
 
 /* ========================================= */
-/* ============ USER DASHBOARD ============= */
+/* ================== USER ================= */
 /* ========================================= */
 .vehicle-grid {
     display: grid;
@@ -485,14 +485,266 @@ main {
 }
 
 /* ========================================= */
-/* =========== ADMIN DASHBOARD ============= */
+/* =========== COMMON / SHARED ============= */
 /* ========================================= */
-/* Add your admin specific styling here later */
+.panel {
+    background: #fff;
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid #eaeaea;
+}
+.panel-grid {
+    display: grid;
+    gap: 20px;
+}
+.panel-flex {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.panel-header {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #666;
+}
+.inline-form {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    margin-bottom: 20px;
+}
+.inline-form label {
+    flex: 1;
+}
+
+/* Biểu bảng dùng chung (Data Table) */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 13px;
+}
+.data-table th, .data-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eaeaea;
+}
+.data-table th {
+    background: #f9f9f9;
+    color: #666;
+    font-weight: 600;
+}
+.data-table tr:hover {
+    background: #fcfcfc;
+}
+
+/* Cửa sổ bật lên dùng chung (Dialogs) */
+.dialog-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.dialog-content {
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.dialog-content.sm { width: 400px; max-width: 90vw; }
+.dialog-content.md { width: 600px; max-width: 90vw; }
+.dialog-content.lg { width: 800px; max-width: 90vw; }
+
+.dialog-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+}
 
 /* ========================================= */
-/* =========== STAFF DASHBOARD ============= */
+/* ================= ADMIN ================= */
 /* ========================================= */
-/* Add your staff specific styling here later */
+
+.zone-card {
+    border: 1px solid #dfe5dc;
+    padding: 15px;
+    border-radius: 8px;
+    background: #fcfcfc;
+}
+.zone-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.zone-title {
+    margin: 0;
+    font-size: 18px;
+}
+.zone-type-badge {
+    font-size: 12px;
+    color: #666;
+    background: #eee;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+.slot-map-container {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eaeaea;
+}
+.slot-legend {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    font-size: 12px;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.legend-box {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid #ccc;
+    background: #fff;
+}
+.legend-box.rented {
+    background: #fef9c3;
+    border-color: #eab308;
+}
+.legend-box.occupied {
+    background: #fee2e2;
+    border-color: #ef4444;
+}
+.legend-box.selected {
+    background: #ecfdf5;
+    border-color: #10b981;
+}
+
+.slot-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.slot-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s;
+    background: #fff;
+    border: 1px solid #ccc;
+}
+.slot-box.rented {
+    background: #fef9c3;
+    border-color: #eab308;
+}
+.slot-box.occupied {
+    background: #fee2e2;
+    border-color: #ef4444;
+}
+.slot-box.selected {
+    background: #ecfdf5;
+    border: 2px solid #10b981;
+}
+.slot-box.clickable:hover {
+    transform: scale(1.05);
+    cursor: pointer;
+}
+.slot-box.disabled {
+    cursor: not-allowed;
+}
+
+.pricing-card {
+    padding: 20px;
+    border: 1px solid #eaeaea;
+    border-radius: 12px;
+    background: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+.pricing-card.selected {
+    border: 2px solid #2a5340;
+    background: #f2f8f4;
+}
+
+/* ========================================= */
+/* ================= STAFF ================= */
+/* ========================================= */
+
+.terminal-input-container {
+    max-width: 600px;
+}
+.log-message {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 8px;
+    font-weight: 500;
+}
+.log-message.success {
+    background: #edf2e7;
+    color: #2a5340;
+}
+.log-message.error {
+    background: #feebeb;
+    color: #b33a32;
+}
+
+.camera-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+.camera-feed {
+    background: #000;
+    border-radius: 12px;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+.camera-label {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(0,0,0,0.6);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+.ai-log-list {
+    background: #111;
+    color: #0f0;
+    font-family: monospace;
+    padding: 15px;
+    border-radius: 8px;
+    height: 300px;
+    overflow-y: auto;
+}
+.ai-log-item {
+    margin: 5px 0;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+}
 
 .card-actions {
     border-top: 1px solid #edf0e9;

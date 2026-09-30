@@ -58,24 +58,24 @@ export default function AdminUsers({ session }) {
           <h1>Quản lý người dùng<span>.</span></h1>
         </div>
       </div>
-      <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #eaeaea' }}>
-        <p style={{ color: '#666', marginBottom: '15px' }}>Danh sách tài khoản trong hệ thống. Để đổi quyền (role) cho tài khoản (thành Admin/Staff), hãy thao tác trực tiếp trên Supabase SQL Editor.</p>
-        <table style={{ width: '100%', textAlign: 'left', marginTop: '1rem', borderCollapse: 'collapse' }}>
+      <div className="panel">
+        <p style={{ color: '#666', marginBottom: '15px' }}>Danh sách tài khoản trong hệ thống. Để đổi quyền (role) cho tài khoản (thành Admin/Staff), hãy chọn trong danh sách thả xuống.</p>
+        <table className="data-table">
           <thead>
-            <tr style={{ borderBottom: '2px solid #eaeaea', background: '#f9faf9' }}>
-              <th style={{ padding: '12px' }}>Họ và Tên</th>
-              <th style={{ padding: '12px' }}>Email</th>
-              <th style={{ padding: '12px' }}>Role</th>
-              <th style={{ padding: '12px' }}>Ngày tạo</th>
-              <th style={{ padding: '12px', width: '120px' }}>Hành động</th>
+            <tr>
+              <th>Họ và Tên</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Ngày tạo</th>
+              <th>Hành động</th>
             </tr>
           </thead>
           <tbody>
             {users.map(u => (
-              <tr key={u.id} style={{ borderBottom: '1px solid #eaeaea' }}>
-                <td style={{ padding: '12px', fontWeight: '500' }}>{u.name || 'Chưa cập nhật'} {session?.user?.id === u.id ? '(You)' : ''}</td>
-                <td style={{ padding: '12px' }}>{u.email || '-'}</td>
-                <td style={{ padding: '12px' }}>
+              <tr key={u.id}>
+                <td style={{ fontWeight: '500' }}>{u.name || 'Chưa cập nhật'} {session?.user?.id === u.id ? '(You)' : ''}</td>
+                <td>{u.email || '-'}</td>
+                <td>
                   <select 
                     value={u.role || 'user'} 
                     onChange={(e) => handleRoleChange(u.id, e.target.value)}
@@ -90,10 +90,10 @@ export default function AdminUsers({ session }) {
                     <option value="admin">ADMIN</option>
                   </select>
                 </td>
-                <td style={{ padding: '12px', fontSize: '12px' }}>{new Date(u.created_at).toLocaleDateString()}</td>
-                <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
-                  <button onClick={() => openEdit(u)} className="secondary" style={{ padding: '4px 8px', fontSize: '11px' }}>Sửa</button>
-                  <button onClick={() => handleDeleteUser(u.id)} className="secondary" style={{ padding: '4px 8px', fontSize: '11px', color: 'red', borderColor: 'red' }}>Xóa</button>
+                <td>{new Date(u.created_at).toLocaleDateString()}</td>
+                <td>
+                  <button onClick={() => openEdit(u)} className="text-button" style={{ padding: '4px 8px', fontSize: '11px' }}>Sửa</button>
+                  <button onClick={() => handleDeleteUser(u.id)} className="text-button error" style={{ padding: '4px 8px', fontSize: '11px' }}>Xóa</button>
                 </td>
               </tr>
             ))}
@@ -103,8 +103,8 @@ export default function AdminUsers({ session }) {
       </div>
       
       {editingUser && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', padding: '30px', borderRadius: '12px', width: '400px' }}>
+        <div className="dialog-overlay">
+          <div className="dialog-content sm">
             <h3 style={{ marginTop: 0 }}>Sửa thông tin</h3>
             <form onSubmit={handleSaveEdit}>
               <label style={{ display: 'block', marginBottom: '15px' }}>
