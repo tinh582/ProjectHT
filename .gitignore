@@ -1,0 +1,17 @@
+.dotnet/
+bin/
+obj/
+App_Data/
+*.log
+dotnet-install.ps1
+
+# Dependencies and build output
+node_modules/
+dist/
+dist-ssr/
+
+# Local environment settings and credentials
+.env
+.env.*
+!.env.example
+*.local

@@ -1,0 +1,769 @@
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap");
+
+/* ========================================= */
+/* ============ GLOBAL STYLES ============== */
+/* ========================================= */
+:root {
+    font-family: "Be Vietnam Pro", system-ui, sans-serif;
+    color: #233b34;
+    background: #f5f7f5;
+    font-size: 14px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+}
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+    border: 0;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+.logo {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    display: block;
+}
+
+.logo span {
+    font-size: 13px;
+    letter-spacing: 3px;
+    margin-left: 6px;
+    font-weight: 600;
+}
+
+.eyebrow {
+    font-size: 10px;
+    letter-spacing: 2px;
+    font-weight: 700;
+    color: #678b72;
+    margin: 0 0 15px;
+}
+
+h1 {
+    font-size: 36px;
+    letter-spacing: -1.5px;
+    font-weight: 600;
+    margin: 0 0 14px;
+}
+
+h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.muted {
+    color: #7e8984;
+    line-height: 1.7;
+}
+
+.primary {
+    background: #284f40;
+    color: white;
+    padding: 14px 21px;
+    border-radius: 8px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.primary:hover {
+    background: #183c2e;
+}
+
+.secondary {
+    background: #eef2ee;
+    border: 1px solid #dce3dd;
+    padding: 11px 18px;
+    border-radius: 8px;
+    color: #365344;
+}
+
+.text-button {
+    color: #577063;
+    background: transparent;
+    padding: 9px;
+}
+
+.full {
+    width: 100%;
+}
+
+label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+input,
+select {
+    width: 100%;
+    padding: 13px 14px;
+    border: 1px solid #dce2dd;
+    background: #fff;
+    border-radius: 7px;
+    margin-top: 8px;
+    color: #233b34;
+    min-width: 0;
+}
+
+input:focus,
+select:focus {
+    outline: 2px solid #7a9b80;
+    outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible {
+    outline: 3px solid #94af74;
+    outline-offset: 3px;
+}
+
+.fine {
+    font-size: 11px;
+    color: #8a948e;
+    line-height: 1.8;
+}
+
+.error {
+    color: #b33a32;
+    line-height: 1.6;
+}
+
+.auth-layout {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
+.intro {
+    padding: 48px 9%;
+    background: #203d32;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 700px;
+}
+
+.intro h1 {
+    font-size: 60px;
+    line-height: 1.2;
+}
+
+.intro p:not(.eyebrow) {
+    color: #b6c7bd;
+    line-height: 1.9;
+}
+
+.intro small {
+    color: #a5bbae;
+}
+
+.parking-art {
+    height: 180px;
+    margin-top: 35px;
+    border: 1px solid #647c63;
+    border-radius: 15px;
+    position: relative;
+    background: repeating-linear-gradient(90deg,
+            transparent 0,
+            transparent 31%,
+            #516b5533 32%,
+            transparent 33%);
+    overflow: hidden;
+}
+
+.parking-art>span {
+    display: inline-block;
+    font-size: 65px;
+    font-weight: 800;
+    color: #bbcc8b;
+    margin: 23px;
+}
+
+.parking-art .car {
+    position: absolute;
+    right: 25%;
+    top: 22px;
+    font-size: 95px;
+    transform: rotate(-12deg);
+    color: #b6c3af;
+}
+
+.parking-art i {
+    position: absolute;
+    bottom: 15px;
+    right: 20px;
+    letter-spacing: 3px;
+    font-size: 10px;
+    color: #8ca68e;
+}
+
+.auth-panel {
+    display: grid;
+    place-items: center;
+    padding: 40px;
+}
+
+.auth-box {
+    width: 100%;
+    max-width: 380px;
+}
+
+.auth-box h2 {
+    font-size: 27px;
+}
+
+.tabs {
+    display: flex;
+    margin: 30px 0 25px;
+    border-bottom: 1px solid #dce2dd;
+}
+
+.tabs button {
+    width: 50%;
+    padding: 14px;
+    background: none;
+    color: #7d8980;
+}
+
+.tabs .active {
+    border-bottom: 2px solid #2a5340;
+    color: #2a5340;
+    font-weight: 600;
+}
+
+.auth-box label {
+    margin-bottom: 20px;
+}
+
+.auth-box>.fine {
+    margin-top: 25px;
+}
+
+aside {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 245px;
+    padding: 36px 25px;
+    background: #fff;
+    border-right: 1px solid #e4e9e3;
+}
+
+.nav-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: #9ba69e;
+    margin: 60px 0 20px;
+}
+
+.nav-item {
+    background: #eaf0e7;
+    color: #35583e;
+    padding: 16px 12px;
+    border-radius: 7px;
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+}
+
+.aside-bottom {
+    position: absolute;
+    bottom: 35px;
+}
+
+.badge {
+    font-size: 8px;
+    letter-spacing: 1px;
+    background: #eef2e7;
+    padding: 7px;
+    color: #718653;
+    border-radius: 4px;
+}
+
+.aside-bottom p {
+    font-size: 21px;
+    line-height: 1.5;
+}
+
+.aside-bottom small {
+    font-size: 9px;
+    color: #98a199;
+}
+
+.main {
+    margin-left: 245px;
+}
+
+header {
+    height: 88px;
+    border-bottom: 1px solid #e4e8e2;
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #8c978f;
+    background: #fff;
+}
+
+header b {
+    color: #54685d;
+    font-weight: 400;
+    margin-left: 12px;
+}
+
+header>div {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+main {
+    padding: 44px 40px;
+    max-width: 1450px;
+    margin: auto;
+}
+
+.page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.page-heading h1 span {
+    color: #9dab71;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin: 30px 0 40px;
+}
+
+.stats>div {
+    background: white;
+    border: 1px solid #e2e7df;
+    border-radius: 10px;
+    padding: 24px;
+}
+
+.stats span {
+    display: block;
+    font-size: 11px;
+    color: #718075;
+}
+
+.stats strong {
+    display: block;
+    font-size: 34px;
+    font-weight: 500;
+    margin: 14px 0 8px;
+}
+
+.stats small {
+    font-size: 10px;
+    color: #9aa398;
+}
+
+.section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.section-heading h2 {
+    font-size: 17px;
+}
+
+.search {
+    width: 280px;
+}
+
+.search input {
+    margin: 0;
+    font-size: 11px;
+    background: transparent;
+}
+
+/* ========================================= */
+/* ============ USER DASHBOARD ============= */
+/* ========================================= */
+.vehicle-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+}
+
+.vehicle-card {
+    border: 1px solid #dfe5dc;
+    border-radius: 11px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.vehicle-photo {
+    height: 170px;
+    background: #edf1e9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8e9b89;
+    position: relative;
+}
+
+.vehicle-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.vehicle-photo>span {
+    font-size: 13px;
+}
+
+.vehicle-content {
+    padding: 20px;
+}
+
+.vehicle-tag {
+    font-size: 9px;
+    color: #557346;
+    background: #edf2e7;
+    padding: 5px 8px;
+    border-radius: 4px;
+}
+
+.vehicle-content h3 {
+    font-size: 18px;
+    margin: 16px 0 8px;
+}
+
+.plate {
+    display: inline-block;
+    border: 1px solid #dee3dc;
+    border-radius: 4px;
+    letter-spacing: 2px;
+    padding: 6px 9px;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.vehicle-meta {
+    font-size: 11px;
+    color: #899482;
+    line-height: 1.8;
+}
+
+/* ========================================= */
+/* =========== ADMIN DASHBOARD ============= */
+/* ========================================= */
+/* Add your admin specific styling here later */
+
+/* ========================================= */
+/* =========== STAFF DASHBOARD ============= */
+/* ========================================= */
+/* Add your staff specific styling here later */
+
+.card-actions {
+    border-top: 1px solid #edf0e9;
+    padding-top: 10px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.danger {
+    color: #a7665e;
+}
+
+.empty {
+    grid-column: 1/-1;
+    text-align: center;
+    border: 1px dashed #ccd7c8;
+    padding: 55px 20px;
+    border-radius: 10px;
+    background: #f0f3ed;
+}
+
+.empty h3 {
+    font-size: 18px;
+}
+
+.empty p {
+    color: #7d8b79;
+    line-height: 1.7;
+}
+
+.info {
+    display: flex;
+    gap: 15px;
+    background: #edf1e5;
+    border: 1px solid #e0e6d4;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-top: 30px;
+    color: #718060;
+    font-size: 11px;
+    line-height: 1.9;
+}
+
+.info>span {
+    font-size: 19px;
+    margin-top: 8px;
+}
+
+.info b {
+    font-weight: 500;
+    color: #536448;
+}
+
+footer {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 40px;
+    border-top: 1px solid #e3e8df;
+    color: #96a08f;
+    font-size: 9px;
+    letter-spacing: 1px;
+}
+
+dialog {
+    border: 0;
+    border-radius: 14px;
+    padding: 28px;
+    width: min(600px, 94vw);
+    max-height: 92vh;
+    color: #233b34;
+}
+
+dialog::backdrop {
+    background: #13271db3;
+    backdrop-filter: blur(3px);
+}
+
+.modal-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin: 25px 0;
+}
+
+.upload {
+    border: 1px dashed #bcccb7;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.upload input {
+    border: 0;
+    padding: 6px 0;
+    font-size: 11px;
+}
+
+.plate-input {
+    text-transform: uppercase;
+}
+
+#preview {
+    display: block;
+    max-height: 180px;
+    max-width: 100%;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid #e3e8df;
+    padding-top: 18px;
+    margin-top: 20px;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+}
+
+#notice {
+    color: #466044;
+    font-size: 12px;
+    min-height: 12px;
+}
+
+@media (max-width: 1000px) {
+    aside {
+        width: 200px;
+    }
+
+    .main {
+        margin-left: 200px;
+    }
+
+    main {
+        padding: 30px 25px;
+    }
+
+    header {
+        padding: 0 25px;
+    }
+
+    .page-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    h1 {
+        font-size: 30px;
+    }
+
+    .stats>div {
+        padding: 18px;
+    }
+
+    .intro h1 {
+        font-size: 44px;
+    }
+}
+
+@media (max-width: 700px) {
+    .auth-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .intro {
+        min-height: 0;
+        padding: 25px;
+    }
+
+    .intro>div,
+    .intro>small {
+        display: none;
+    }
+
+    .auth-panel {
+        padding: 40px 25px;
+    }
+
+    aside {
+        position: static;
+        width: 100%;
+        padding: 18px 22px;
+        border-bottom: 1px solid #e4e9e3;
+    }
+
+    .nav-label,
+    .nav-item,
+    .aside-bottom {
+        display: none;
+    }
+
+    .main {
+        margin: 0;
+    }
+
+    header {
+        height: 65px;
+        padding: 0 20px;
+    }
+
+    header>span {
+        display: none;
+    }
+
+    header>div {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    main {
+        padding: 28px 20px;
+    }
+
+    .stats {
+        gap: 8px;
+        margin: 25px 0;
+    }
+
+    .stats>div {
+        padding: 13px 10px;
+    }
+
+    .stats strong {
+        font-size: 27px;
+    }
+
+    .stats small {
+        display: none;
+    }
+
+    .stats span {
+        font-size: 9px;
+    }
+
+    .section-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .search {
+        width: 100%;
+    }
+
+    .form-grid {
+        gap: 14px;
+    }
+
+    footer {
+        padding: 20px;
+    }
+
+    footer span {
+        max-width: 180px;
+        text-align: right;
+    }
+
+    .vehicle-grid {
+        grid-template-columns: 1fr;
+    }
+}
