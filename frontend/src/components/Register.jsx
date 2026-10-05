@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Register({ onSwitchToLogin }) {
+export default function Register({ onSwitchToLogin, onSwitchToLanding }) {
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -40,7 +40,12 @@ export default function Register({ onSwitchToLogin }) {
   return (
     <div id="auth" className="auth-layout">
       <section className="intro">
-        <a className="logo" href="/">HT<span> PARKING</span></a>
+        <div>
+          <button className="text-button" onClick={onSwitchToLanding} style={{ color: '#fff', padding: 0, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            ← Quay lại trang chủ
+          </button>
+          <a className="logo" href="/" onClick={(e) => { e.preventDefault(); onSwitchToLanding(); }}>HT<span> PARKING</span></a>
+        </div>
         <div>
           <p className="eyebrow">BÃI ĐỖ DÀI HẠN · AN TÂM MỖI NGÀY</p>
           <h1>Một chỗ đỗ.<br/>Trọn an tâm.</h1>

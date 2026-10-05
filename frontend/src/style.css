@@ -163,12 +163,24 @@ a:focus-visible {
 
 .intro {
     padding: 48px 9%;
-    background: #203d32;
+    background: #203d32 url('/auth-bg.jpg') center/cover no-repeat;
     color: #fff;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     min-height: 700px;
+    position: relative;
+}
+.intro::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(32, 61, 50, 0.4));
+    z-index: 0;
+}
+.intro > * {
+    position: relative;
+    z-index: 1;
 }
 
 .intro h1 {

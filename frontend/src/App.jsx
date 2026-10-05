@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Landing from './components/Landing';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/user/Dashboard';
@@ -8,7 +9,7 @@ import StaffDashboard from './components/staff/StaffDashboard';
 
 export default function App() {
   const [session, setSession] = useState(null);
-  const [showLogin, setShowLogin] = useState(true);
+  const [authView, setAuthView] = useState('landing');
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,10 +48,12 @@ export default function App() {
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'sans-serif' }}>Đang tải...</div>;
 
   if (!session) {
-    if (showLogin) {
-      return <Login onSwitchToRegister={() => setShowLogin(false)} />;
+    if (authView === 'landing') {
+      return <Landing onSwitchToLogin={() => setAuthView('login')} onSwitchToRegister={() => setAuthView('register')} />;
+    } else if (authView === 'login') {
+      return <Login onSwitchToRegister={() => setAuthView('register')} onSwitchToLanding={() => setAuthView('landing')} />;
     } else {
-      return <Register onSwitchToLogin={() => setShowLogin(true)} />;
+      return <Register onSwitchToLogin={() => setAuthView('login')} onSwitchToLanding={() => setAuthView('landing')} />;
     }
   }
 
