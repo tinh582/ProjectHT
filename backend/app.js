@@ -1,0 +1,57 @@
+import express from 'express';
+import cors from 'cors';
+import { authenticate, allowRoles } from './src/auth.js';
+import { errorHandler } from './src/http.js';
+import login from './src/components/Login.js';
+import register from './src/components/Register.js';
+import pricing from './src/components/admin/AdminPricing.js';
+import reports from './src/components/admin/AdminReports.js';
+import users from './src/components/admin/AdminUsers.js';
+import zones from './src/components/admin/AdminZones.js';
+import checkin from './src/components/staff/StaffCheckin.js';
+import exceptions from './src/components/staff/StaffExceptions.js';
+import slotMap from './src/components/staff/StaffSlotMap.js';
+import support from './src/components/staff/StaffSupport.js';
+import dashboard from './src/components/user/Dashboard.js';
+import payment from './src/components/user/UserPayment.js';
+import slotPicker from './src/components/user/UserSlotPicker.js';
+import vehicles from './src/components/user/VehicleDialog.js';
+import slotInfo from './src/components/shared/SlotInfoDialog.js';
+
+export function createApp(clients) {
+  const app = express();
+  app.disable('x-powered-by');
+  app.use(cors({ origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173' }));
+  app.use(express.json({ limit: '2mb' }));
+  app.use((req, res, next) => {
+    req.db = clients.db;
+    req.body ||= {};
+    req.createAuthClient = clients.createAuthClient;
+    res.set('Cache-Control', 'no-store');
+    next();
+  });
+  app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+  app.use('/api/components/Login', login);
+  app.use('/api/components/Register', register);
+  app.use('/api', authenticate(clients));
+  app.get('/api/components/AppAuth', (req, res) => res.json({ user: req.user, role: req.role }));
+  app.use('/api/components/admin', allowRoles('admin'));
+  app.use('/api/components/staff', allowRoles('staff', 'admin'));
+  app.use('/api/components/shared', allowRoles('staff', 'admin'));
+  app.use('/api/components/admin/AdminPricing', pricing);
+  app.use('/api/components/admin/AdminReports', reports);
+  app.use('/api/components/admin/AdminUsers', users);
+  app.use('/api/components/admin/AdminZones', zones);
+  app.use('/api/components/staff/StaffCheckin', checkin);
+  app.use('/api/components/staff/StaffExceptions', exceptions);
+  app.use('/api/components/staff/StaffSlotMap', slotMap);
+  app.use('/api/components/staff/StaffSupport', support);
+  app.use('/api/components/user/Dashboard', dashboard);
+  app.use('/api/components/user/UserPayment', payment);
+  app.use('/api/components/user/UserSlotPicker', slotPicker);
+  app.use('/api/components/user/VehicleDialog', vehicles);
+  app.use('/api/components/shared/SlotInfoDialog', slotInfo);
+  app.use((req, res) => res.status(404).json({ error: 'Not found.' }));
+  app.use(errorHandler);
+  return app;
+}

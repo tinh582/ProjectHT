@@ -1,20 +1,19 @@
 import express from 'express';
-import { supabase } from '../../../config/supabase.js';
 
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-    try {
-        const { data: zData, error: zError } = await supabase.from('parking_zones').select('*').order('created_at', { ascending: true });
-        if (zError) throw zError;
-        
-        const { data: sData, error: sError } = await supabase.from('parking_slots').select('*, vehicles(plate)');
-        if (sError) throw sError;
-        
-        res.json({ zones: zData, slots: sData });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const [zoneResult, slotResult] = await Promise.all([
+        req.db.from('parking_zones').select('id, zone_name, vehicle_type, total_capacity, current_occupancy').order('created_at'),
+        req.db.from('parking_slots').select('id, zone_id, slot_name, status, vehicle_id, vehicles(plate)'),
+    ]);
+    const { data: zData, error: zError } = zoneResult;
+    if (zError) throw zError;
+
+    const { data: sData, error: sError } = slotResult;
+    if (sError) throw sError;
+
+    res.json({ zones: zData, slots: sData });
 });
 
 export default router;

@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 
 export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit }) {
@@ -15,6 +16,11 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 1000000 || !['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) {
+        alert('Chọn ảnh PNG, JPEG, WebP hoặc GIF nhỏ hơn 1 MB.');
+        e.target.value = '';
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setImageBase64(reader.result);
@@ -45,13 +51,13 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
     try {
       let response;
       if (isEditMode) {
-        response = await fetch(`http://localhost:5000/api/components/user/VehicleDialog/${vehicleToEdit.id}`, {
+        response = await apiFetch(`/api/components/user/VehicleDialog/${vehicleToEdit.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vehicle })
         });
       } else {
-        response = await fetch('http://localhost:5000/api/components/user/VehicleDialog', {
+        response = await apiFetch('/api/components/user/VehicleDialog', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vehicle })

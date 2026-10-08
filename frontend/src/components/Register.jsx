@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/api';
 import React, { useState } from 'react';
 
 export default function Register({ onSwitchToLogin, onSwitchToLanding }) {
@@ -13,7 +14,7 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding }) {
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:5000/api/components/Register', {
+      const response = await apiFetch('/api/components/Register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, full_name: name })
@@ -24,6 +25,7 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding }) {
       
       if (data.session) {
         localStorage.setItem('token', data.session.access_token);
+        localStorage.setItem('refresh_token', data.session.refresh_token);
         localStorage.setItem('user', JSON.stringify(data.user));
         window.location.reload();
       } else {

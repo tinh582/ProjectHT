@@ -1,24 +1,32 @@
+import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
+import Pagination from '../shared/Pagination';
 
 export default function AdminUsers({ session }) {
   const [users, setUsers] = useState([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 25;
   const [editingUser, setEditingUser] = useState(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [page]);
 
   const fetchUsers = async () => {
-    const response = await fetch('http://localhost:5000/api/components/admin/AdminUsers');
+    const response = await apiFetch(`/api/components/admin/AdminUsers?page=${page}&pageSize=${pageSize}`);
+    if (!response.ok) return;
     const data = await response.json();
-    setUsers(data || []);
+    setUsers(data.items);
+    setTotal(data.total);
+    if (page > 1 && data.items.length === 0) setPage(page - 1);
   };
 
   const handleRoleChange = async (userId, newRole) => {
     if(window.confirm(`Xác nhận đổi quyền cho người dùng này thành ${newRole.toUpperCase()}?`)) {
-      const response = await fetch(`http://localhost:5000/api/components/admin/AdminUsers/${userId}/role`, {
+      const response = await apiFetch(`/api/components/admin/AdminUsers/${userId}/role`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole })
@@ -30,7 +38,7 @@ export default function AdminUsers({ session }) {
 
   const handleDeleteUser = async (userId) => {
     if(window.confirm('Xóa tài khoản này? (Lưu ý: Chỉ xóa profile, user vẫn có thể đăng nhập nếu không xóa trong Supabase Auth)')) {
-      const response = await fetch(`http://localhost:5000/api/components/admin/AdminUsers/${userId}`, { method: 'DELETE' });
+      const response = await apiFetch(`/api/components/admin/AdminUsers/${userId}`, { method: 'DELETE' });
       if (response.ok) fetchUsers();
       else alert('Lỗi khi xóa');
     }
@@ -39,7 +47,7 @@ export default function AdminUsers({ session }) {
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
-    const response = await fetch(`http://localhost:5000/api/components/admin/AdminUsers/${editingUser.id}`, {
+    const response = await apiFetch(`/api/components/admin/AdminUsers/${editingUser.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: editName, email: editEmail })
@@ -105,9 +113,10 @@ export default function AdminUsers({ session }) {
                 </td>
               </tr>
             ))}
-            {users.length === 0 && <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center' }}>Đang tải...</td></tr>}
+            {users.length === 0 && <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center' }}>Không có tài khoản.</td></tr>}
           </tbody>
         </table>
+        <Pagination page={page} pageSize={pageSize} total={total} onChange={setPage} />
       </div>
       
       {editingUser && (

@@ -10,6 +10,7 @@ export default function AdminDashboard({ session }) {
   const handleLogout = async () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('refresh_token');
     window.location.reload();
   };
 

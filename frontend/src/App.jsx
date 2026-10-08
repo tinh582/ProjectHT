@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { apiFetch } from './lib/api';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Landing from './components/Landing';
 import Login from './components/Login';
 import Register from './components/Register';
-import Dashboard from './components/user/Dashboard';
-import AdminDashboard from './components/admin/AdminDashboard';
-import StaffDashboard from './components/staff/StaffDashboard';
+const Dashboard = lazy(() => import('./components/user/Dashboard'));
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
+const StaffDashboard = lazy(() => import('./components/staff/StaffDashboard'));
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -14,6 +15,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const onExpired = () => { setSession(null); setRole(null); setAuthView('login'); };
+    window.addEventListener('auth-expired', onExpired);
     const verifySession = async () => {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -22,18 +25,19 @@ export default function App() {
       }
       
       try {
-        const response = await fetch('http://localhost:5000/api/components/AppAuth', {
+        const response = await apiFetch('/api/components/AppAuth', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
         if (response.ok) {
           const data = await response.json();
-          setSession({ user: data.user, access_token: token });
+          setSession({ user: data.user });
           setRole(data.role);
-        } else {
+        } else if (response.status === 401 || response.status === 403) {
           // Token invalid or expired
           localStorage.removeItem('token');
           localStorage.removeItem('user');
+          localStorage.removeItem('refresh_token');
         }
       } catch (error) {
         console.error('Session verification failed:', error);
@@ -43,6 +47,7 @@ export default function App() {
     };
 
     verifySession();
+    return () => window.removeEventListener('auth-expired', onExpired);
   }, []);
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'sans-serif' }}>Đang tải...</div>;
@@ -59,6 +64,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <Suspense fallback={<p>Đang tải...</p>}>
       <Routes>
         <Route path="/" element={
           role === 'admin' ? <AdminDashboard session={session} /> :
@@ -67,6 +73,7 @@ export default function App() {
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

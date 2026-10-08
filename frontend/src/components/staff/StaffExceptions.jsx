@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 
 export default function StaffExceptions() {
@@ -8,7 +9,7 @@ export default function StaffExceptions() {
   }, []);
 
   const fetchExceptions = async () => {
-    const response = await fetch('http://localhost:5000/api/components/staff/StaffExceptions');
+    const response = await apiFetch('/api/components/staff/StaffExceptions');
     if (response.ok) {
       const data = await response.json();
       setExceptions(data || []);
@@ -17,7 +18,7 @@ export default function StaffExceptions() {
 
   const handleManualOpen = async (session) => {
     if (window.confirm('Xác nhận mở Barie và hoàn tất phiên đỗ xe này?')) {
-      const response = await fetch(`http://localhost:5000/api/components/staff/StaffExceptions/${session.id}/open`, {
+      const response = await apiFetch(`/api/components/staff/StaffExceptions/${session.id}/open`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session })

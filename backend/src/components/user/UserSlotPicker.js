@@ -1,40 +1,22 @@
 import express from 'express';
-import { supabase } from '../../../config/supabase.js';
-
+import { requireId, requireText, rpc } from '../../http.js';
 const router = express.Router();
 
 router.get('/:vehicleType', async (req, res) => {
-    try {
-        const { vehicleType } = req.params;
-        const { data: zones } = await supabase.from('parking_zones').select('id').eq('vehicle_type', vehicleType);
-        if (!zones || zones.length === 0) {
-            return res.json([]);
-        }
-        
-        const zoneIds = zones.map(z => z.id);
-        const { data: allSlots } = await supabase.from('parking_slots').select('*').in('zone_id', zoneIds);
-        
-        res.json(allSlots || []);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+  const type = requireText(req.params.vehicleType, 'Vehicle type');
+  const { data, error } = await req.db.from('parking_slots')
+    .select('id, zone_id, slot_name, status, vehicle_id, parking_zones!inner(vehicle_type)')
+    .eq('parking_zones.vehicle_type', type).order('slot_name');
+  if (error) throw error;
+  res.json(data || []);
 });
 
 router.post('/save', async (req, res) => {
-    try {
-        const { currentSlotId, selectedSlotId, vehicleId } = req.body;
-        
-        if (currentSlotId) {
-            await supabase.from('parking_slots').update({ status: 'empty', vehicle_id: null }).eq('id', currentSlotId);
-        }
-
-        const { error } = await supabase.from('parking_slots').update({ status: 'rented', vehicle_id: vehicleId }).eq('id', selectedSlotId);
-        
-        if (error) throw error;
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+  await rpc(req.db, 'reserve_parking_slot', {
+    p_user_id: req.user.id,
+    p_vehicle_id: requireId(req.body.vehicleId),
+    p_slot_id: requireId(req.body.selectedSlotId),
+  });
+  res.json({ success: true });
 });
-
 export default router;

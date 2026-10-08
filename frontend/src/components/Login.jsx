@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/api';
 import React, { useState } from 'react';
 
 export default function Login({ onSwitchToRegister, onSwitchToLanding }) {
@@ -12,18 +13,16 @@ export default function Login({ onSwitchToRegister, onSwitchToLanding }) {
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:5000/api/components/Login', {
+      const response = await apiFetch('/api/components/Login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Login failed');
-      // If we are using supabase on the frontend for keeping state, we might need to set session manually
-      // But if the plan is to remove supabase from frontend completely, we should save token in local storage
       localStorage.setItem('token', data.session.access_token);
+      localStorage.setItem('refresh_token', data.session.refresh_token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      // You would then trigger a state update for Auth context or redirect
       window.location.reload(); 
     } catch (error) {
       setError(error.message);

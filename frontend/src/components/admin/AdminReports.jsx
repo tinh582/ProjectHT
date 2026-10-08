@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -15,7 +16,7 @@ export default function AdminReports() {
   }, []);
 
   const fetchReport = async () => {
-    const response = await fetch('http://localhost:5000/api/components/admin/AdminReports');
+    const response = await apiFetch('/api/components/admin/AdminReports');
     if (response.ok) {
       const data = await response.json();
       setTodayTraffic(data.todayTraffic);

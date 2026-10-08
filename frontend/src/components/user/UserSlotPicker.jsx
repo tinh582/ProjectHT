@@ -1,3 +1,5 @@
+import { compareSlots } from '../../lib/slots';
+import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 
 export default function UserSlotPicker({ vehicle, onClose, onSaved }) {
@@ -5,6 +7,7 @@ export default function UserSlotPicker({ vehicle, onClose, onSaved }) {
   const [currentSlot, setCurrentSlot] = useState(null);
   const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchSlots();
@@ -12,15 +15,11 @@ export default function UserSlotPicker({ vehicle, onClose, onSaved }) {
 
   const fetchSlots = async () => {
     setLoading(true);
-    const response = await fetch(`http://localhost:5000/api/components/user/UserSlotPicker/${encodeURIComponent(vehicle.type)}`);
+    const response = await apiFetch(`/api/components/user/UserSlotPicker/${encodeURIComponent(vehicle.type)}`);
     if (response.ok) {
         const allSlots = await response.json();
         if (allSlots && allSlots.length > 0) {
-          allSlots.sort((a, b) => {
-            const numA = parseInt(a.slot_name.split('-')[1]) || 0;
-            const numB = parseInt(b.slot_name.split('-')[1]) || 0;
-            return numA - numB;
-          });
+          allSlots.sort(compareSlots);
           
           setSlots(allSlots);
           
@@ -55,7 +54,7 @@ export default function UserSlotPicker({ vehicle, onClose, onSaved }) {
   };
 
   const handleSave = async () => {
-    if (!selectedSlotId) return;
+    if (!selectedSlotId || saving) return;
     
     // If not changed, just close
     if (currentSlot && currentSlot.id === selectedSlotId) {
@@ -63,7 +62,8 @@ export default function UserSlotPicker({ vehicle, onClose, onSaved }) {
       return;
     }
 
-    const response = await fetch('http://localhost:5000/api/components/user/UserSlotPicker/save', {
+    setSaving(true);
+    const response = await apiFetch('/api/components/user/UserSlotPicker/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -73,6 +73,7 @@ export default function UserSlotPicker({ vehicle, onClose, onSaved }) {
         })
     });
 
+    setSaving(false);
     if (response.ok) {
       onSaved();
       onClose();
@@ -143,7 +144,7 @@ export default function UserSlotPicker({ vehicle, onClose, onSaved }) {
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px', marginTop: '20px' }}>
           <button className="text-button" onClick={onClose}>Hủy</button>
-          <button className="primary" onClick={handleSave} disabled={!selectedSlotId}>Xác nhận chọn</button>
+          <button className="primary" onClick={handleSave} disabled={!selectedSlotId || saving}>Xác nhận chọn</button>
         </div>
       </div>
     </div>

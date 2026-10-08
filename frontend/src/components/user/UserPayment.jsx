@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 
 export default function UserPayment({ session, fetchNotifications }) {
@@ -5,6 +6,8 @@ export default function UserPayment({ session, fetchNotifications }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [expiryDate, setExpiryDate] = useState(null);
+  const paymentBank = import.meta.env.VITE_PAYMENT_BANK;
+  const paymentAccount = import.meta.env.VITE_PAYMENT_ACCOUNT;
 
   useEffect(() => {
     fetchPricing();
@@ -12,7 +15,7 @@ export default function UserPayment({ session, fetchNotifications }) {
   }, []);
 
   const fetchPricing = async () => {
-    const response = await fetch('http://localhost:5000/api/components/user/UserPayment/pricing');
+    const response = await apiFetch('/api/components/user/UserPayment/pricing');
     if (response.ok) {
       const data = await response.json();
       setPricingConfigs(data);
@@ -20,11 +23,11 @@ export default function UserPayment({ session, fetchNotifications }) {
   };
 
   const fetchSubscription = async () => {
-    const response = await fetch(`http://localhost:5000/api/components/user/UserPayment/subscription/${session.user.id}`);
+    const response = await apiFetch(`/api/components/user/UserPayment/subscription/${session.user.id}`);
     if (response.ok) {
       const transaction = await response.json();
       if (transaction) {
-        const purchaseDate = new Date(transaction.created_at);
+        const purchaseDate = new Date(transaction.confirmed_at || transaction.created_at);
         const expiry = new Date(purchaseDate);
         expiry.setDate(expiry.getDate() + 30);
         setExpiryDate(expiry);
@@ -33,28 +36,23 @@ export default function UserPayment({ session, fetchNotifications }) {
   };
 
   const handlePayment = async () => {
-    if (!selectedPlan) return;
+    if (!selectedPlan || isProcessing) return;
     setIsProcessing(true);
-    
-    // Simulate payment delay
-    setTimeout(async () => {
-      const response = await fetch('http://localhost:5000/api/components/user/UserPayment/pay', {
+    try {
+      const response = await apiFetch('/api/components/user/UserPayment/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: session.user.id, selectedPlan })
+        body: JSON.stringify({ planId: selectedPlan.id }),
       });
-
       if (response.ok) {
-        alert('Thanh toán thành công!');
-        setIsProcessing(false);
+        alert('Yêu cầu đã được gửi. Thẻ có hiệu lực sau khi nhân viên xác nhận thanh toán.');
         setSelectedPlan(null);
         fetchNotifications();
-        fetchSubscription(); // Refresh expiry date
-      } else {
-        alert('Có lỗi xảy ra');
-        setIsProcessing(false);
+        fetchSubscription();
       }
-    }, 2000);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const isExpired = expiryDate ? new Date() > expiryDate : true;
@@ -118,12 +116,14 @@ export default function UserPayment({ session, fetchNotifications }) {
           <h3 style={{ marginTop: 0 }}>Quét mã thanh toán</h3>
           {selectedPlan ? (
             <div style={{ background: '#fff', padding: '30px', borderRadius: '12px', border: '1px solid #eaeaea', textAlign: 'center' }}>
-              <img 
-                src={`https://img.vietqr.io/image/970415-113366668888-compact2.jpg?amount=${selectedPlan.price}&addInfo=Thanh toan the xe ${session.user.id.substring(0, 8)}`} 
+              {paymentBank && paymentAccount ? <><img
+                src={`https://img.vietqr.io/image/${encodeURIComponent(paymentBank)}-${encodeURIComponent(paymentAccount)}-compact2.jpg?amount=${selectedPlan.price}&addInfo=${encodeURIComponent(`Thanh toan the xe ${session.user.id.substring(0, 8)}`)}`}
                 alt="QR Code" 
                 style={{ width: '250px', height: '250px', margin: '0 auto', display: 'block' }} 
               />
-              <p style={{ marginTop: '20px', color: '#666' }}>Sử dụng App ngân hàng hoặc Momo để quét mã.<br/>Nội dung: <b>Thanh toan the xe {session.user.id.substring(0, 8)}</b></p>
+              <p style={{ marginTop: '20px', color: '#666' }}>Quét mã bằng ứng dụng ngân hàng.<br/>Nội dung: <b>Thanh toan the xe {session.user.id.substring(0, 8)}</b></p></>
+                : <p>Vui lòng liên hệ nhân viên để được hướng dẫn thanh toán.</p>}
+              <p>Thẻ có hiệu lực sau khi nhân viên xác nhận đã nhận tiền.</p>
               
               <button 
                 className="primary" 
@@ -131,7 +131,7 @@ export default function UserPayment({ session, fetchNotifications }) {
                 disabled={isProcessing}
                 style={{ width: '100%', marginTop: '15px', padding: '15px' }}
               >
-                {isProcessing ? 'Đang xử lý...' : 'Tôi đã chuyển khoản thành công'}
+                {isProcessing ? 'Đang xử lý...' : 'Gửi yêu cầu xác nhận thanh toán'}
               </button>
             </div>
           ) : (

@@ -1,81 +1,34 @@
 import express from 'express';
-import { supabase } from '../../../config/supabase.js';
-
+import { HttpError, requireId, requireText, rpc } from '../../http.js';
 const router = express.Router();
 
 router.get('/zones', async (req, res) => {
-    try {
-        const { data, error } = await supabase.from('parking_zones').select('*').order('created_at', { ascending: true });
-        if (error) throw error;
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+  const { data, error } = await req.db.from('parking_zones')
+    .select('id, zone_name, vehicle_type, total_capacity, current_occupancy').order('created_at');
+  if (error) throw error;
+  res.json(data || []);
 });
-
 router.get('/slots', async (req, res) => {
-    try {
-        const { data, error } = await supabase.from('parking_slots').select('*, vehicles(plate)');
-        if (error) throw error;
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+  const { data, error } = await req.db.from('parking_slots').select('id, zone_id, slot_name, status, vehicle_id, vehicles(plate)');
+  if (error) throw error;
+  res.json(data || []);
 });
-
 router.post('/zones', async (req, res) => {
-    try {
-        const { zone_name, vehicle_type, total_capacity } = req.body;
-        const capacity = parseInt(total_capacity);
-
-        const { data: newZone, error } = await supabase.from('parking_zones').insert([{ 
-            zone_name, 
-            vehicle_type,
-            total_capacity: capacity
-        }]).select();
-
-        if (error) throw error;
-
-        if (newZone && newZone.length > 0) {
-            const zoneId = newZone[0].id;
-            const prefix = zone_name.split(' ')[0] || 'A';
-            const slotsToInsert = [];
-            for (let i = 1; i <= capacity; i++) {
-                slotsToInsert.push({ zone_id: zoneId, slot_name: `${prefix}-${i}` });
-            }
-            await supabase.from('parking_slots').insert(slotsToInsert);
-        }
-
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+  const name = requireText(req.body.zone_name, 'Zone name', 80);
+  const type = requireText(req.body.vehicle_type, 'Vehicle type');
+  const capacity = Number(req.body.total_capacity);
+  if (!['Xe máy', 'Ô tô'].includes(type) || !Number.isInteger(capacity) || capacity < 1 || capacity > 1000) {
+    throw new HttpError(400, 'Select a vehicle type and a capacity between 1 and 1000.');
+  }
+  await rpc(req.db, 'create_parking_zone', { p_name: name, p_type: type, p_capacity: capacity });
+  res.json({ success: true });
 });
-
 router.delete('/zones/:id', async (req, res) => {
-    try {
-        const { error } = await supabase.from('parking_zones').delete().eq('id', req.params.id);
-        if (error) throw error;
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+  await rpc(req.db, 'delete_parking_zone', { p_zone_id: requireId(req.params.id) });
+  res.json({ success: true });
 });
-
 router.post('/zones/:id/slots', async (req, res) => {
-    try {
-        const { zone_name, total_capacity } = req.body;
-        const prefix = zone_name.split(' ')[0] || 'Z';
-        const slotsToInsert = [];
-        for (let i = 1; i <= total_capacity; i++) {
-            slotsToInsert.push({ zone_id: req.params.id, slot_name: `${prefix}-${i}` });
-        }
-        const { error } = await supabase.from('parking_slots').insert(slotsToInsert);
-        if (error) throw error;
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+  await rpc(req.db, 'initialize_parking_slots', { p_zone_id: requireId(req.params.id) });
+  res.json({ success: true });
 });
-
 export default router;

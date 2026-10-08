@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 
 export default function AdminPricing() {
@@ -10,7 +11,8 @@ export default function AdminPricing() {
   }, []);
 
   const fetchPricing = async () => {
-    const response = await fetch('http://localhost:5000/api/components/admin/AdminPricing');
+    const response = await apiFetch('/api/components/admin/AdminPricing');
+    if (!response.ok) return;
     const data = await response.json();
     setPricingConfigs(data || []);
   };
@@ -18,7 +20,7 @@ export default function AdminPricing() {
   const handleAddPricing = async (e) => {
     e.preventDefault();
     if (!newPlanType || !newPrice) return;
-    const response = await fetch('http://localhost:5000/api/components/admin/AdminPricing', {
+    const response = await apiFetch('/api/components/admin/AdminPricing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plan_type: newPlanType, price: parseFloat(newPrice) })
@@ -34,7 +36,7 @@ export default function AdminPricing() {
 
   const handleDeletePricing = async (id) => {
     if(window.confirm('Delete this pricing plan?')) {
-      const response = await fetch(`http://localhost:5000/api/components/admin/AdminPricing/${id}`, { method: 'DELETE' });
+      const response = await apiFetch(`/api/components/admin/AdminPricing/${id}`, { method: 'DELETE' });
       if (response.ok) fetchPricing();
     }
   };

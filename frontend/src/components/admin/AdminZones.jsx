@@ -1,3 +1,5 @@
+import { groupSlotsByZone } from '../../lib/slots';
+import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 import SlotInfoDialog from '../shared/SlotInfoDialog';
 
@@ -17,7 +19,7 @@ export default function AdminZones() {
   }, []);
 
   const fetchZones = async () => {
-    const response = await fetch('http://localhost:5000/api/components/admin/AdminZones/zones');
+    const response = await apiFetch('/api/components/admin/AdminZones/zones');
     if (response.ok) {
       const data = await response.json();
       setZones(data || []);
@@ -25,25 +27,11 @@ export default function AdminZones() {
   };
 
   const fetchSlots = async () => {
-    const response = await fetch('http://localhost:5000/api/components/admin/AdminZones/slots');
+    const response = await apiFetch('/api/components/admin/AdminZones/slots');
     if (response.ok) {
       const data = await response.json();
       if (data) {
-      const grouped = {};
-      data.forEach(s => {
-        if (!grouped[s.zone_id]) grouped[s.zone_id] = [];
-        grouped[s.zone_id].push(s);
-      });
-      
-      // Sort slots by name naturally
-      Object.keys(grouped).forEach(k => {
-        grouped[k].sort((a, b) => {
-          const numA = parseInt(a.slot_name.split('-')[1]) || 0;
-          const numB = parseInt(b.slot_name.split('-')[1]) || 0;
-          return numA - numB;
-        });
-      });
-      setSlotsByZone(grouped);
+      setSlotsByZone(groupSlotsByZone(data));
       }
     }
   };
@@ -53,7 +41,7 @@ export default function AdminZones() {
     if (!newZoneName || !newZoneCapacity) return;
     const capacity = parseInt(newZoneCapacity);
     
-    const response = await fetch('http://localhost:5000/api/components/admin/AdminZones/zones', {
+    const response = await apiFetch('/api/components/admin/AdminZones/zones', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ zone_name: newZoneName, vehicle_type: newZoneType, total_capacity: capacity })
@@ -71,7 +59,7 @@ export default function AdminZones() {
 
   const handleDeleteZone = async (id) => {
     if(window.confirm('Xóa khu vực này sẽ xóa toàn bộ danh sách Slot bên trong. Tiếp tục?')) {
-      const response = await fetch(`http://localhost:5000/api/components/admin/AdminZones/zones/${id}`, { method: 'DELETE' });
+      const response = await apiFetch(`/api/components/admin/AdminZones/zones/${id}`, { method: 'DELETE' });
       if (response.ok) {
         fetchZones();
         fetchSlots();
@@ -81,7 +69,7 @@ export default function AdminZones() {
 
   const generateMissingSlots = async (zone) => {
     if(window.confirm(`Tạo ${zone.total_capacity} vị trí đỗ cho ${zone.zone_name}?`)) {
-      const response = await fetch(`http://localhost:5000/api/components/admin/AdminZones/zones/${zone.id}/slots`, {
+      const response = await apiFetch(`/api/components/admin/AdminZones/zones/${zone.id}/slots`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ zone_name: zone.zone_name, total_capacity: zone.total_capacity })

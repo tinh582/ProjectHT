@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 
 export default function SlotInfoDialog({ slot, onClose }) {
@@ -15,7 +16,7 @@ export default function SlotInfoDialog({ slot, onClose }) {
 
   const fetchDetails = async () => {
     setLoading(true);
-    const response = await fetch(`http://localhost:5000/api/components/shared/SlotInfoDialog/${slot.vehicle_id}`);
+    const response = await apiFetch(`/api/components/shared/SlotInfoDialog/${slot.vehicle_id}`);
     if (response.ok) {
       const { vehicle, profile } = await response.json();
       if (vehicle) setVehicle(vehicle);
@@ -59,7 +60,7 @@ export default function SlotInfoDialog({ slot, onClose }) {
             <h3 style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>Thông tin Chủ xe</h3>
             {profile ? (
               <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '10px', fontSize: '14px' }}>
-                <b style={{ color: '#666' }}>Họ tên:</b> <span>{profile.full_name || 'Chưa cập nhật'}</span>
+                <b style={{ color: '#666' }}>Họ tên:</b> <span>{profile.name || 'Chưa cập nhật'}</span>
                 <b style={{ color: '#666' }}>Email:</b> <span>{profile.email}</span>
                 <b style={{ color: '#666' }}>ID:</b> <span style={{ fontSize: '11px', wordBreak: 'break-all' }}>{profile.id}</span>
               </div>

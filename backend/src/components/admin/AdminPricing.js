@@ -1,37 +1,29 @@
 import express from 'express';
-import { supabase } from '../../../config/supabase.js';
+import { HttpError, requireText, requireId } from '../../http.js';
 
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-    try {
-        const { data, error } = await supabase.from('pricing_configs').select('*').order('created_at', { ascending: true });
-        if (error) throw error;
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const { data, error } = await req.db.from('pricing_configs').select('*').order('created_at', { ascending: true });
+    if (error) throw error;
+    res.json(data);
 });
 
 router.post('/', async (req, res) => {
-    try {
-        const { plan_type, price } = req.body;
-        const { error } = await supabase.from('pricing_configs').insert([{ plan_type, price }]);
-        if (error) throw error;
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+    const plan_type = requireText(req.body.plan_type, 'Plan name');
+    const price = Number(req.body.price);
+    if (!Number.isFinite(price) || price < 0 || price > 1000000000 || req.body.price === null || req.body.price === '') {
+        throw new HttpError(400, 'Invalid price.');
     }
+    const { error } = await req.db.from('pricing_configs').insert([{ plan_type, price }]);
+    if (error) throw error;
+    res.json({ success: true });
 });
 
 router.delete('/:id', async (req, res) => {
-    try {
-        const { error } = await supabase.from('pricing_configs').delete().eq('id', req.params.id);
-        if (error) throw error;
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const { error } = await req.db.from('pricing_configs').delete().eq('id', requireId(req.params.id));
+    if (error) throw error;
+    res.json({ success: true });
 });
 
 export default router;

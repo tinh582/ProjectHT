@@ -1,15 +1,18 @@
+import { apiFetch } from '../../lib/api';
 import React, { useState } from 'react';
 
 export default function StaffCheckin() {
   const [plateInput, setPlateInput] = useState('');
   const [logMessage, setLogMessage] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleManualCheckIn = async (e) => {
     e.preventDefault();
-    if (!plateInput) return;
+    if (!plateInput || isProcessing) return;
+    setIsProcessing(true);
     
     try {
-      const response = await fetch('http://localhost:5000/api/components/staff/StaffCheckin', {
+      const response = await apiFetch('/api/components/staff/StaffCheckin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plateInput })
@@ -18,10 +21,13 @@ export default function StaffCheckin() {
         const data = await response.json();
         setLogMessage(data.logMessage || 'Lỗi không xác định');
       } else {
-        setLogMessage('❌ Lỗi kết nối đến server');
+        const data = await response.json();
+        setLogMessage(data.error || 'Không thể cập nhật phiên đỗ xe.');
       }
     } catch (error) {
       setLogMessage('❌ Lỗi kết nối đến server: ' + error.message);
+    } finally {
+      setIsProcessing(false);
     }
     
     setPlateInput('');
@@ -47,7 +53,7 @@ export default function StaffCheckin() {
             style={{ textTransform: 'uppercase', flex: 1 }} 
             required 
           />
-          <button type="submit" className="primary">Xác nhận</button>
+          <button type="submit" className="primary" disabled={isProcessing}>{isProcessing ? 'Đang xử lý...' : 'Xác nhận'}</button>
         </form>
         
         {logMessage && (

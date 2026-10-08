@@ -1,3 +1,5 @@
+import { groupSlotsByZone } from '../../lib/slots';
+import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 import SlotInfoDialog from '../shared/SlotInfoDialog';
 
@@ -15,26 +17,13 @@ export default function StaffSlotMap() {
   const fetchZonesAndSlots = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/components/staff/StaffSlotMap');
+      const response = await apiFetch('/api/components/staff/StaffSlotMap');
       if (response.ok) {
         const { zones: zData, slots: sData } = await response.json();
         if (zData) setZones(zData);
 
         if (sData) {
-          const grouped = {};
-          sData.forEach(s => {
-            if (!grouped[s.zone_id]) grouped[s.zone_id] = [];
-            grouped[s.zone_id].push(s);
-          });
-          
-          Object.keys(grouped).forEach(k => {
-            grouped[k].sort((a, b) => {
-              const numA = parseInt(a.slot_name.split('-')[1]) || 0;
-              const numB = parseInt(b.slot_name.split('-')[1]) || 0;
-              return numA - numB;
-            });
-          });
-          setSlotsByZone(grouped);
+          setSlotsByZone(groupSlotsByZone(sData));
         }
       }
     } catch (err) {

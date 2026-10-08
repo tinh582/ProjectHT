@@ -1,23 +1,29 @@
+import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
+import Pagination from '../shared/Pagination';
 
 export default function StaffSupport() {
   const [transactions, setTransactions] = useState([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 25;
 
   useEffect(() => {
     fetchTransactions();
-  }, []);
+  }, [page]);
 
   const fetchTransactions = async () => {
-    const response = await fetch('http://localhost:5000/api/components/staff/StaffSupport');
+    const response = await apiFetch(`/api/components/staff/StaffSupport?page=${page}&pageSize=${pageSize}`);
     if (response.ok) {
       const data = await response.json();
-      setTransactions(data || []);
+      setTransactions(data.items);
+      setTotal(data.total);
     }
   };
 
   const handleUpdateStatus = async (id, status) => {
     if (window.confirm(`Xác nhận chuyển trạng thái thành ${status}?`)) {
-      const response = await fetch(`http://localhost:5000/api/components/staff/StaffSupport/${id}/status`, {
+      const response = await apiFetch(`/api/components/staff/StaffSupport/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
@@ -67,10 +73,10 @@ export default function StaffSupport() {
                   </span>
                 </td>
                 <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
-                  {t.status !== 'completed' && (
+                  {t.status === 'pending' && (
                     <button className="primary" onClick={() => handleUpdateStatus(t.id, 'completed')} style={{ padding: '6px 10px', fontSize: '10px' }}>Xác nhận</button>
                   )}
-                  {t.status !== 'refunded' && (
+                  {t.status === 'completed' && (
                     <button className="secondary" onClick={() => handleUpdateStatus(t.id, 'refunded')} style={{ padding: '6px 10px', fontSize: '10px', color: 'red' }}>Hoàn tiền</button>
                   )}
                 </td>
@@ -78,6 +84,7 @@ export default function StaffSupport() {
             ))}
           </tbody>
         </table>
+        <Pagination page={page} pageSize={pageSize} total={total} onChange={setPage} />
       </div>
     </div>
   );
