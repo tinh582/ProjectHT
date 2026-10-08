@@ -20,9 +20,11 @@ before(async () => {
 });
 after(async () => { await db?.close(); });
 beforeEach(async () => {
-  await db.exec('truncate notifications, transactions, parking_sessions, parking_slots, vehicles, parking_zones, pricing_configs, profiles cascade');
-  owner = (await row("insert into profiles(name) values('Owner') returning id")).id;
-  other = (await row("insert into profiles(name) values('Other') returning id")).id;
+  await db.exec('truncate notifications, transactions, parking_sessions, parking_slots, vehicles, parking_zones, pricing_configs, profiles, auth.users cascade');
+  owner = (await row('insert into auth.users default values returning id')).id;
+  await db.query("insert into profiles(id, name) values($1, 'Owner')", [owner]);
+  other = (await row('insert into auth.users default values returning id')).id;
+  await db.query("insert into profiles(id, name) values($1, 'Other')", [other]);
   vehicle = (await row("insert into vehicles(user_id, plate, type) values($1, 'TEST-1', 'car') returning id", [owner])).id;
   secondVehicle = (await row("insert into vehicles(user_id, plate, type) values($1, 'TEST-2', 'car') returning id", [other])).id;
   zone = (await row("insert into parking_zones(zone_name, vehicle_type, total_capacity, current_occupancy) values('A', 'car', 10, 0) returning id")).id;
@@ -67,7 +69,7 @@ test('payment requests use database prices, stay pending, and deduplicate retrie
 
 test('check-out decrements the actual zone, including manual close, and is not repeated', async () => {
   await reserve(owner, vehicle, slot);
-  await db.query("insert into transactions(user_id, status, amount) values($1, 'completed', 200000)", [owner]);
+  await db.query("insert into transactions(user_id, status, amount, plan_name) values($1, 'completed', 200000, 'Monthly')", [owner]);
   await transition();
   assert.equal((await row('select current_occupancy from parking_zones where id = $1', [zone])).current_occupancy, 1);
   await assert.rejects(reserve(owner, vehicle, secondSlot), /parked vehicle/);
@@ -81,7 +83,7 @@ test('check-out decrements the actual zone, including manual close, and is not r
 
 test('a failure in the final notification rolls back the entire parking operation', async () => {
   await reserve(owner, vehicle, slot);
-  await db.query("insert into transactions(user_id, status, amount) values($1, 'completed', 200000)", [owner]);
+  await db.query("insert into transactions(user_id, status, amount, plan_name) values($1, 'completed', 200000, 'Monthly')", [owner]);
   await db.exec("alter table notifications add constraint reject_parking_notification check(title <> 'Parking update')");
   try {
     await assert.rejects(transition(), /reject_parking_notification/);
@@ -111,10 +113,10 @@ test('slot initialization is repeatable and zone deletion rejects reservations',
 });
 
 test('reports aggregate a seven-day window using the configured local day', async () => {
-  await db.query(`insert into transactions(user_id,status,amount,created_at) values
-    ($1,'completed',100,now()), ($1,'pending',900,now()),
-    ($1,'completed',200,now() - interval '20 days'),
-    ($1,'completed',50, ((now() at time zone 'Asia/Ho_Chi_Minh')::date)::timestamp at time zone 'Asia/Ho_Chi_Minh')`, [owner]);
+  await db.query(`insert into transactions(user_id,status,amount,created_at,plan_name) values
+    ($1,'completed',100,now(),'Monthly'), ($1,'pending',900,now(),'Monthly'),
+    ($1,'completed',200,now() - interval '20 days','Monthly'),
+    ($1,'completed',50, ((now() at time zone 'Asia/Ho_Chi_Minh')::date)::timestamp at time zone 'Asia/Ho_Chi_Minh','Monthly')`, [owner]);
   const { report } = await row("select parking_report('Asia/Ho_Chi_Minh') as report");
   assert.equal(report.todayRevenue, 150);
   assert.equal(report.reportData.length, 7);
@@ -130,8 +132,8 @@ test('unique constraints prevent duplicate active sessions and duplicate plates'
 
 test('subscriptions and revenue start at confirmation, not the original request date', async () => {
   await reserve(owner, vehicle, slot);
-  await db.query(`insert into transactions(user_id,status,amount,created_at,confirmed_at)
-    values($1,'completed',300,now() - interval '40 days',now())`, [owner]);
+  await db.query(`insert into transactions(user_id,status,amount,created_at,confirmed_at,plan_name)
+    values($1,'completed',300,now() - interval '40 days',now(),'Monthly')`, [owner]);
   assert.match((await transition()).result.message, /CHECK-IN/);
   assert.equal((await row("select parking_report('Asia/Ho_Chi_Minh') as report")).report.todayRevenue, 300);
 });

@@ -22,7 +22,7 @@ Existing frontend Supabase environment variables are no longer used. In producti
 
 ## Database migration
 
-The repository does not contain an export of the deployed database. The migration targets the tables and columns used by the original application: `profiles`, `vehicles`, `parking_zones`, `parking_slots`, `parking_sessions`, `pricing_configs`, `transactions`, and `notifications`. Verify compatibility with the real schema before applying it. The migration has been tested against the representative PostgreSQL schema in `backend/test/schema.sql`; that fixture is **not** a production schema installer.
+The migration targets `profiles`, `vehicles`, `parking_zones`, `parking_slots`, `parking_sessions`, `pricing_configs`, `transactions`, and `notifications`. The local fixture in `backend/test/schema.sql` now reflects the supplied column defaults, nullability, constraints and foreign keys, including references to `auth.users`. The supplied trigger inspection returned no custom triggers. The fixture is **not** a production schema installer: it uses a minimal Auth table and a test replacement for `uuid_generate_v4()`. Existing live data and any additional database functions have not been inspected.
 
 The migration:
 
@@ -32,7 +32,7 @@ The migration:
 - Adds a database-side report function and indexes. Reports use `REPORT_TIME_ZONE` (default `Asia/Ho_Chi_Minh`).
 - Revokes direct table access from `PUBLIC`, `anon` and `authenticated`. Only the backend service role may call the new mutation functions. Deploy this migration together with the updated API; older clients that access those tables directly will stop working.
 
-Existing custom database functions, triggers and policies are outside this repository and must be checked against this access model. A profile with role `admin` must already exist for administration; registration always creates a regular user. Removing a profile blocks this API's access but does not delete its Supabase Auth account.
+Existing custom database functions and any policies beyond those supplied are outside this repository and must be checked against this access model. A profile with role `admin` must already exist for administration; registration always creates a regular user. The database's existing `customer` role is accepted as ordinary `user` access without rewriting profile records. Removing a profile blocks this API's access but does not delete its Supabase Auth account; the supplied foreign key also cascades deletion to that profile's transactions.
 
 ## Payment behavior
 

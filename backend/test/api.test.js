@@ -12,7 +12,7 @@ function fakeClients() {
     createAuthClient() {
       authClients++;
       return { auth: {
-        async getUser(token) { return { data: { user: ['admin', 'staff', 'user'].includes(token) ? { id: token } : null } }; },
+        async getUser(token) { return { data: { user: ['admin', 'staff', 'user', 'customer'].includes(token) ? { id: token } : null } }; },
         async signInWithPassword(credentials) { calls.push({ login: credentials }); return { data: { user: { id: 'user' }, session: { access_token: 'user' } } }; },
       } };
     },
@@ -64,6 +64,15 @@ test('role gates apply before database access to admin and staff data', async ()
   assert.equal((await request('staff/StaffSupport')).status, 403);
   assert.equal((await request('shared/SlotInfoDialog/vehicle')).status, 403);
   assert.equal((await request('staff/StaffSupport', { token: 'staff' })).status, 200);
+}));
+
+test('existing customer profiles retain ordinary user access without elevated permissions', async () => withApi(async request => {
+  const response = await request('AppAuth', { token: 'customer' });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).role, 'user');
+  assert.equal((await request('user/Dashboard/vehicles/customer', { token: 'customer' })).status, 200);
+  assert.equal((await request('admin/AdminUsers', { token: 'customer' })).status, 403);
+  assert.equal((await request('staff/StaffSupport', { token: 'customer' })).status, 403);
 }));
 
 test('account IDs in URLs cannot access another account', async () => withApi(async request => {

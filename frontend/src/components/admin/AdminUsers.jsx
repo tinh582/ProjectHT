@@ -1,11 +1,13 @@
 import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 import Pagination from '../shared/Pagination';
+import { readPage } from '../../lib/pagination';
 
 export default function AdminUsers({ session }) {
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState('');
   const pageSize = 25;
   const [editingUser, setEditingUser] = useState(null);
   const [editName, setEditName] = useState('');
@@ -16,12 +18,17 @@ export default function AdminUsers({ session }) {
   }, [page]);
 
   const fetchUsers = async () => {
-    const response = await apiFetch(`/api/components/admin/AdminUsers?page=${page}&pageSize=${pageSize}`);
-    if (!response.ok) return;
-    const data = await response.json();
-    setUsers(data.items);
-    setTotal(data.total);
-    if (page > 1 && data.items.length === 0) setPage(page - 1);
+    setError('');
+    try {
+      const response = await apiFetch(`/api/components/admin/AdminUsers?page=${page}&pageSize=${pageSize}`);
+      if (!response.ok) return;
+      const data = readPage(await response.json(), page, pageSize);
+      setUsers(data.items);
+      setTotal(data.total);
+      if (page > 1 && data.items.length === 0) setPage(page - 1);
+    } catch (error) {
+      setError(error.message);
+    }
   };
 
   const handleRoleChange = async (userId, newRole) => {
@@ -75,6 +82,7 @@ export default function AdminUsers({ session }) {
         </div>
       </div>
       <div className="panel">
+        {error && <p className="error" role="alert">{error}</p>}
         <p style={{ color: '#666', marginBottom: '15px' }}>Danh sách tài khoản trong hệ thống. Để đổi quyền (role) cho tài khoản (thành Admin/Staff), hãy chọn trong danh sách thả xuống.</p>
         <table className="data-table">
           <thead>
@@ -93,7 +101,7 @@ export default function AdminUsers({ session }) {
                 <td>{u.email || '-'}</td>
                 <td>
                   <select 
-                    value={u.role || 'user'} 
+                    value={u.role === 'customer' ? 'user' : (u.role || 'user')}
                     onChange={(e) => handleRoleChange(u.id, e.target.value)}
                     style={{ 
                       background: u.role === 'admin' ? '#ffebee' : u.role === 'staff' ? '#e3f2fd' : '#e8f5e9',

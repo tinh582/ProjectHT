@@ -11,9 +11,10 @@ export function authenticate({ db, createAuthClient }) {
     if (error || !data?.user) throw new HttpError(401, 'Your session has expired. Please sign in again.');
     const { data: profile, error: profileError } = await db.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
     if (profileError) throw profileError;
-    if (!profile || !['user', 'staff', 'admin'].includes(profile.role)) throw new HttpError(403, 'Your account does not have access.');
+    const role = profile?.role === 'customer' ? 'user' : profile?.role;
+    if (!['user', 'staff', 'admin'].includes(role)) throw new HttpError(403, 'Your account does not have access.');
     req.user = data.user;
-    req.role = profile.role;
+    req.role = role;
     next();
   };
 }

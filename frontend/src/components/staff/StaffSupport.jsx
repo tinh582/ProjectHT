@@ -1,11 +1,13 @@
 import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 import Pagination from '../shared/Pagination';
+import { readPage } from '../../lib/pagination';
 
 export default function StaffSupport() {
   const [transactions, setTransactions] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState('');
   const pageSize = 25;
 
   useEffect(() => {
@@ -13,11 +15,17 @@ export default function StaffSupport() {
   }, [page]);
 
   const fetchTransactions = async () => {
-    const response = await apiFetch(`/api/components/staff/StaffSupport?page=${page}&pageSize=${pageSize}`);
-    if (response.ok) {
-      const data = await response.json();
-      setTransactions(data.items);
-      setTotal(data.total);
+    setError('');
+    try {
+      const response = await apiFetch(`/api/components/staff/StaffSupport?page=${page}&pageSize=${pageSize}`);
+      if (response.ok) {
+        const data = readPage(await response.json(), page, pageSize);
+        setTransactions(data.items);
+        setTotal(data.total);
+        if (page > 1 && data.items.length === 0) setPage(page - 1);
+      }
+    } catch (error) {
+      setError(error.message);
     }
   };
 
@@ -41,6 +49,7 @@ export default function StaffSupport() {
         </div>
       </div>
       <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #eaeaea' }}>
+        {error && <p className="error" role="alert">{error}</p>}
         <p style={{ color: '#666', marginBottom: '20px' }}>Danh sách các giao dịch gần đây. Nhân viên có thể hỗ trợ xác nhận thanh toán lỗi hoặc hoàn tiền.</p>
         <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
           <thead>
