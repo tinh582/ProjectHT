@@ -14,35 +14,35 @@ export default function StaffCamera() {
           <h1>Giám sát Camera & Làn xe<span>.</span></h1>
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-        <div style={{ background: '#0a0a0a', height: '280px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', border: '2px solid #222', position: 'relative' }}>
-          <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 10, alignItems: 'center' }}>
-            <span style={{ width: 8, height: 8, background: 'red', borderRadius: '50%', display: 'inline-block' }}></span> 
-            <span style={{ fontSize: '11px', letterSpacing: '1px' }}>LÀN VÀO - CAM 1</span>
+      <div className="camera-monitor-grid">
+        <div className="camera-monitor-feed">
+          <div className="camera-monitor-label">
+            <span className="camera-monitor-live"></span>
+            <span className="camera-monitor-lane">LÀN VÀO - CAM 1</span>
           </div>
-          <span style={{ fontSize: '40px', opacity: 0.2 }}>🎥</span>
-          <p style={{ color: '#666', fontSize: '12px', marginTop: '10px' }}>Tín hiệu đang truyền tải...</p>
+          <span className="camera-monitor-icon">🎥</span>
+          <p className="camera-monitor-placeholder">Tín hiệu đang truyền tải...</p>
         </div>
-        <div style={{ background: '#0a0a0a', height: '280px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', border: '2px solid #222', position: 'relative' }}>
-          <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 10, alignItems: 'center' }}>
-            <span style={{ width: 8, height: 8, background: 'red', borderRadius: '50%', display: 'inline-block' }}></span> 
-            <span style={{ fontSize: '11px', letterSpacing: '1px' }}>LÀN RA - CAM 2</span>
+        <div className="camera-monitor-feed">
+          <div className="camera-monitor-label">
+            <span className="camera-monitor-live"></span>
+            <span className="camera-monitor-lane">LÀN RA - CAM 2</span>
           </div>
-          <span style={{ fontSize: '40px', opacity: 0.2 }}>🎥</span>
-          <p style={{ color: '#666', fontSize: '12px', marginTop: '10px' }}>Tín hiệu đang truyền tải...</p>
+          <span className="camera-monitor-icon">🎥</span>
+          <p className="camera-monitor-placeholder">Tín hiệu đang truyền tải...</p>
         </div>
       </div>
-      <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #eaeaea', marginTop: '20px' }}>
-        <h3 style={{ marginTop: 0 }}>Nhật ký AI Nhận diện (Mô phỏng)</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
+      <div className="camera-events-panel">
+        <h3 className="camera-events-title">Nhật ký AI Nhận diện (Mô phỏng)</h3>
+        <div className="camera-events-list">
           {cameraEvents.map(ev => (
-            <div key={ev.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: '#f5f7f5', borderRadius: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <span style={{ background: ev.type === 'IN' ? '#e2f0e5' : '#f0e2e2', color: ev.type === 'IN' ? '#2a5340' : '#8c2b2b', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' }}>{ev.type}</span>
+            <div key={ev.id} className="camera-event">
+              <div className="camera-event-vehicle">
+                <span className={`camera-event-direction ${ev.type === 'IN' ? 'is-in' : 'is-out'}`}>{ev.type}</span>
                 <span className="plate">{ev.plate}</span>
               </div>
-              <div style={{ display: 'flex', gap: '20px', fontSize: '12px', color: '#666' }}>
-                <span>Độ chính xác: <b style={{ color: ev.confidence > 90 ? 'green' : 'orange' }}>{ev.confidence}%</b></span>
+              <div className="camera-event-details">
+                <span>Độ chính xác: <b className={`camera-event-confidence ${ev.confidence > 90 ? 'is-high' : 'is-low'}`}>{ev.confidence}%</b></span>
                 <span>{ev.time}</span>
               </div>
             </div>

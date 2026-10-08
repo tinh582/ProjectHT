@@ -28,16 +28,12 @@ export default function SlotInfoDialog({ slot, onClose }) {
   if (!slot) return null;
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: '#fff', padding: '30px', borderRadius: '12px', width: '400px', maxWidth: '90vw', position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✕</button>
-        
-        <h2 style={{ marginTop: 0, marginBottom: '5px' }}>Vị trí: {slot.slot_name}</h2>
-        <span style={{ 
-          display: 'inline-block', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px',
-          background: slot.status === 'empty' ? '#f0f0f0' : (slot.status === 'rented' ? '#fef9c3' : '#fee2e2'),
-          color: slot.status === 'empty' ? '#666' : (slot.status === 'rented' ? '#b45309' : '#b91c1c')
-        }}>
+    <div className="slot-info-overlay">
+      <div className="slot-info-dialog">
+        <button onClick={onClose} className="slot-info-close">✕</button>
+
+        <h2 className="slot-info-title">Vị trí: {slot.slot_name}</h2>
+        <span className={`slot-info-status ${slot.status === 'empty' ? 'is-empty' : slot.status === 'rented' ? 'is-rented' : 'is-occupied'}`}>
           {slot.status === 'empty' ? 'TRỐNG' : (slot.status === 'rented' ? 'ĐÃ THUÊ (Khách chưa vào bãi)' : 'ĐANG ĐỖ (Xe đang trong bãi)')}
         </span>
 
@@ -45,31 +41,31 @@ export default function SlotInfoDialog({ slot, onClose }) {
           <p>Đang tải thông tin...</p>
         ) : slot.vehicle_id && vehicle ? (
           <div>
-            <h3 style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>Thông tin Phương tiện</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '10px', fontSize: '14px', marginBottom: '20px' }}>
-              <b style={{ color: '#666' }}>Biển số:</b> <span style={{ fontWeight: 'bold', color: '#2a5340' }}>{vehicle.plate}</span>
-              <b style={{ color: '#666' }}>Loại xe:</b> <span>{vehicle.type}</span>
-              <b style={{ color: '#666' }}>Hiệu xe:</b> <span>{vehicle.brand} {vehicle.model}</span>
-              <b style={{ color: '#666' }}>Màu sắc:</b> <span>{vehicle.color}</span>
+            <h3 className="slot-info-section-title">Thông tin Phương tiện</h3>
+            <div className="slot-info-vehicle-details">
+              <b className="slot-info-label">Biển số:</b> <span className="slot-info-plate">{vehicle.plate}</span>
+              <b className="slot-info-label">Loại xe:</b> <span>{vehicle.type}</span>
+              <b className="slot-info-label">Hiệu xe:</b> <span>{vehicle.brand} {vehicle.model}</span>
+              <b className="slot-info-label">Màu sắc:</b> <span>{vehicle.color}</span>
             </div>
 
             {vehicle.image && (
-              <img src={vehicle.image} alt="Xe" style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '8px', marginBottom: '20px' }} />
+              <img src={vehicle.image} alt="Xe" className="slot-info-image" />
             )}
 
-            <h3 style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>Thông tin Chủ xe</h3>
+            <h3 className="slot-info-section-title">Thông tin Chủ xe</h3>
             {profile ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '10px', fontSize: '14px' }}>
-                <b style={{ color: '#666' }}>Họ tên:</b> <span>{profile.name || 'Chưa cập nhật'}</span>
-                <b style={{ color: '#666' }}>Email:</b> <span>{profile.email}</span>
-                <b style={{ color: '#666' }}>ID:</b> <span style={{ fontSize: '11px', wordBreak: 'break-all' }}>{profile.id}</span>
+              <div className="slot-info-owner-details">
+                <b className="slot-info-label">Họ tên:</b> <span>{profile.name || 'Chưa cập nhật'}</span>
+                <b className="slot-info-label">Email:</b> <span>{profile.email}</span>
+                <b className="slot-info-label">ID:</b> <span className="slot-info-owner-id">{profile.id}</span>
               </div>
             ) : (
-              <p style={{ color: '#888', fontStyle: 'italic' }}>Không tải được thông tin chủ xe.</p>
+              <p className="slot-info-unavailable">Không tải được thông tin chủ xe.</p>
             )}
           </div>
         ) : (
-          <div style={{ padding: '30px 0', textAlign: 'center', color: '#888' }}>
+          <div className="slot-info-empty">
             Vị trí này hiện đang trống, chưa có khách hàng nào thuê.
           </div>
         )}

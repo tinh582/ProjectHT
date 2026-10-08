@@ -66,76 +66,66 @@ export default function UserPayment({ session, fetchNotifications }) {
         </div>
       </div>
 
-      <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #eaeaea', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="payment-account">
         <div>
-          <h3 style={{ margin: '0 0 5px' }}>Trạng thái tài khoản</h3>
-          <p style={{ margin: 0, color: '#666' }}>
+          <h3 className="payment-account-title">Trạng thái tài khoản</h3>
+          <p className="payment-account-description">
             {expiryDate ? (
               isExpired ? (
-                <span style={{ color: 'red' }}>Thẻ của bạn đã hết hạn vào ngày {expiryDate.toLocaleDateString()}. Vui lòng gia hạn!</span>
+                <span className="payment-expired">Thẻ của bạn đã hết hạn vào ngày {expiryDate.toLocaleDateString()}. Vui lòng gia hạn!</span>
               ) : (
-                <span>Thẻ của bạn có hiệu lực đến: <b style={{ color: 'green' }}>{expiryDate.toLocaleDateString()}</b></span>
+                <span>Thẻ của bạn có hiệu lực đến: <b className="payment-valid">{expiryDate.toLocaleDateString()}</b></span>
               )
             ) : (
-              <span style={{ color: 'red' }}>Bạn chưa mua thẻ đỗ xe. Xe của bạn sẽ không được phép qua cổng.</span>
+              <span className="payment-expired">Bạn chưa mua thẻ đỗ xe. Xe của bạn sẽ không được phép qua cổng.</span>
             )}
           </p>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '30px' }}>
-        <div style={{ flex: 1 }}>
-          <h3 style={{ marginTop: 0 }}>Chọn gói cước</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      <div className="payment-columns">
+        <div className="payment-column">
+          <h3 className="payment-section-title">Chọn gói cước</h3>
+          <div className="payment-plans">
             {pricingConfigs.map(p => (
-              <div 
-                key={p.id} 
+              <div
+                key={p.id}
                 onClick={() => setSelectedPlan(p)}
-                style={{ 
-                  padding: '20px', 
-                  border: selectedPlan?.id === p.id ? '2px solid #2a5340' : '1px solid #eaeaea',
-                  borderRadius: '12px',
-                  background: selectedPlan?.id === p.id ? '#f2f8f4' : '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
+                className={`payment-plan ${selectedPlan?.id === p.id ? 'is-selected' : 'is-unselected'}`}
+>
                 <div>
-                  <h4 style={{ margin: '0 0 5px' }}>{p.plan_type}</h4>
-                  <p style={{ margin: 0, color: '#666', fontSize: '13px' }}>Gia hạn (30 ngày)</p>
+                  <h4 className="payment-plan-title">{p.plan_type}</h4>
+                  <p className="payment-plan-description">Gia hạn (30 ngày)</p>
                 </div>
-                <strong style={{ fontSize: '18px', color: '#2a5340' }}>{p.price.toLocaleString()} đ</strong>
+                <strong className="payment-price">{p.price.toLocaleString()} đ</strong>
               </div>
             ))}
           </div>
         </div>
 
-        <div style={{ flex: 1 }}>
-          <h3 style={{ marginTop: 0 }}>Quét mã thanh toán</h3>
+        <div className="payment-column">
+          <h3 className="payment-section-title">Quét mã thanh toán</h3>
           {selectedPlan ? (
-            <div style={{ background: '#fff', padding: '30px', borderRadius: '12px', border: '1px solid #eaeaea', textAlign: 'center' }}>
+            <div className="payment-checkout">
               {paymentBank && paymentAccount ? <><img
                 src={`https://img.vietqr.io/image/${encodeURIComponent(paymentBank)}-${encodeURIComponent(paymentAccount)}-compact2.jpg?amount=${selectedPlan.price}&addInfo=${encodeURIComponent(`Thanh toan the xe ${session.user.id.substring(0, 8)}`)}`}
-                alt="QR Code" 
-                style={{ width: '250px', height: '250px', margin: '0 auto', display: 'block' }} 
+                alt="QR Code"
+                className="payment-qr"
               />
-              <p style={{ marginTop: '20px', color: '#666' }}>Quét mã bằng ứng dụng ngân hàng.<br/>Nội dung: <b>Thanh toan the xe {session.user.id.substring(0, 8)}</b></p></>
+              <p className="payment-instructions">Quét mã bằng ứng dụng ngân hàng.<br/>Nội dung: <b>Thanh toan the xe {session.user.id.substring(0, 8)}</b></p></>
                 : <p>Vui lòng liên hệ nhân viên để được hướng dẫn thanh toán.</p>}
               <p>Thẻ có hiệu lực sau khi nhân viên xác nhận đã nhận tiền.</p>
-              
-              <button 
-                className="primary" 
-                onClick={handlePayment} 
+
+              <button
+                className="primary payment-submit"
+                onClick={handlePayment}
                 disabled={isProcessing}
-                style={{ width: '100%', marginTop: '15px', padding: '15px' }}
-              >
+>
                 {isProcessing ? 'Đang xử lý...' : 'Gửi yêu cầu xác nhận thanh toán'}
               </button>
             </div>
           ) : (
-            <div style={{ background: '#fafafa', padding: '50px', borderRadius: '12px', border: '1px dashed #ccc', textAlign: 'center', color: '#888' }}>
+            <div className="payment-placeholder">
               Vui lòng chọn một gói cước bên trái để hiển thị mã QR.
             </div>
           )}

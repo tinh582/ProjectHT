@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 export default function AdminReports() {
   const [reportData, setReportData] = useState([]);
   const [todayRevenue, setTodayRevenue] = useState(0);
-  
+
   const [todayTraffic, setTodayTraffic] = useState(0);
   const [activeSessions, setActiveSessions] = useState(0);
   const [availableSpots, setAvailableSpots] = useState(0);
@@ -41,9 +41,9 @@ export default function AdminReports() {
         <div><span>Lượt xe ra vào</span><strong>{todayTraffic}</strong><small>Đang hoạt động: {activeSessions}</small></div>
         <div><span>Chỗ trống hiện tại</span><strong>{availableSpots.toLocaleString()}</strong><small>Tỷ lệ lấp đầy: {occupancyRate}%</small></div>
       </div>
-      
-      <div style={{ background: '#fff', padding: '25px', borderRadius: '12px', border: '1px solid #eaeaea', height: '400px' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Biểu đồ doanh thu 7 ngày qua</h3>
+
+      <div className="report-chart-panel">
+        <h3 className="report-chart-title">Biểu đồ doanh thu 7 ngày qua</h3>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={reportData}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />

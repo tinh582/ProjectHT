@@ -10,7 +10,7 @@ export default function StaffCheckin() {
     e.preventDefault();
     if (!plateInput || isProcessing) return;
     setIsProcessing(true);
-    
+
     try {
       const response = await apiFetch('/api/components/staff/StaffCheckin', {
         method: 'POST',
@@ -29,7 +29,7 @@ export default function StaffCheckin() {
     } finally {
       setIsProcessing(false);
     }
-    
+
     setPlateInput('');
   };
 
@@ -41,23 +41,23 @@ export default function StaffCheckin() {
           <h1>Nhập liệu thủ công<span>.</span></h1>
         </div>
       </div>
-      
-      <div style={{ background: '#fff', padding: '25px', borderRadius: '12px', border: '1px solid #eaeaea', maxWidth: '600px' }}>
-        <p style={{ color: '#666', marginBottom: '20px' }}>Nhập biển số xe (VD: 81-AA12876) để thực hiện check-in hoặc check-out thủ công.</p>
-        <form onSubmit={handleManualCheckIn} style={{ display: 'flex', gap: '10px' }}>
-          <input 
-            type="text" 
-            value={plateInput} 
-            onChange={e => setPlateInput(e.target.value)} 
-            placeholder="Nhập biển số xe..." 
-            style={{ textTransform: 'uppercase', flex: 1 }} 
-            required 
+
+      <div className="checkin-panel">
+        <p className="staff-description">Nhập biển số xe (VD: 81-AA12876) để thực hiện check-in hoặc check-out thủ công.</p>
+        <form onSubmit={handleManualCheckIn} className="checkin-form">
+          <input
+            type="text"
+            value={plateInput}
+            onChange={e => setPlateInput(e.target.value)}
+            placeholder="Nhập biển số xe..."
+            className="checkin-plate-input"
+            required
           />
           <button type="submit" className="primary" disabled={isProcessing}>{isProcessing ? 'Đang xử lý...' : 'Xác nhận'}</button>
         </form>
-        
+
         {logMessage && (
-          <div style={{ marginTop: '20px', padding: '15px', background: logMessage.includes('❌') ? '#feebeb' : '#edf2e7', color: logMessage.includes('❌') ? '#b33a32' : '#2a5340', borderRadius: '8px', fontWeight: '500' }}>
+          <div className={`checkin-message ${logMessage.includes('❌') ? 'is-error' : 'is-success'}`}>
             {logMessage}
           </div>
         )}

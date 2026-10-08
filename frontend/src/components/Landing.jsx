@@ -1,5 +1,4 @@
 import React from 'react';
-import './Landing.css';
 
 export default function Landing({ onSwitchToLogin, onSwitchToRegister }) {
   return (
@@ -50,7 +49,7 @@ export default function Landing({ onSwitchToLogin, onSwitchToRegister }) {
           </div>
         </div>
       </section>
-      
+
       {/* Footer */}
       <footer className="landing-footer">
         <p>&copy; 2026 HT Parking. Nền tảng quản lý bãi đỗ xe hàng đầu.</p>

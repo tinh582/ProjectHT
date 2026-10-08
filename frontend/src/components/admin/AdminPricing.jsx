@@ -49,34 +49,34 @@ export default function AdminPricing() {
           <h1>Thiết lập giá<span>.</span></h1>
         </div>
       </div>
-      <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #eaeaea' }}>
-        <form onSubmit={handleAddPricing} style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', marginBottom: '20px' }}>
-          <label style={{ flex: 1 }}>Gói (vd: Thẻ tháng Ô tô)
+      <div className="records-panel">
+        <form onSubmit={handleAddPricing} className="pricing-form">
+          <label className="pricing-field">Gói (vd: Thẻ tháng Ô tô)
             <input value={newPlanType} onChange={e => setNewPlanType(e.target.value)} required />
           </label>
-          <label style={{ flex: 1 }}>Giá (VNĐ)
+          <label className="pricing-field">Giá (VNĐ)
             <input type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} required />
           </label>
-          <button type="submit" className="primary" style={{ marginBottom: '8px' }}>Thêm</button>
+          <button type="submit" className="primary admin-add-button">Thêm</button>
         </form>
-        
-        <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+
+        <table className="records-table">
           <thead>
-            <tr style={{ borderBottom: '2px solid #eaeaea', background: '#f9faf9' }}>
-              <th style={{ padding: '12px' }}>Gói cước</th>
-              <th style={{ padding: '12px' }}>Đơn giá (VNĐ)</th>
-              <th style={{ padding: '12px', width: '80px' }}>Hành động</th>
+            <tr className="records-heading">
+              <th className="records-cell">Gói cước</th>
+              <th className="records-cell">Đơn giá (VNĐ)</th>
+              <th className="pricing-actions-heading">Hành động</th>
             </tr>
           </thead>
           <tbody>
             {pricingConfigs.length === 0 ? (
-              <tr><td colSpan="3" style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Chưa có cấu hình giá nào.</td></tr>
+              <tr><td colSpan="3" className="records-empty">Chưa có cấu hình giá nào.</td></tr>
             ) : pricingConfigs.map(p => (
-              <tr key={p.id} style={{ borderBottom: '1px solid #eaeaea' }}>
-                <td style={{ padding: '12px', fontWeight: '500' }}>{p.plan_type}</td>
-                <td style={{ padding: '12px', color: '#2a5340' }}>{p.price.toLocaleString()} đ</td>
-                <td style={{ padding: '12px' }}>
-                  <button onClick={() => handleDeletePricing(p.id)} className="text-button" style={{ color: 'red', padding: 0 }}>Xóa</button>
+              <tr key={p.id} className="records-row">
+                <td className="pricing-plan-cell">{p.plan_type}</td>
+                <td className="pricing-price-cell">{p.price.toLocaleString()} đ</td>
+                <td className="records-cell">
+                  <button onClick={() => handleDeletePricing(p.id)} className="text-button pricing-delete-button">Xóa</button>
                 </td>
               </tr>
             ))}

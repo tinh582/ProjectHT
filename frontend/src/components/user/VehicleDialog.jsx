@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit }) {
   const [loading, setLoading] = useState(false);
   const [imageBase64, setImageBase64] = useState(null);
-  
+
   const isEditMode = !!vehicleToEdit;
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     const formData = new FormData(e.target);
     const vehicle = {
       user_id: userId,
@@ -63,12 +63,12 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
           body: JSON.stringify({ vehicle })
         });
       }
-      
+
       if (!response.ok) {
         const err = await response.json();
         throw new Error(err.error || 'Server error');
       }
-      
+
       onSaved();
       onClose();
     } catch (error) {
@@ -87,7 +87,7 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
           </label>
           {imageBase64 && (
             <div className="image-preview">
-              <img src={imageBase64} alt="Preview" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '8px' }} />
+              <img src={imageBase64} alt="Preview" className="vehicle-dialog-preview" />
             </div>
           )}
           <label>Loại phương tiện
@@ -102,7 +102,7 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
           <label>Biển số xe <input name="plate" required defaultValue={vehicleToEdit?.plate || ""} /></label>
           <label>Thời hạn (tháng) <input name="months" type="number" defaultValue={vehicleToEdit?.months || "1"} required /></label>
         </div>
-        
+
         <div className="modal-actions">
           <button type="button" onClick={onClose} disabled={loading}>Hủy</button>
           <button type="submit" className="primary" disabled={loading}>

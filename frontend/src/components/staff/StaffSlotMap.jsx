@@ -43,29 +43,29 @@ export default function StaffSlotMap() {
       </div>
 
       <div className="panel">
-        <p style={{ color: '#666', marginBottom: '20px' }}>Danh sách các vị trí đỗ cố định. Nhân viên có thể xem trực tiếp để biết vị trí nào đang trống, đã cho thuê, hoặc đang có xe đậu sai quy định.</p>
-        
+        <p className="staff-description">Danh sách các vị trí đỗ cố định. Nhân viên có thể xem trực tiếp để biết vị trí nào đang trống, đã cho thuê, hoặc đang có xe đậu sai quy định.</p>
+
         {loading ? <p>Đang tải...</p> : (
           <div className="panel-flex">
             {zones.map(z => {
               const hasSlots = slotsByZone[z.id] && slotsByZone[z.id].length > 0;
               const isExpanded = expandedZoneId === z.id;
-              
+
               return (
                 <div key={z.id} className="zone-card">
                   <div className="zone-header">
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                      <div className="zone-heading-row">
                         <h3 className="zone-title">{z.zone_name}</h3>
                         <span className="zone-type-badge">{z.vehicle_type}</span>
                       </div>
-                      <p style={{ margin: 0, color: '#666', fontSize: '13px' }}>
+                      <p className="zone-summary">
                         Sức chứa: {z.total_capacity} | Hiện tại: {z.current_occupancy}
                       </p>
                     </div>
-                    
+
                     {hasSlots && (
-                      <button onClick={() => setExpandedZoneId(isExpanded ? null : z.id)} className="secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>
+                      <button onClick={() => setExpandedZoneId(isExpanded ? null : z.id)} className="secondary zone-action-button">
                         {isExpanded ? 'Đóng Bản đồ Slot' : 'Xem Bản đồ Slot'}
                       </button>
                     )}
@@ -78,22 +78,22 @@ export default function StaffSlotMap() {
                         <span className="legend-item"><div className="legend-box rented"></div> Đã thuê (Khách chưa vào bãi)</span>
                         <span className="legend-item"><div className="legend-box occupied"></div> Đang đỗ (Xe đang trong bãi)</span>
                       </div>
-                      
+
                       <div className="slot-grid">
                         {slotsByZone[z.id].map(slot => {
                           let statusClass = 'empty';
                           if (slot.status === 'rented') statusClass = 'rented';
                           if (slot.status === 'occupied') statusClass = 'occupied';
-                          
+
                           return (
-                            <div 
-                              key={slot.id} 
+                            <div
+                              key={slot.id}
                               onClick={() => setSelectedSlotForInfo(slot)}
                               className={`slot-box ${statusClass} clickable`}
                               title={slot.vehicles ? `Khách hàng đã thuê: Biển số ${slot.vehicles.plate}` : 'Trống'}
-                            >
-                              <b style={{ fontSize: '13px' }}>{slot.slot_name}</b>
-                              {slot.vehicles && <span style={{ fontSize: '9px', color: '#666', marginTop: '2px' }}>{slot.vehicles.plate}</span>}
+>
+                              <b className="zone-slot-name">{slot.slot_name}</b>
+                              {slot.vehicles && <span className="zone-slot-plate">{slot.vehicles.plate}</span>}
                             </div>
                           )
                         })}
@@ -103,15 +103,15 @@ export default function StaffSlotMap() {
                 </div>
               );
             })}
-            {zones.length === 0 && <p style={{ color: '#888' }}>Chưa có khu vực nào.</p>}
+            {zones.length === 0 && <p className="zone-empty-message">Chưa có khu vực nào.</p>}
           </div>
         )}
       </div>
-      
+
       {selectedSlotForInfo && (
-        <SlotInfoDialog 
-          slot={selectedSlotForInfo} 
-          onClose={() => setSelectedSlotForInfo(null)} 
+        <SlotInfoDialog
+          slot={selectedSlotForInfo}
+          onClose={() => setSelectedSlotForInfo(null)}
         />
       )}
     </div>

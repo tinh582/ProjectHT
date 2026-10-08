@@ -23,12 +23,12 @@ export default function App() {
         setLoading(false);
         return;
       }
-      
+
       try {
         const response = await apiFetch('/api/components/AppAuth', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           setSession({ user: data.user });
@@ -50,7 +50,7 @@ export default function App() {
     return () => window.removeEventListener('auth-expired', onExpired);
   }, []);
 
-  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'sans-serif' }}>Đang tải...</div>;
+  if (loading) return <div className="app-loading">Đang tải...</div>;
 
   if (!session) {
     if (authView === 'landing') {

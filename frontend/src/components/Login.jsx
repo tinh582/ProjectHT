@@ -11,7 +11,7 @@ export default function Login({ onSwitchToRegister, onSwitchToLanding }) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await apiFetch('/api/components/Login', {
         method: 'POST',
@@ -23,7 +23,7 @@ export default function Login({ onSwitchToRegister, onSwitchToLanding }) {
       localStorage.setItem('token', data.session.access_token);
       localStorage.setItem('refresh_token', data.session.refresh_token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      window.location.reload(); 
+      window.location.reload();
     } catch (error) {
       setError(error.message);
     } finally {
@@ -35,7 +35,7 @@ export default function Login({ onSwitchToRegister, onSwitchToLanding }) {
     <div id="auth" className="auth-layout">
       <section className="intro">
         <div>
-          <button className="text-button" onClick={onSwitchToLanding} style={{ color: '#fff', padding: 0, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <button className="text-button auth-back-button" onClick={onSwitchToLanding}>
             ← Quay lại trang chủ
           </button>
           <a className="logo" href="/" onClick={(e) => { e.preventDefault(); onSwitchToLanding(); }}>HT<span> PARKING</span></a>
@@ -49,12 +49,12 @@ export default function Login({ onSwitchToRegister, onSwitchToLanding }) {
       <section className="auth-panel">
         <div className="auth-box">
           <h2 id="auth-title">Đăng nhập tài khoản</h2>
-          
+
           <div className="tabs">
             <button className="active">Đăng nhập</button>
             <button onClick={onSwitchToRegister}>Đăng ký</button>
           </div>
-          
+
           <form id="auth-form" onSubmit={handleLogin}>
             <label>
               Email
@@ -64,9 +64,9 @@ export default function Login({ onSwitchToRegister, onSwitchToLanding }) {
               Mật khẩu
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="Ít nhất 8 ký tự" />
             </label>
-            
+
             {error && <p className="error">{error}</p>}
-            
+
             <button className="primary full" disabled={loading}>
               {loading ? 'Đang xử lý...' : 'Đăng nhập →'}
             </button>

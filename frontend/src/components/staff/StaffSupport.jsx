@@ -48,45 +48,41 @@ export default function StaffSupport() {
           <h1>Hỗ trợ & Thanh toán<span>.</span></h1>
         </div>
       </div>
-      <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #eaeaea' }}>
+      <div className="records-panel">
         {error && <p className="error" role="alert">{error}</p>}
-        <p style={{ color: '#666', marginBottom: '20px' }}>Danh sách các giao dịch gần đây. Nhân viên có thể hỗ trợ xác nhận thanh toán lỗi hoặc hoàn tiền.</p>
-        <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+        <p className="staff-description">Danh sách các giao dịch gần đây. Nhân viên có thể hỗ trợ xác nhận thanh toán lỗi hoặc hoàn tiền.</p>
+        <table className="records-table">
           <thead>
-            <tr style={{ borderBottom: '2px solid #eaeaea', background: '#f9faf9' }}>
-              <th style={{ padding: '12px' }}>Khách hàng</th>
-              <th style={{ padding: '12px' }}>Gói cước</th>
-              <th style={{ padding: '12px' }}>Số tiền</th>
-              <th style={{ padding: '12px' }}>Trạng thái</th>
-              <th style={{ padding: '12px', width: '180px' }}>Hành động</th>
+            <tr className="records-heading">
+              <th className="records-cell">Khách hàng</th>
+              <th className="records-cell">Gói cước</th>
+              <th className="records-cell">Số tiền</th>
+              <th className="records-cell">Trạng thái</th>
+              <th className="support-actions-heading">Hành động</th>
             </tr>
           </thead>
           <tbody>
             {transactions.length === 0 ? (
-              <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Chưa có giao dịch nào.</td></tr>
+              <tr><td colSpan="5" className="records-empty">Chưa có giao dịch nào.</td></tr>
             ) : transactions.map(t => (
-              <tr key={t.id} style={{ borderBottom: '1px solid #eaeaea' }}>
-                <td style={{ padding: '12px' }}>
-                  <div style={{ fontWeight: '500' }}>{t.profiles?.name || 'Khách'}</div>
-                  <div style={{ fontSize: '11px', color: '#666' }}>{t.profiles?.email}</div>
+              <tr key={t.id} className="records-row">
+                <td className="records-cell">
+                  <div className="support-customer-name">{t.profiles?.name || 'Khách'}</div>
+                  <div className="support-customer-email">{t.profiles?.email}</div>
                 </td>
-                <td style={{ padding: '12px' }}>{t.plan_name}</td>
-                <td style={{ padding: '12px', fontWeight: 'bold' }}>{Number(t.amount).toLocaleString()} đ</td>
-                <td style={{ padding: '12px' }}>
-                  <span style={{ 
-                    color: t.status === 'completed' ? 'green' : t.status === 'refunded' ? 'red' : 'orange', 
-                    fontSize: '12px',
-                    fontWeight: '500'
-                  }}>
+                <td className="records-cell">{t.plan_name}</td>
+                <td className="support-amount">{Number(t.amount).toLocaleString()} đ</td>
+                <td className="records-cell">
+                  <span className={`support-status ${t.status === 'completed' ? 'is-completed' : t.status === 'refunded' ? 'is-refunded' : 'is-pending'}`}>
                     {t.status === 'completed' ? 'Thành công' : t.status === 'refunded' ? 'Đã hoàn tiền' : 'Đang xử lý'}
                   </span>
                 </td>
-                <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
+                <td className="support-actions">
                   {t.status === 'pending' && (
-                    <button className="primary" onClick={() => handleUpdateStatus(t.id, 'completed')} style={{ padding: '6px 10px', fontSize: '10px' }}>Xác nhận</button>
+                    <button className="primary support-confirm-button" onClick={() => handleUpdateStatus(t.id, 'completed')}>Xác nhận</button>
                   )}
                   {t.status === 'completed' && (
-                    <button className="secondary" onClick={() => handleUpdateStatus(t.id, 'refunded')} style={{ padding: '6px 10px', fontSize: '10px', color: 'red' }}>Hoàn tiền</button>
+                    <button className="secondary support-refund-button" onClick={() => handleUpdateStatus(t.id, 'refunded')}>Hoàn tiền</button>
                   )}
                 </td>
               </tr>

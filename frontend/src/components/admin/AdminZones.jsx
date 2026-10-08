@@ -40,7 +40,7 @@ export default function AdminZones() {
     e.preventDefault();
     if (!newZoneName || !newZoneCapacity) return;
     const capacity = parseInt(newZoneCapacity);
-    
+
     const response = await apiFetch('/api/components/admin/AdminZones/zones', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -100,63 +100,63 @@ export default function AdminZones() {
           <label>Sức chứa (Tổng số Slot)
             <input type="number" value={newZoneCapacity} onChange={e => setNewZoneCapacity(e.target.value)} required />
           </label>
-          <button type="submit" className="primary" style={{ marginBottom: '8px' }}>Thêm</button>
+          <button type="submit" className="primary admin-add-button">Thêm</button>
         </form>
 
         <div className="panel-flex">
           {zones.map(z => {
             const hasSlots = slotsByZone[z.id] && slotsByZone[z.id].length > 0;
             const isExpanded = expandedZoneId === z.id;
-            
+
             return (
               <div key={z.id} className="zone-card">
                 <div className="zone-header">
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                  <div className="zone-details">
+                    <div className="zone-heading-row">
                       <h3 className="zone-title">{z.zone_name}</h3>
                       <span className="zone-type-badge">{z.vehicle_type}</span>
                     </div>
-                    <p style={{ margin: 0, color: '#666', fontSize: '13px' }}>
+                    <p className="zone-summary">
                       Sức chứa: {z.total_capacity} | Hiện tại: {z.current_occupancy}
                     </p>
                   </div>
-                  
-                  <div style={{ display: 'flex', gap: '10px' }}>
+
+                  <div className="zone-actions">
                     {!hasSlots ? (
-                      <button onClick={() => generateMissingSlots(z)} className="primary" style={{ padding: '6px 12px', fontSize: '12px' }}>Tạo danh sách Slot</button>
+                      <button onClick={() => generateMissingSlots(z)} className="primary zone-action-button">Tạo danh sách Slot</button>
                     ) : (
-                      <button onClick={() => setExpandedZoneId(isExpanded ? null : z.id)} className="secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>
+                      <button onClick={() => setExpandedZoneId(isExpanded ? null : z.id)} className="secondary zone-action-button">
                         {isExpanded ? 'Đóng Bản đồ Slot' : 'Xem Bản đồ Slot'}
                       </button>
                     )}
-                    <button onClick={() => handleDeleteZone(z.id)} className="secondary" style={{ padding: '6px 12px', fontSize: '12px', color: 'red', borderColor: '#ff4d4f' }}>Xóa Khu vực</button>
+                    <button onClick={() => handleDeleteZone(z.id)} className="secondary zone-delete-button">Xóa Khu vực</button>
                   </div>
                 </div>
 
                 {isExpanded && hasSlots && (
                   <div className="slot-map-container">
-                    <h4 style={{ margin: '0 0 15px', fontSize: '14px' }}>Bản đồ Vị trí đỗ ({slotsByZone[z.id].length} vị trí)</h4>
+                    <h4 className="zone-map-title">Bản đồ Vị trí đỗ ({slotsByZone[z.id].length} vị trí)</h4>
                     <div className="slot-legend">
                       <span className="legend-item"><div className="legend-box empty"></div> Trống (Empty)</span>
                       <span className="legend-item"><div className="legend-box rented"></div> Đã thuê (Rented)</span>
                       <span className="legend-item"><div className="legend-box occupied"></div> Đang đỗ (Occupied)</span>
                     </div>
-                    
+
                     <div className="slot-grid">
                       {slotsByZone[z.id].map(slot => {
                         let statusClass = 'empty';
                         if (slot.status === 'rented') statusClass = 'rented';
                         if (slot.status === 'occupied') statusClass = 'occupied';
-                        
+
                         return (
-                          <div 
-                            key={slot.id} 
+                          <div
+                            key={slot.id}
                             onClick={() => setSelectedSlotForInfo(slot)}
                             className={`slot-box ${statusClass} clickable`}
                             title={slot.vehicles ? `Xe: ${slot.vehicles.plate}` : 'Trống'}
-                          >
-                            <b style={{ fontSize: '13px' }}>{slot.slot_name}</b>
-                            {slot.vehicles && <span style={{ fontSize: '9px', color: '#666', marginTop: '2px' }}>{slot.vehicles.plate}</span>}
+>
+                            <b className="zone-slot-name">{slot.slot_name}</b>
+                            {slot.vehicles && <span className="zone-slot-plate">{slot.vehicles.plate}</span>}
                           </div>
                         )
                       })}
@@ -166,14 +166,14 @@ export default function AdminZones() {
               </div>
             );
           })}
-          {zones.length === 0 && <p style={{ color: '#888' }}>Chưa có khu vực nào được thiết lập.</p>}
+          {zones.length === 0 && <p className="zone-empty-message">Chưa có khu vực nào được thiết lập.</p>}
         </div>
       </div>
-      
+
       {selectedSlotForInfo && (
-        <SlotInfoDialog 
-          slot={selectedSlotForInfo} 
-          onClose={() => setSelectedSlotForInfo(null)} 
+        <SlotInfoDialog
+          slot={selectedSlotForInfo}
+          onClose={() => setSelectedSlotForInfo(null)}
         />
       )}
     </div>

@@ -35,28 +35,28 @@ export default function StaffExceptions() {
           <h1>Xử lý ngoại lệ<span>.</span></h1>
         </div>
       </div>
-      <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #eaeaea' }}>
-        <p style={{ color: '#666', marginBottom: '20px' }}>Danh sách các xe đang trong bãi. Nhân viên có thể hỗ trợ check-out thủ công nếu AI không nhận diện được lúc ra.</p>
-        
-        <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+      <div className="records-panel">
+        <p className="staff-description">Danh sách các xe đang trong bãi. Nhân viên có thể hỗ trợ check-out thủ công nếu AI không nhận diện được lúc ra.</p>
+
+        <table className="records-table">
           <thead>
-            <tr style={{ borderBottom: '2px solid #eaeaea', background: '#f9faf9' }}>
-              <th style={{ padding: '12px' }}>Biển số</th>
-              <th style={{ padding: '12px' }}>Loại xe</th>
-              <th style={{ padding: '12px' }}>Giờ vào</th>
-              <th style={{ padding: '12px', width: '120px' }}>Hành động</th>
+            <tr className="records-heading">
+              <th className="records-cell">Biển số</th>
+              <th className="records-cell">Loại xe</th>
+              <th className="records-cell">Giờ vào</th>
+              <th className="exceptions-actions-heading">Hành động</th>
             </tr>
           </thead>
           <tbody>
             {exceptions.length === 0 ? (
-              <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Không có phương tiện nào trong bãi.</td></tr>
+              <tr><td colSpan="4" className="records-empty">Không có phương tiện nào trong bãi.</td></tr>
             ) : exceptions.map(ex => (
-              <tr key={ex.id} style={{ borderBottom: '1px solid #eaeaea' }}>
-                <td style={{ padding: '12px' }}><span className="plate">{ex.vehicles?.plate}</span></td>
-                <td style={{ padding: '12px' }}>{ex.vehicles?.brand} {ex.vehicles?.model}</td>
-                <td style={{ padding: '12px' }}>{new Date(ex.entry_time).toLocaleString()}</td>
-                <td style={{ padding: '12px' }}>
-                  <button onClick={() => handleManualOpen(ex)} className="primary" style={{ padding: '8px 12px', fontSize: '11px', background: '#c95f55' }}>Mở Barie</button>
+              <tr key={ex.id} className="records-row">
+                <td className="records-cell"><span className="plate">{ex.vehicles?.plate}</span></td>
+                <td className="records-cell">{ex.vehicles?.brand} {ex.vehicles?.model}</td>
+                <td className="records-cell">{new Date(ex.entry_time).toLocaleString()}</td>
+                <td className="records-cell">
+                  <button onClick={() => handleManualOpen(ex)} className="primary exceptions-open-button">Mở Barie</button>
                 </td>
               </tr>
             ))}
