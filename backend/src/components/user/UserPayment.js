@@ -11,9 +11,16 @@ router.get('/pricing', async (req, res) => {
 
 router.get('/subscription/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
-  const { data, error } = await req.db.from('transactions').select('id, plan_name, amount, created_at, confirmed_at')
+  let { data, error } = await req.db.from('transactions').select('id, plan_name, amount, created_at, confirmed_at')
     .eq('user_id', req.user.id).eq('status', 'completed')
     .order('confirmed_at', { ascending: false }).limit(1).maybeSingle();
+  if (error && error.code === '42703') {
+    const fallback = await req.db.from('transactions').select('id, plan_name, amount, created_at')
+      .eq('user_id', req.user.id).eq('status', 'completed')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    data = fallback.data;
+    error = fallback.error;
+  }
   if (error) throw error;
   res.json(data);
 });
