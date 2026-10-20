@@ -1,7 +1,7 @@
 import { apiFetch } from '../lib/api';
 import React, { useState } from 'react';
 
-export default function Register({ onSwitchToLogin, onSwitchToLanding }) {
+export default function Register({ onSwitchToLogin, onSwitchToLanding, onRegisterSuccess }) {
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -27,7 +27,11 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding }) {
         localStorage.setItem('token', data.session.access_token);
         localStorage.setItem('refresh_token', data.session.refresh_token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        window.location.reload();
+        if (onRegisterSuccess) {
+          onRegisterSuccess(data);
+        } else {
+          window.location.reload();
+        }
       } else {
         alert('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận hoặc đăng nhập.');
         onSwitchToLogin();

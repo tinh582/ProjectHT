@@ -1,7 +1,7 @@
 import { apiFetch } from '../lib/api';
 import React, { useState } from 'react';
 
-export default function Login({ onSwitchToRegister, onSwitchToLanding }) {
+export default function Login({ onSwitchToRegister, onSwitchToLanding, onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +23,12 @@ export default function Login({ onSwitchToRegister, onSwitchToLanding }) {
       localStorage.setItem('token', data.session.access_token);
       localStorage.setItem('refresh_token', data.session.refresh_token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      window.location.reload();
+
+      if (onLoginSuccess) {
+        onLoginSuccess(data);
+      } else {
+        window.location.reload();
+      }
     } catch (error) {
       setError(error.message);
     } finally {

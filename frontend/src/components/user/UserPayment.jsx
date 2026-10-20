@@ -1,14 +1,16 @@
 import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 
-export default function UserPayment({ session, fetchNotifications, onSubscriptionChange, isGated }) {
+export default function UserPayment({ session, fetchNotifications, onSubscriptionChange }) {
   const [pricingConfigs, setPricingConfigs] = useState([]);
+  const [subscription, setSubscription] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [mode, setMode] = useState('resubscribe'); // 'resubscribe' | 'switch'
   const [isProcessing, setIsProcessing] = useState(false);
-  const [expiryDate, setExpiryDate] = useState(null);
-  const [hasPending, setHasPending] = useState(false);
-  const paymentBank = import.meta.env.VITE_PAYMENT_BANK;
-  const paymentAccount = import.meta.env.VITE_PAYMENT_ACCOUNT;
+  const [notice, setNotice] = useState(null);
+
+  const paymentBank = import.meta.env.VITE_PAYMENT_BANK || 'BIDV';
+  const paymentAccount = import.meta.env.VITE_PAYMENT_ACCOUNT || '6261378455';
 
   useEffect(() => {
     fetchPricing();
@@ -16,152 +18,314 @@ export default function UserPayment({ session, fetchNotifications, onSubscriptio
   }, []);
 
   const fetchPricing = async () => {
-    const response = await apiFetch('/api/components/user/UserPayment/pricing');
-    if (response.ok) {
-      const data = await response.json();
-      setPricingConfigs(data);
+    try {
+      const response = await apiFetch('/api/components/user/UserPayment/pricing');
+      if (response.ok) {
+        const data = await response.json();
+        setPricingConfigs(data);
+      }
+    } catch (err) {
+      console.error('Failed fetching pricing configs:', err);
     }
   };
 
   const fetchSubscription = async () => {
-    const response = await apiFetch(`/api/components/user/UserPayment/subscription/${session.user.id}`);
-    if (response.ok) {
-      const data = await response.json();
-      if (data && (data.confirmed_at || data.created_at)) {
-        const purchaseDate = new Date(data.confirmed_at || data.created_at);
-        const expiry = new Date(purchaseDate);
-        expiry.setDate(expiry.getDate() + 30);
-        setExpiryDate(expiry);
-      } else {
-        setExpiryDate(null);
+    try {
+      const response = await apiFetch(`/api/components/user/UserPayment/subscription/${session.user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSubscription(data);
+        onSubscriptionChange?.(data);
+
+        // Pre-select current plan for resubscription if available
+        if (data && data.plan_name) {
+          // find matching config if available
+          setPricingConfigs(prevConfigs => {
+            const current = prevConfigs.find(p => p.plan_type === data.plan_name);
+            if (current) {
+              setSelectedPlan(current);
+            }
+            return prevConfigs;
+          });
+        }
       }
-      setHasPending(Boolean(data?.hasPending));
-      onSubscriptionChange?.(data);
+    } catch (err) {
+      console.error('Failed fetching subscription:', err);
     }
   };
+
+  // Sync selected plan once pricing configs are loaded
+  useEffect(() => {
+    if (pricingConfigs.length > 0 && subscription?.plan_name && !selectedPlan) {
+      const current = pricingConfigs.find(p => p.plan_type === subscription.plan_name);
+      if (current) {
+        setSelectedPlan(current);
+      } else {
+        setSelectedPlan(pricingConfigs[0]);
+      }
+    } else if (pricingConfigs.length > 0 && !selectedPlan) {
+      setSelectedPlan(pricingConfigs[0]);
+    }
+  }, [pricingConfigs, subscription]);
 
   const handlePayment = async () => {
     if (!selectedPlan || isProcessing) return;
     setIsProcessing(true);
+    setNotice(null);
+
     try {
       const response = await apiFetch('/api/components/user/UserPayment/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ planId: selectedPlan.id }),
       });
+
       if (response.ok) {
-        alert('Yêu cầu thanh toán đã được gửi thành công. Thẻ sẽ có hiệu lực sau khi nhân viên xác nhận đối soát.');
-        setSelectedPlan(null);
-        fetchNotifications();
+        const actionText = mode === 'resubscribe' ? 'Gia hạn gói cước' : 'Đổi gói cước';
+        setNotice({
+          type: 'success',
+          text: `Yêu cầu ${actionText.toLowerCase()} đã được gửi thành công! Nhân viên bãi xe sẽ đối soát và cập nhật thẻ cho bạn.`
+        });
+        fetchNotifications?.();
         await fetchSubscription();
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        setNotice({
+          type: 'error',
+          text: errData.error || 'Gửi yêu cầu thất bại. Vui lòng thử lại.'
+        });
       }
+    } catch (err) {
+      setNotice({ type: 'error', text: 'Lỗi kết nối máy chủ.' });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const isExpired = expiryDate ? new Date() > expiryDate : true;
+  const expiryDate = subscription?.expiryDate ? new Date(subscription.expiryDate) : null;
+  const isExpired = expiryDate ? new Date() > expiryDate : false;
+  const hasPending = Boolean(subscription?.hasPending);
+
+  // Calculate remaining days
+  const remainingDays = expiryDate && !isExpired
+    ? Math.max(0, Math.ceil((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0;
+
+  // Find other plans for switching
+  const otherPlans = pricingConfigs.filter(p => p.plan_type !== subscription?.plan_name);
 
   return (
-    <div>
+    <div className="resub-dashboard-view">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">THANH TOÁN</p>
-          <h1>Mua thẻ đỗ xe<span>.</span></h1>
+          <p className="eyebrow">DỊCH VỤ & GÓI CƯỚC</p>
+          <h1>Gia hạn & Đổi gói cước<span>.</span></h1>
         </div>
       </div>
 
-      {(!expiryDate || isExpired) && (
-        <div className="payment-onboarding-alert">
-          <div className="onboarding-icon">🔒</div>
-          <div className="onboarding-text">
-            <h4>Kích hoạt tài khoản khách hàng</h4>
-            <p>
-              Tài khoản của bạn chưa có gói cước hoạt động. Vui lòng chọn gói cước và thanh toán bên dưới để kích hoạt tài khoản và mở khóa các dịch vụ (quản lý phương tiện, chọn vị trí đỗ).
-            </p>
+      {/* Current Subscription Card */}
+      <div className="current-sub-card">
+        <div className="current-sub-header">
+          <div className="current-sub-title-group">
+            <span className="current-sub-badge">GÓI ĐANG SỬ DỤNG</span>
+            <h2 className="current-sub-name">{subscription?.plan_name || 'Gói Dịch Vụ HT Parking'}</h2>
+          </div>
+          <div className="current-sub-status">
+            {isExpired ? (
+              <span className="badge-expired">● Đã hết hạn</span>
+            ) : (
+              <span className="badge-active">● Đang hoạt động</span>
+            )}
           </div>
         </div>
-      )}
 
+        <div className="current-sub-meta-grid">
+          <div className="meta-item">
+            <span className="meta-label">Ngày hết hạn</span>
+            <span className="meta-value">
+              {expiryDate ? expiryDate.toLocaleDateString('vi-VN') : 'Chưa có thông tin'}
+            </span>
+          </div>
+          <div className="meta-item">
+            <span className="meta-label">Thời hạn còn lại</span>
+            <span className={`meta-value ${remainingDays <= 5 ? 'meta-warn' : 'meta-good'}`}>
+              {isExpired ? '0 ngày (Hết hạn)' : `${remainingDays} ngày`}
+            </span>
+          </div>
+          <div className="meta-item">
+            <span className="meta-label">Giá gói</span>
+            <span className="meta-value">
+              {subscription?.amount ? `${subscription.amount.toLocaleString()} đ / tháng` : '-'}
+            </span>
+          </div>
+          <div className="meta-item">
+            <span className="meta-label">Trạng thái xe qua cổng</span>
+            <span className="meta-value highlight-green">Tự động nhận diện AI</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Pending Banner */}
       {hasPending && (
         <div className="payment-pending-alert">
-          ⏳ <strong>Yêu cầu đang chờ duyệt:</strong> Bạn đã gửi yêu cầu thanh toán gói cước. Nhân viên bãi xe đang đối soát và sẽ kích hoạt dịch vụ cho bạn trong thời gian sớm nhất.
+          ⏳ <strong>Yêu cầu đang chờ duyệt:</strong> Bạn đã gửi yêu cầu gia hạn / đổi gói cước. Nhân viên bãi xe đang đối soát thanh toán và sẽ cập nhật thời hạn thẻ trong ít phút.
         </div>
       )}
 
-      <div className="payment-account">
-        <div>
-          <h3 className="payment-account-title">Trạng thái tài khoản</h3>
-          <p className="payment-account-description">
-            {expiryDate ? (
-              isExpired ? (
-                <span className="payment-expired">Thẻ của bạn đã hết hạn vào ngày {expiryDate.toLocaleDateString('vi-VN')}. Vui lòng gia hạn để tiếp tục sử dụng!</span>
-              ) : (
-                <span>Thẻ của bạn có hiệu lực đến: <b className="payment-valid">{expiryDate.toLocaleDateString('vi-VN')}</b></span>
-              )
-            ) : (
-              <span className="payment-expired">Bạn chưa mua thẻ đỗ xe. Xe của bạn sẽ không được phép qua cổng và các dịch vụ quản lý phương tiện đang tạm khóa.</span>
-            )}
-          </p>
+      {/* Notice Message */}
+      {notice && (
+        <div className={`activation-alert-msg ${notice.type === 'error' ? 'is-error' : 'is-success'}`} style={{ marginBottom: '20px' }}>
+          <span>{notice.type === 'error' ? '⚠️' : '✓'}</span>
+          <span>{notice.text}</span>
         </div>
+      )}
+
+      {/* Resubscription or Switch Plan Navigation Modes */}
+      <div className="resub-action-tabs">
+        <button
+          className={`resub-tab-btn ${mode === 'resubscribe' ? 'active' : ''}`}
+          onClick={() => {
+            setMode('resubscribe');
+            const current = pricingConfigs.find(p => p.plan_type === subscription?.plan_name);
+            if (current) setSelectedPlan(current);
+          }}
+        >
+          <span className="resub-tab-icon">🔄</span>
+          <div className="resub-tab-text">
+            <strong>Gia hạn gói cước hiện tại</strong>
+            <span>Gia hạn thêm 30 ngày cho {subscription?.plan_name || 'gói đang dùng'}</span>
+          </div>
+        </button>
+
+        <button
+          className={`resub-tab-btn ${mode === 'switch' ? 'active' : ''}`}
+          onClick={() => {
+            setMode('switch');
+            if (otherPlans.length > 0) setSelectedPlan(otherPlans[0]);
+          }}
+        >
+          <span className="resub-tab-icon">↗</span>
+          <div className="resub-tab-text">
+            <strong>Đổi gói / Nâng cấp gói khác</strong>
+            <span>Chuyển đổi sang gói cao hơn hoặc gói phù hợp phương tiện</span>
+          </div>
+        </button>
       </div>
 
-      <div className="payment-columns">
-        <div className="payment-column">
-          <h3 className="payment-section-title">Chọn gói cước</h3>
-          <div className="payment-plans">
-            {pricingConfigs.map(p => (
-              <div
-                key={p.id}
-                onClick={() => setSelectedPlan(p)}
-                className={`payment-plan ${selectedPlan?.id === p.id ? 'is-selected' : 'is-unselected'}`}
-              >
-                <div>
-                  <h4 className="payment-plan-title">{p.plan_type}</h4>
-                  <p className="payment-plan-description">Gia hạn (30 ngày)</p>
-                </div>
-                <strong className="payment-price">{p.price.toLocaleString()} đ</strong>
+      {/* Mode 1: Resubscription */}
+      {mode === 'resubscribe' && (
+        <div className="payment-columns">
+          <div className="payment-column">
+            <h3 className="payment-section-title">Thông tin gia hạn gói cước</h3>
+            <div className="resub-info-box">
+              <div className="resub-badge-highlight">GIA HẠN 30 NGÀY</div>
+              <h4>{selectedPlan?.plan_type || subscription?.plan_name || 'Gói cước của bạn'}</h4>
+              <p className="resub-desc">
+                Thời hạn mới sẽ được <strong>cộng dồn trực tiếp (+30 ngày)</strong> tiếp nối vào ngày hết hạn hiện tại của bạn. Phương tiện tiếp tục được lưu thông tự động qua barie không gián đoạn.
+              </p>
+              <div className="resub-price-tag">
+                <span className="resub-price-val">{selectedPlan?.price?.toLocaleString() || subscription?.amount?.toLocaleString()}</span>
+                <span className="resub-price-currency">VNĐ / 30 ngày</span>
               </div>
-            ))}
+            </div>
+          </div>
+
+          <div className="payment-column">
+            <h3 className="payment-section-title">Quét mã QR gia hạn</h3>
+            {selectedPlan ? (
+              <div className="payment-checkout">
+                <img
+                  src={`https://img.vietqr.io/image/${encodeURIComponent(paymentBank)}-${encodeURIComponent(paymentAccount)}-compact2.jpg?amount=${selectedPlan.price}&addInfo=${encodeURIComponent(`Gia han the xe ${session.user.id.substring(0, 8)}`)}`}
+                  alt="QR Code"
+                  className="payment-qr"
+                />
+                <p className="payment-instructions">
+                  Quét mã bằng app ngân hàng để chuyển khoản nhanh.<br/>
+                  Nội dung chuyển khoản: <b>Gia han the xe {session.user.id.substring(0, 8)}</b>
+                </p>
+                <button
+                  className="primary payment-submit"
+                  onClick={handlePayment}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? 'Đang gửi yêu cầu...' : '✓ Xác nhận đã chuyển khoản - Gửi yêu cầu gia hạn'}
+                </button>
+              </div>
+            ) : (
+              <div className="payment-placeholder">Đang tải thông tin gói cước...</div>
+            )}
           </div>
         </div>
+      )}
 
-        <div className="payment-column">
-          <h3 className="payment-section-title">Quét mã thanh toán</h3>
-          {selectedPlan ? (
-            <div className="payment-checkout">
-              {paymentBank && paymentAccount ? (
-                <>
-                  <img
-                    src={`https://img.vietqr.io/image/${encodeURIComponent(paymentBank)}-${encodeURIComponent(paymentAccount)}-compact2.jpg?amount=${selectedPlan.price}&addInfo=${encodeURIComponent(`Thanh toan the xe ${session.user.id.substring(0, 8)}`)}`}
-                    alt="QR Code"
-                    className="payment-qr"
-                  />
-                  <p className="payment-instructions">
-                    Quét mã bằng ứng dụng ngân hàng.<br/>
-                    Nội dung: <b>Thanh toan the xe {session.user.id.substring(0, 8)}</b>
-                  </p>
-                </>
-              ) : (
-                <p>Vui lòng liên hệ nhân viên để được hướng dẫn thanh toán.</p>
-              )}
-              <p>Thẻ có hiệu lực sau khi nhân viên xác nhận đã nhận tiền.</p>
+      {/* Mode 2: Switch to another plan */}
+      {mode === 'switch' && (
+        <div className="payment-columns">
+          <div className="payment-column">
+            <h3 className="payment-section-title">Chọn gói muốn chuyển đổi</h3>
+            <p className="users-description">
+              Chọn gói cước mới bạn muốn áp dụng cho phương tiện của mình:
+            </p>
+            <div className="payment-plans">
+              {pricingConfigs.map(p => {
+                const isCurrent = p.plan_type === subscription?.plan_name;
+                const isSelected = selectedPlan?.id === p.id;
+                const isCar = p.plan_type.toLowerCase().includes('tô');
 
-              <button
-                className="primary payment-submit"
-                onClick={handlePayment}
-                disabled={isProcessing}
-              >
-                {isProcessing ? 'Đang xử lý...' : 'Gửi yêu cầu xác nhận thanh toán'}
-              </button>
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => setSelectedPlan(p)}
+                    className={`payment-plan ${isSelected ? 'is-selected' : 'is-unselected'}`}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>{isCar ? '🚗' : '🛵'}</span>
+                        <h4 className="payment-plan-title" style={{ margin: 0 }}>{p.plan_type}</h4>
+                        {isCurrent && <span className="switch-current-tag">Gói hiện tại</span>}
+                      </div>
+                      <p className="payment-plan-description" style={{ marginTop: '4px' }}>
+                        Thời hạn: 30 ngày • Nhận diện AI tự động
+                      </p>
+                    </div>
+                    <strong className="payment-price">{p.price.toLocaleString()} đ</strong>
+                  </div>
+                );
+              })}
             </div>
-          ) : (
-            <div className="payment-placeholder">
-              Vui lòng chọn một gói cước bên trái để hiển thị mã QR.
-            </div>
-          )}
+          </div>
+
+          <div className="payment-column">
+            <h3 className="payment-section-title">Quét mã QR đổi gói</h3>
+            {selectedPlan ? (
+              <div className="payment-checkout">
+                <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: '8px', marginBottom: '12px', fontSize: '0.88rem' }}>
+                  Đang chọn chuyển sang: <strong>{selectedPlan.plan_type}</strong> ({selectedPlan.price.toLocaleString()} đ)
+                </div>
+                <img
+                  src={`https://img.vietqr.io/image/${encodeURIComponent(paymentBank)}-${encodeURIComponent(paymentAccount)}-compact2.jpg?amount=${selectedPlan.price}&addInfo=${encodeURIComponent(`Doi goi the xe ${session.user.id.substring(0, 8)}`)}`}
+                  alt="QR Code"
+                  className="payment-qr"
+                />
+                <p className="payment-instructions">
+                  Quét mã bằng app ngân hàng để chuyển khoản.<br/>
+                  Nội dung chuyển khoản: <b>Doi goi the xe {session.user.id.substring(0, 8)}</b>
+                </p>
+                <button
+                  className="primary payment-submit"
+                  onClick={handlePayment}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? 'Đang gửi yêu cầu...' : `✓ Xác nhận chuyển khoản - Đổi sang ${selectedPlan.plan_type}`}
+                </button>
+              </div>
+            ) : (
+              <div className="payment-placeholder">Vui lòng chọn một gói cước để xem thông tin chuyển khoản.</div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

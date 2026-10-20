@@ -1,22 +1,29 @@
 import { apiFetch } from './lib/api';
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Landing from './components/Landing';
 import Login from './components/Login';
 import Register from './components/Register';
+import ActivationPricing from './components/user/ActivationPricing';
+
 const Dashboard = lazy(() => import('./components/user/Dashboard'));
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const StaffDashboard = lazy(() => import('./components/staff/StaffDashboard'));
 
 export default function App() {
   const [session, setSession] = useState(null);
-  const [authView, setAuthView] = useState('landing');
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [currentView, setCurrentView] = useState('landing'); // 'landing' | 'login' | 'register' | 'activation-pricing' | 'dashboard'
+  const [isCheckingAccess, setIsCheckingAccess] = useState(false);
 
   useEffect(() => {
-    const onExpired = () => { setSession(null); setRole(null); setAuthView('login'); };
+    const onExpired = () => {
+      setSession(null);
+      setRole(null);
+      setCurrentView('login');
+    };
     window.addEventListener('auth-expired', onExpired);
+
     const verifySession = async () => {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -34,10 +41,11 @@ export default function App() {
           setSession({ user: data.user });
           setRole(data.role);
         } else if (response.status === 401 || response.status === 403) {
-          // Token invalid or expired
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           localStorage.removeItem('refresh_token');
+          setSession(null);
+          setRole(null);
         }
       } catch (error) {
         console.error('Session verification failed:', error);
@@ -50,30 +58,132 @@ export default function App() {
     return () => window.removeEventListener('auth-expired', onExpired);
   }, []);
 
-  if (loading) return <div className="app-loading">Đang tải...</div>;
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('refresh_token');
+    setSession(null);
+    setRole(null);
+    setCurrentView('landing');
+  };
 
-  if (!session) {
-    if (authView === 'landing') {
-      return <Landing onSwitchToLogin={() => setAuthView('login')} onSwitchToRegister={() => setAuthView('register')} />;
-    } else if (authView === 'login') {
-      return <Login onSwitchToRegister={() => setAuthView('register')} onSwitchToLanding={() => setAuthView('landing')} />;
-    } else {
-      return <Register onSwitchToLogin={() => setAuthView('login')} onSwitchToLanding={() => setAuthView('landing')} />;
+  const handleLoginSuccess = async (data) => {
+    setSession({ user: data.user });
+    // fetch user role
+    try {
+      const authRes = await apiFetch('/api/components/AppAuth', {
+        headers: { 'Authorization': `Bearer ${data.session.access_token}` }
+      });
+      if (authRes.ok) {
+        const authData = await authRes.json();
+        setRole(authData.role);
+      } else {
+        setRole('user');
+      }
+    } catch {
+      setRole('user');
     }
+    // Stay on landing page after login as requested!
+    setCurrentView('landing');
+  };
+
+  const handleGoToDashboard = async () => {
+    if (!session) {
+      setCurrentView('login');
+      return;
+    }
+
+    // Admin & Staff can directly access their dashboard
+    if (role === 'admin' || role === 'staff') {
+      setCurrentView('dashboard');
+      return;
+    }
+
+    // Regular users: Gate dashboard access! Check active subscription
+    setIsCheckingAccess(true);
+    try {
+      const response = await apiFetch(`/api/components/user/UserPayment/subscription/${session.user.id}`);
+      if (response.ok) {
+        const subData = await response.json();
+        if (subData.isActive) {
+          setCurrentView('dashboard');
+        } else {
+          // Block dashboard and show extra price/activation page
+          setCurrentView('activation-pricing');
+        }
+      } else {
+        setCurrentView('activation-pricing');
+      }
+    } catch (err) {
+      console.error('Failed checking subscription access:', err);
+      setCurrentView('activation-pricing');
+    } finally {
+      setIsCheckingAccess(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="app-loading">Đang tải HT Parking...</div>;
   }
 
-  return (
-    <BrowserRouter>
-      <Suspense fallback={<p>Đang tải...</p>}>
-      <Routes>
-        <Route path="/" element={
-          role === 'admin' ? <AdminDashboard session={session} /> :
-          role === 'staff' ? <StaffDashboard session={session} /> :
-          <Dashboard session={session} />
-        } />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+  if (isCheckingAccess) {
+    return <div className="app-loading">Đang kiểm tra quyền truy cập Bảng điều khiển...</div>;
+  }
+
+  if (currentView === 'login') {
+    return (
+      <Login
+        onSwitchToRegister={() => setCurrentView('register')}
+        onSwitchToLanding={() => setCurrentView('landing')}
+        onLoginSuccess={handleLoginSuccess}
+      />
+    );
+  }
+
+  if (currentView === 'register') {
+    return (
+      <Register
+        onSwitchToLogin={() => setCurrentView('login')}
+        onSwitchToLanding={() => setCurrentView('landing')}
+        onRegisterSuccess={handleLoginSuccess}
+      />
+    );
+  }
+
+  if (currentView === 'activation-pricing') {
+    return (
+      <ActivationPricing
+        session={session}
+        onBackToLanding={() => setCurrentView('landing')}
+        onUnlocked={() => setCurrentView('dashboard')}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (currentView === 'dashboard' && session) {
+    return (
+      <Suspense fallback={<div className="app-loading">Đang tải Bảng điều khiển...</div>}>
+        {role === 'admin' ? (
+          <AdminDashboard session={session} onBackToLanding={() => setCurrentView('landing')} />
+        ) : role === 'staff' ? (
+          <StaffDashboard session={session} onBackToLanding={() => setCurrentView('landing')} />
+        ) : (
+          <Dashboard session={session} onBackToLanding={() => setCurrentView('landing')} />
+        )}
       </Suspense>
-    </BrowserRouter>
+    );
+  }
+
+  // Default view is always Landing page!
+  return (
+    <Landing
+      session={session}
+      role={role}
+      onSwitchToLogin={() => setCurrentView('login')}
+      onSwitchToRegister={() => setCurrentView('register')}
+      onGoToDashboard={handleGoToDashboard}
+      onLogout={handleLogout}
+    />
   );
 }

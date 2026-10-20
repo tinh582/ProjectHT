@@ -7,7 +7,7 @@ import UserPayment from './UserPayment';
 import UserSlotPicker from './UserSlotPicker';
 import ParkingHistoryDialog from './ParkingHistoryDialog';
 
-export default function Dashboard({ session }) {
+export default function Dashboard({ session, onBackToLanding }) {
   const [vehicles, setVehicles] = useState([]);
   const [activeVehicleIds, setActiveVehicleIds] = useState([]);
   const [sessionsByVehicle, setSessionsByVehicle] = useState({});
@@ -21,8 +21,8 @@ export default function Dashboard({ session }) {
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   const [notifications, setNotifications] = useState([]);
-  const [activeTab, setActiveTab] = useState('payment');
-  const [hasActivePlan, setHasActivePlan] = useState(null);
+  const [activeTab, setActiveTab] = useState('vehicles');
+  const [hasActivePlan, setHasActivePlan] = useState(true);
   const [lockNotice, setLockNotice] = useState(null);
 
   const parkedVehicleIds = new Set(activeVehicleIds);
@@ -41,7 +41,6 @@ export default function Dashboard({ session }) {
         setHasActivePlan(active);
         if (active) {
           fetchVehicles();
-          setActiveTab('vehicles');
         } else {
           setActiveTab('payment');
         }
@@ -176,7 +175,9 @@ export default function Dashboard({ session }) {
   return (
     <div id="workspace">
       <aside>
-        <a className="logo" href="/">HT<span> PARKING</span></a>
+        <a className="logo" href="/" onClick={(e) => { e.preventDefault(); onBackToLanding?.(); }}>
+          HT<span> PARKING</span>
+        </a>
         <p className="nav-label">KHÔNG GIAN CỦA BẠN</p>
         <div
           className={`nav-item ${activeTab === 'vehicles' ? 'active' : ''} ${!hasActivePlan ? 'is-nav-locked' : ''}`}
@@ -200,14 +201,32 @@ export default function Dashboard({ session }) {
           className={`nav-item ${activeTab === 'payment' ? 'active' : ''}`}
           onClick={() => handleTabClick('payment')}
         >
-          <span>💳</span> <span>Mua thẻ đỗ xe</span>
+          <span>💳</span> <span>Gia hạn & Đổi gói</span>
+        </div>
+
+        <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
+          <div
+            className="nav-item"
+            onClick={onBackToLanding}
+            style={{ cursor: 'pointer', color: '#10b981', fontWeight: 600 }}
+          >
+            <span>🏠</span> <span>Về Trang chủ</span>
+          </div>
         </div>
       </aside>
 
       <div className="main">
         <header>
-          <span>Cổng khách hàng <b>/ {activeTab === 'vehicles' ? 'Phương tiện' : activeTab === 'history' ? 'Lịch sử ra/vào' : 'Thanh toán'}</b></span>
-          <div>
+          <span>Cổng khách hàng <b>/ {activeTab === 'vehicles' ? 'Phương tiện' : activeTab === 'history' ? 'Lịch sử ra/vào' : 'Gia hạn & Đổi gói'}</b></span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              className="text-button"
+              onClick={onBackToLanding}
+              style={{ fontWeight: 600, color: '#0f172a' }}
+              title="Quay lại Trang chủ"
+            >
+              🏠 Về Trang chủ
+            </button>
             <NotificationMenu notifications={notifications} />
             <span id="user-name">{session.user.email}</span>
             <button id="logout" className="text-button" onClick={handleLogout}>Đăng xuất</button>
@@ -285,7 +304,7 @@ export default function Dashboard({ session }) {
                 <span className="gated-lock-icon">🔒</span>
                 <h2>Dịch vụ chưa được kích hoạt</h2>
                 <p>Khách hàng cần thanh toán một gói cước đỗ xe để kích hoạt tài khoản trước khi có thể quản lý phương tiện hoặc chọn vị trí đỗ.</p>
-                <button className="primary" onClick={() => setActiveTab('payment')}>Đi đến Mua thẻ đỗ xe</button>
+                <button className="primary" onClick={() => setActiveTab('payment')}>Đi đến Gia hạn & Đổi gói</button>
               </div>
             )
           )}
@@ -367,7 +386,7 @@ export default function Dashboard({ session }) {
                 <span className="gated-lock-icon">🔒</span>
                 <h2>Dịch vụ chưa được kích hoạt</h2>
                 <p>Khách hàng cần thanh toán một gói cước đỗ xe để kích hoạt tài khoản trước khi có thể xem lịch sử đỗ xe.</p>
-                <button className="primary" onClick={() => setActiveTab('payment')}>Đi đến Mua thẻ đỗ xe</button>
+                <button className="primary" onClick={() => setActiveTab('payment')}>Đi đến Gia hạn & Đổi gói</button>
               </div>
             )
           )}
@@ -376,7 +395,6 @@ export default function Dashboard({ session }) {
             <UserPayment
               session={session}
               fetchNotifications={fetchNotifications}
-              isGated={!hasActivePlan}
               onSubscriptionChange={(data) => {
                 const active = Boolean(data?.isActive);
                 if (active !== hasActivePlan) {
