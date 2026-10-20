@@ -24,7 +24,7 @@ export default function StaffDashboard({ session, onBackToLanding }) {
         <p className="nav-label">NHÂN VIÊN</p>
         <div className={`nav-item ${activeTab === 'camera' ? 'active' : ''}`} onClick={() => setActiveTab('camera')}>📹 <span>Giám sát Camera</span></div>
         <div className={`nav-item ${activeTab === 'map' ? 'active' : ''}`} onClick={() => setActiveTab('map')}>🗺️ <span>Sơ đồ bãi đỗ</span></div>
-        <div className={`nav-item ${activeTab === 'exception' ? 'active' : ''}`} onClick={() => setActiveTab('exception')}>⚠️ <span>Xử lý ngoại lệ</span></div>
+        <div className={`nav-item ${activeTab === 'exception' ? 'active' : ''}`} onClick={() => setActiveTab('exception')}>⚠️ <span>Xử lý lỗi</span></div>
         <div className={`nav-item ${activeTab === 'support' ? 'active' : ''}`} onClick={() => setActiveTab('support')}>🎧 <span>Hỗ trợ khách hàng</span></div>
         <div className={`nav-item ${activeTab === 'checkin' ? 'active' : ''}`} onClick={() => setActiveTab('checkin')}>⏱️ <span>Check in/out</span></div>
         

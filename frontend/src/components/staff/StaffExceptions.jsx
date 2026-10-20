@@ -31,12 +31,12 @@ export default function StaffExceptions() {
     <div>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">EXCEPTIONS</p>
-          <h1>Xử lý ngoại lệ<span>.</span></h1>
+          <p className="eyebrow">ERRORS & INCIDENTS</p>
+          <h1>Xử lý lỗi<span>.</span></h1>
         </div>
       </div>
       <div className="records-panel">
-        <p className="staff-description">Danh sách các xe đang trong bãi. Nhân viên có thể hỗ trợ check-out thủ công nếu AI không nhận diện được lúc ra.</p>
+        <p className="staff-description">Danh sách các xe đang trong bãi. Nhân viên có thể hỗ trợ mở barie thủ công nếu AI không nhận diện được lúc ra hoặc ghi nhận xử lý xe đỗ sai chỗ.</p>
 
         <table className="records-table">
           <thead>
