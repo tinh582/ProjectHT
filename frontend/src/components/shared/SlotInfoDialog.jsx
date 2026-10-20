@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 export default function SlotInfoDialog({ slot, onClose }) {
   const [vehicle, setVehicle] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [activeSession, setActiveSession] = useState(null);
+  const [recentSessions, setRecentSessions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,11 +20,23 @@ export default function SlotInfoDialog({ slot, onClose }) {
     setLoading(true);
     const response = await apiFetch(`/api/components/shared/SlotInfoDialog/${slot.vehicle_id}`);
     if (response.ok) {
-      const { vehicle, profile } = await response.json();
+      const { vehicle, profile, activeSession, sessions } = await response.json();
       if (vehicle) setVehicle(vehicle);
       if (profile) setProfile(profile);
+      setActiveSession(activeSession || null);
+      setRecentSessions(sessions || []);
     }
     setLoading(false);
+  };
+
+  const formatTime = (ts) => {
+    if (!ts) return '-';
+    try {
+      const d = new Date(ts);
+      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch {
+      return ts;
+    }
   };
 
   if (!slot) return null;
@@ -38,9 +52,41 @@ export default function SlotInfoDialog({ slot, onClose }) {
         </span>
 
         {loading ? (
-          <p>Đang tải thông tin...</p>
+          <p style={{ marginTop: '16px' }}>Đang tải thông tin...</p>
         ) : slot.vehicle_id && vehicle ? (
           <div>
+            {/* Real-time Entry/Exit Time Information for Staff/Admin */}
+            <div className="slot-info-parking-time-box">
+              <h4 className="slot-info-time-title">⏱️ Trạng thái Đỗ xe</h4>
+              {activeSession ? (
+                <div className="slot-time-active">
+                  <div className="slot-time-row">
+                    <span className="parking-time-icon">🟢</span>
+                    <span className="slot-time-label">Thời gian vào bãi:</span>
+                    <strong className="slot-time-value">{formatTime(activeSession.entry_time)}</strong>
+                  </div>
+                  <div className="slot-time-row" style={{ marginTop: '4px' }}>
+                    <span className="parking-time-icon">⏳</span>
+                    <span className="slot-time-label">Thời gian ra bãi:</span>
+                    <span className="slot-time-ongoing">Đang đỗ trong bãi</span>
+                  </div>
+                </div>
+              ) : recentSessions.length > 0 ? (
+                <div className="slot-time-history">
+                  <div className="slot-time-row">
+                    <span className="parking-time-icon">🏁</span>
+                    <span className="slot-time-label">Lần đỗ gần nhất:</span>
+                  </div>
+                  <div className="slot-time-subrow">
+                    <span>Vào: <strong>{formatTime(recentSessions[0].entry_time)}</strong></span>
+                    <span>Ra: <strong>{formatTime(recentSessions[0].exit_time)}</strong></span>
+                  </div>
+                </div>
+              ) : (
+                <p className="slot-time-none">Chưa có phiên ra/vào nào được ghi nhận.</p>
+              )}
+            </div>
+
             <h3 className="slot-info-section-title">Thông tin Phương tiện</h3>
             <div className="slot-info-vehicle-details">
               <b className="slot-info-label">Biển số:</b> <span className="slot-info-plate">{vehicle.plate}</span>

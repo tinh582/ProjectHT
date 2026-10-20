@@ -1,11 +1,12 @@
 import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
 
-export default function UserPayment({ session, fetchNotifications }) {
+export default function UserPayment({ session, fetchNotifications, onSubscriptionChange, isGated }) {
   const [pricingConfigs, setPricingConfigs] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [expiryDate, setExpiryDate] = useState(null);
+  const [hasPending, setHasPending] = useState(false);
   const paymentBank = import.meta.env.VITE_PAYMENT_BANK;
   const paymentAccount = import.meta.env.VITE_PAYMENT_ACCOUNT;
 
@@ -25,13 +26,17 @@ export default function UserPayment({ session, fetchNotifications }) {
   const fetchSubscription = async () => {
     const response = await apiFetch(`/api/components/user/UserPayment/subscription/${session.user.id}`);
     if (response.ok) {
-      const transaction = await response.json();
-      if (transaction) {
-        const purchaseDate = new Date(transaction.confirmed_at || transaction.created_at);
+      const data = await response.json();
+      if (data && (data.confirmed_at || data.created_at)) {
+        const purchaseDate = new Date(data.confirmed_at || data.created_at);
         const expiry = new Date(purchaseDate);
         expiry.setDate(expiry.getDate() + 30);
         setExpiryDate(expiry);
+      } else {
+        setExpiryDate(null);
       }
+      setHasPending(Boolean(data?.hasPending));
+      onSubscriptionChange?.(data);
     }
   };
 
@@ -45,10 +50,10 @@ export default function UserPayment({ session, fetchNotifications }) {
         body: JSON.stringify({ planId: selectedPlan.id }),
       });
       if (response.ok) {
-        alert('Yêu cầu đã được gửi. Thẻ có hiệu lực sau khi nhân viên xác nhận thanh toán.');
+        alert('Yêu cầu thanh toán đã được gửi thành công. Thẻ sẽ có hiệu lực sau khi nhân viên xác nhận đối soát.');
         setSelectedPlan(null);
         fetchNotifications();
-        fetchSubscription();
+        await fetchSubscription();
       }
     } finally {
       setIsProcessing(false);
@@ -66,18 +71,36 @@ export default function UserPayment({ session, fetchNotifications }) {
         </div>
       </div>
 
+      {(!expiryDate || isExpired) && (
+        <div className="payment-onboarding-alert">
+          <div className="onboarding-icon">🔒</div>
+          <div className="onboarding-text">
+            <h4>Kích hoạt tài khoản khách hàng</h4>
+            <p>
+              Tài khoản của bạn chưa có gói cước hoạt động. Vui lòng chọn gói cước và thanh toán bên dưới để kích hoạt tài khoản và mở khóa các dịch vụ (quản lý phương tiện, chọn vị trí đỗ).
+            </p>
+          </div>
+        </div>
+      )}
+
+      {hasPending && (
+        <div className="payment-pending-alert">
+          ⏳ <strong>Yêu cầu đang chờ duyệt:</strong> Bạn đã gửi yêu cầu thanh toán gói cước. Nhân viên bãi xe đang đối soát và sẽ kích hoạt dịch vụ cho bạn trong thời gian sớm nhất.
+        </div>
+      )}
+
       <div className="payment-account">
         <div>
           <h3 className="payment-account-title">Trạng thái tài khoản</h3>
           <p className="payment-account-description">
             {expiryDate ? (
               isExpired ? (
-                <span className="payment-expired">Thẻ của bạn đã hết hạn vào ngày {expiryDate.toLocaleDateString()}. Vui lòng gia hạn!</span>
+                <span className="payment-expired">Thẻ của bạn đã hết hạn vào ngày {expiryDate.toLocaleDateString('vi-VN')}. Vui lòng gia hạn để tiếp tục sử dụng!</span>
               ) : (
-                <span>Thẻ của bạn có hiệu lực đến: <b className="payment-valid">{expiryDate.toLocaleDateString()}</b></span>
+                <span>Thẻ của bạn có hiệu lực đến: <b className="payment-valid">{expiryDate.toLocaleDateString('vi-VN')}</b></span>
               )
             ) : (
-              <span className="payment-expired">Bạn chưa mua thẻ đỗ xe. Xe của bạn sẽ không được phép qua cổng.</span>
+              <span className="payment-expired">Bạn chưa mua thẻ đỗ xe. Xe của bạn sẽ không được phép qua cổng và các dịch vụ quản lý phương tiện đang tạm khóa.</span>
             )}
           </p>
         </div>
@@ -92,7 +115,7 @@ export default function UserPayment({ session, fetchNotifications }) {
                 key={p.id}
                 onClick={() => setSelectedPlan(p)}
                 className={`payment-plan ${selectedPlan?.id === p.id ? 'is-selected' : 'is-unselected'}`}
->
+              >
                 <div>
                   <h4 className="payment-plan-title">{p.plan_type}</h4>
                   <p className="payment-plan-description">Gia hạn (30 ngày)</p>
@@ -107,20 +130,28 @@ export default function UserPayment({ session, fetchNotifications }) {
           <h3 className="payment-section-title">Quét mã thanh toán</h3>
           {selectedPlan ? (
             <div className="payment-checkout">
-              {paymentBank && paymentAccount ? <><img
-                src={`https://img.vietqr.io/image/${encodeURIComponent(paymentBank)}-${encodeURIComponent(paymentAccount)}-compact2.jpg?amount=${selectedPlan.price}&addInfo=${encodeURIComponent(`Thanh toan the xe ${session.user.id.substring(0, 8)}`)}`}
-                alt="QR Code"
-                className="payment-qr"
-              />
-              <p className="payment-instructions">Quét mã bằng ứng dụng ngân hàng.<br/>Nội dung: <b>Thanh toan the xe {session.user.id.substring(0, 8)}</b></p></>
-                : <p>Vui lòng liên hệ nhân viên để được hướng dẫn thanh toán.</p>}
+              {paymentBank && paymentAccount ? (
+                <>
+                  <img
+                    src={`https://img.vietqr.io/image/${encodeURIComponent(paymentBank)}-${encodeURIComponent(paymentAccount)}-compact2.jpg?amount=${selectedPlan.price}&addInfo=${encodeURIComponent(`Thanh toan the xe ${session.user.id.substring(0, 8)}`)}`}
+                    alt="QR Code"
+                    className="payment-qr"
+                  />
+                  <p className="payment-instructions">
+                    Quét mã bằng ứng dụng ngân hàng.<br/>
+                    Nội dung: <b>Thanh toan the xe {session.user.id.substring(0, 8)}</b>
+                  </p>
+                </>
+              ) : (
+                <p>Vui lòng liên hệ nhân viên để được hướng dẫn thanh toán.</p>
+              )}
               <p>Thẻ có hiệu lực sau khi nhân viên xác nhận đã nhận tiền.</p>
 
               <button
                 className="primary payment-submit"
                 onClick={handlePayment}
                 disabled={isProcessing}
->
+              >
                 {isProcessing ? 'Đang xử lý...' : 'Gửi yêu cầu xác nhận thanh toán'}
               </button>
             </div>

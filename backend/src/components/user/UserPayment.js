@@ -1,6 +1,7 @@
 import express from 'express';
 import { requireSelf } from '../../auth.js';
 import { requireId, rpc } from '../../http.js';
+import { getSubscriptionStatus } from '../../subscription.js';
 const router = express.Router();
 
 router.get('/pricing', async (req, res) => {
@@ -11,18 +12,20 @@ router.get('/pricing', async (req, res) => {
 
 router.get('/subscription/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
-  let { data, error } = await req.db.from('transactions').select('id, plan_name, amount, created_at, confirmed_at')
-    .eq('user_id', req.user.id).eq('status', 'completed')
-    .order('confirmed_at', { ascending: false }).limit(1).maybeSingle();
-  if (error && error.code === '42703') {
-    const fallback = await req.db.from('transactions').select('id, plan_name, amount, created_at')
-      .eq('user_id', req.user.id).eq('status', 'completed')
-      .order('created_at', { ascending: false }).limit(1).maybeSingle();
-    data = fallback.data;
-    error = fallback.error;
+  const status = await getSubscriptionStatus(req.db, req.user.id);
+  if (!status.latestTransaction) {
+    return res.json({
+      isActive: false,
+      hasPending: status.hasPending,
+      expiryDate: null,
+    });
   }
-  if (error) throw error;
-  res.json(data);
+  res.json({
+    ...status.latestTransaction,
+    isActive: status.isActive,
+    hasPending: status.hasPending,
+    expiryDate: status.expiryDate,
+  });
 });
 
 router.post('/pay', async (req, res) => {

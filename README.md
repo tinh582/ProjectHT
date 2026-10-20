@@ -42,6 +42,15 @@ There is no payment-provider integration. Optional `VITE_PAYMENT_BANK` and `VITE
 
 Subscriptions retain the application's existing 30-day, account-level model, now starting at confirmation time. Staff can confirm pending payments or mark completed payments refunded; the latter records a status and does not transfer money through a bank.
 
+## Customer Subscription Gate & AI License Plate Extraction
+
+- **Customer Subscription Gate**: New customers or customers without an active paid subscription cannot access vehicle management or slot reservation services. They are routed to the payment view ("Mua thẻ đỗ xe") until a plan is purchased and confirmed.
+- **License Plate Extraction (Roboflow Custom Workflow)**:
+  - Adding a new vehicle requires uploading a photo of the vehicle with a clearly visible license plate.
+  - The license plate input is strictly read-only and automatically extracted via Roboflow AI workflow `custom-workflow-2` (workspace `asdfg-qwerty`).
+  - Configure `ROBOFLOW_API_KEY` in `backend/.env`.
+  - Endpoint: `POST /api/components/user/VehicleDialog/extract-plate`.
+
 ## Code layout
 
 - `backend/app.js`: app construction, route mounting, role gates and error handling.

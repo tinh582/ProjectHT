@@ -10,6 +10,35 @@ router.get('/', async (req, res) => {
   if (error) throw error;
   res.json({ items: data || [], total: count, page, pageSize });
 });
+
+router.post('/', async (req, res) => {
+  const name = requireText(req.body.name, 'Full name');
+  const email = requireText(req.body.email, 'Email');
+  const password = requireText(req.body.password, 'Password', 1024);
+  const role = req.body.role || 'user';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'Invalid email address.');
+  if (password.length < 8) throw new HttpError(400, 'Password must be at least 8 characters.');
+  if (!['user', 'staff', 'admin'].includes(role)) throw new HttpError(400, 'Invalid role.');
+
+  // Use the service-role db client to create the auth user directly (no email confirmation needed).
+  const { data: authData, error: authError } = await req.db.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: name },
+  });
+  if (authError) throw new HttpError(400, authError.message);
+
+  const userId = authData.user.id;
+  const { error: profileError } = await req.db.from('profiles').upsert(
+    { id: userId, name, email, role },
+    { onConflict: 'id', ignoreDuplicates: false },
+  );
+  if (profileError) throw profileError;
+
+  res.status(201).json({ success: true, id: userId });
+});
+
 router.put('/:id/role', async (req, res) => {
   const id = requireId(req.params.id);
   const role = req.body.role;
@@ -38,3 +67,4 @@ router.delete('/:id', async (req, res) => {
   res.json({ success: true });
 });
 export default router;
+
