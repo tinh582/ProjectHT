@@ -40,6 +40,9 @@ export default function App() {
           const data = await response.json();
           setSession({ user: data.user });
           setRole(data.role);
+          if (data.role === 'admin' || data.role === 'staff') {
+            setCurrentView('dashboard');
+          }
         } else if (response.status === 401 || response.status === 403) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
@@ -69,6 +72,7 @@ export default function App() {
 
   const handleLoginSuccess = async (data) => {
     setSession({ user: data.user });
+    let resolvedRole = 'user';
     // fetch user role
     try {
       const authRes = await apiFetch('/api/components/AppAuth', {
@@ -76,6 +80,7 @@ export default function App() {
       });
       if (authRes.ok) {
         const authData = await authRes.json();
+        resolvedRole = authData.role;
         setRole(authData.role);
       } else {
         setRole('user');
@@ -83,8 +88,14 @@ export default function App() {
     } catch {
       setRole('user');
     }
-    // Stay on landing page after login as requested!
-    setCurrentView('landing');
+
+    // Staff and Admin access dashboard immediately after login
+    if (resolvedRole === 'admin' || resolvedRole === 'staff') {
+      setCurrentView('dashboard');
+    } else {
+      // Regular customer stays on landing page
+      setCurrentView('landing');
+    }
   };
 
   const handleGoToDashboard = async () => {

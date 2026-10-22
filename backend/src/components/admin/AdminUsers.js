@@ -60,11 +60,44 @@ router.put('/:id', async (req, res) => {
 });
 router.delete('/:id', async (req, res) => {
   const id = requireId(req.params.id);
-  if (id === req.user.id) throw new HttpError(409, 'You cannot delete your own profile.');
-  const { data, error } = await req.db.from('profiles').delete().eq('id', id).select('id').maybeSingle();
-  if (error) throw error;
-  if (!data) throw new HttpError(404, 'Account not found.');
-  res.json({ success: true });
+  if (id === req.user.id) throw new HttpError(409, 'You cannot delete your own account.');
+
+  // Check if profile exists
+  const { data: profile, error: fetchErr } = await req.db.from('profiles').select('id, email').eq('id', id).maybeSingle();
+  if (fetchErr) throw fetchErr;
+  if (!profile) throw new HttpError(404, 'Account not found.');
+
+  // 1. Get user's vehicles to clean up dependent records
+  const { data: userVehicles } = await req.db.from('vehicles').select('id').eq('user_id', id);
+  const vehicleIds = (userVehicles || []).map(v => v.id);
+
+  if (vehicleIds.length > 0) {
+    // Free up parking slots reserved/occupied by these vehicles
+    await req.db.from('parking_slots').update({ vehicle_id: null, status: 'empty' }).in('vehicle_id', vehicleIds);
+    // Delete parking sessions for these vehicles
+    await req.db.from('parking_sessions').delete().in('vehicle_id', vehicleIds);
+    // Delete vehicles
+    await req.db.from('vehicles').delete().eq('user_id', id);
+  }
+
+  // 2. Delete user's notifications & transactions
+  await req.db.from('notifications').delete().eq('user_id', id);
+  await req.db.from('transactions').delete().eq('user_id', id);
+
+  // 3. Delete profile
+  const { error: profileDeleteError } = await req.db.from('profiles').delete().eq('id', id);
+  if (profileDeleteError) throw profileDeleteError;
+
+  // 4. Delete user from Supabase Auth so they can no longer log in
+  try {
+    if (req.db.auth?.admin?.deleteUser) {
+      await req.db.auth.admin.deleteUser(id);
+    }
+  } catch (authErr) {
+    console.warn('Warning: Could not delete user from auth.users:', authErr?.message);
+  }
+
+  res.json({ success: true, message: 'Account deleted successfully.' });
 });
 export default router;
 

@@ -24,6 +24,11 @@ export default function AdminUsers({ session }) {
   const [addError, setAddError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // Delete user modal
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
   useEffect(() => {
     fetchUsers();
   }, [page]);
@@ -54,11 +59,25 @@ export default function AdminUsers({ session }) {
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (window.confirm('Xóa tài khoản này? (Lưu ý: Chỉ xóa profile, user vẫn có thể đăng nhập nếu không xóa trong Supabase Auth)')) {
-      const response = await apiFetch(`/api/components/admin/AdminUsers/${userId}`, { method: 'DELETE' });
-      if (response.ok) fetchUsers();
-      else alert('Lỗi khi xóa');
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setDeleteLoading(true);
+    setDeleteError('');
+    try {
+      const response = await apiFetch(`/api/components/admin/AdminUsers/${userToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setDeleteError(data.error || 'Lỗi khi xóa tài khoản.');
+        return;
+      }
+      setUserToDelete(null);
+      fetchUsers();
+    } catch (err) {
+      setDeleteError(err.message || 'Lỗi kết nối khi xóa tài khoản.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -158,7 +177,15 @@ export default function AdminUsers({ session }) {
                 <td>{new Date(u.created_at).toLocaleDateString('vi-VN')}</td>
                 <td>
                   <button onClick={() => openEdit(u)} className="text-button users-action-button">Sửa</button>
-                  <button onClick={() => handleDeleteUser(u.id)} className="text-button error users-action-button" disabled={session?.user?.id === u.id}>Xóa</button>
+                  <button
+                    onClick={() => { setUserToDelete(u); setDeleteError(''); }}
+                    className="text-button error users-action-button"
+                    disabled={session?.user?.id === u.id}
+                    id={`delete-user-${u.id}`}
+                    title={session?.user?.id === u.id ? 'Không thể tự xóa tài khoản của chính mình' : 'Xóa tài khoản'}
+                  >
+                    Xóa
+                  </button>
                 </td>
               </tr>
             ))}
@@ -266,6 +293,44 @@ export default function AdminUsers({ session }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      {userToDelete && (
+        <div className="dialog-overlay" onClick={() => !deleteLoading && setUserToDelete(null)}>
+          <div className="dialog-content sm" onClick={e => e.stopPropagation()}>
+            <h3 className="users-dialog-title" style={{ color: '#dc2626' }}>Xác nhận xóa tài khoản</h3>
+            <p className="users-dialog-desc">
+              Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản của <b>{userToDelete.name || userToDelete.email}</b> ({userToDelete.email})?
+            </p>
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 12px', fontSize: '0.85rem', color: '#991b1b', marginBottom: '16px' }}>
+              ⚠️ Thao tác này sẽ xóa hoàn toàn tài khoản khỏi hệ thống và giải phóng mọi phương tiện, ô đỗ liên quan. Không thể hoàn tác.
+            </div>
+
+            {deleteError && <p className="error" role="alert" style={{ marginBottom: '12px' }}>{deleteError}</p>}
+
+            <div className="users-dialog-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setUserToDelete(null)}
+                disabled={deleteLoading}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="primary"
+                style={{ background: '#dc2626', borderColor: '#dc2626' }}
+                onClick={confirmDeleteUser}
+                disabled={deleteLoading}
+                id="confirm-delete-user-btn"
+              >
+                {deleteLoading ? 'Đang xóa...' : 'Xác nhận xóa'}
+              </button>
+            </div>
           </div>
         </div>
       )}
