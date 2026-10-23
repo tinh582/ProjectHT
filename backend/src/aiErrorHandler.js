@@ -75,15 +75,18 @@ export function aiErrorHandlerMiddleware(err, req, res, next) {
     user: req.user?.id,
   });
 
-  const statusCode = err.status || (analysis.category === 'DATABASE_CONFLICT' ? 409 : 500);
+  const dbStatus = { P0001: 409, '23505': 409, '23503': 409, '22P02': 400, '23514': 400 };
+  const statusCode = err.status || dbStatus[err.code] || (analysis.category === 'DATABASE_CONFLICT' ? 409 : 500);
 
   res.status(statusCode).json({
-    error: analysis.userMessage,
+    error: err.message || analysis.userMessage,
+    message: analysis.userMessage,
     aiAnalysis: {
       category: analysis.category,
       severity: analysis.severity,
       fallbackApplied: analysis.fallbackApplied,
       recommendation: analysis.recommendedAction,
+      technicalSummary: analysis.technicalSummary,
     },
   });
 }

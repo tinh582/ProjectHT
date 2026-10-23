@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { HttpError, pageRange, requireId, requireText } from '../../http.js';
 import { purgeSensitiveUserData } from '../../privacyEngine.js';
 const router = express.Router();
@@ -66,7 +66,7 @@ router.put('/:id/role', async (req, res) => {
 
 router.put('/:id/kyc', async (req, res) => {
   const id = requireId(req.params.id);
-  const kyc_status = req.body.kyc_status;
+  const kyc_status = req.body.kyc_status || req.body.status;
   if (!['unverified', 'pending', 'verified', 'rejected'].includes(kyc_status)) {
     throw new HttpError(400, 'Trạng thái KYC không hợp lệ.');
   }

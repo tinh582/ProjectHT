@@ -1,8 +1,8 @@
-﻿import express from 'express';
+import express from 'express';
 import { rpc } from '../../http.js';
 const router = express.Router();
 
-router.get('/', async (req, res) => {
+router.get(['/', '/car-metrics'], async (req, res) => {
   const p_time_zone = process.env.REPORT_TIME_ZONE || 'Asia/Ho_Chi_Minh';
   
   let baseReport = {};
@@ -19,13 +19,13 @@ router.get('/', async (req, res) => {
     req.db.from('transactions').select('id, amount, plan_name, confirmed_at, created_at').eq('status', 'completed'),
   ]);
 
-  const carZoneData = carZones.data || [];
+  const carZoneData = Array.isArray(carZones.data) ? carZones.data : [];
   const carCapacity = carZoneData.reduce((acc, z) => acc + (z.total_capacity || 0), 0);
-  const carActiveInLot = (carSessions.data || []).length;
+  const carActiveInLot = Array.isArray(carSessions.data) ? carSessions.data.length : 0;
   const carOccupancy = carZoneData.reduce((acc, z) => acc + (z.current_occupancy || 0), 0);
   const carAvailable = Math.max(0, carCapacity - carOccupancy);
 
-  const allTx = activeSubscriptions.data || [];
+  const allTx = Array.isArray(activeSubscriptions.data) ? activeSubscriptions.data : [];
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
