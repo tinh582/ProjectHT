@@ -6,6 +6,7 @@ import VehicleDialog from './VehicleDialog';
 import UserPayment from './UserPayment';
 import UserSlotPicker from './UserSlotPicker';
 import ParkingHistoryDialog from './ParkingHistoryDialog';
+import UserProfileDialog from './UserProfileDialog';
 
 export default function Dashboard({ session, onBackToLanding }) {
   const [vehicles, setVehicles] = useState([]);
@@ -15,6 +16,7 @@ export default function Dashboard({ session, onBackToLanding }) {
   const [vehicleToEdit, setVehicleToEdit] = useState(null);
   const [slotPickerVehicle, setSlotPickerVehicle] = useState(null);
   const [historyVehicle, setHistoryVehicle] = useState(null);
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
 
   // All user parking history
   const [allSessions, setAllSessions] = useState([]);
@@ -221,6 +223,14 @@ export default function Dashboard({ session, onBackToLanding }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               className="text-button"
+              onClick={() => setShowProfileDialog(true)}
+              style={{ fontWeight: 600, color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}
+              title="Hồ sơ & KYC"
+            >
+              👤 Hồ sơ & KYC
+            </button>
+            <button
+              className="text-button"
               onClick={onBackToLanding}
               style={{ fontWeight: 600, color: '#0f172a' }}
               title="Quay lại Trang chủ"
@@ -402,6 +412,13 @@ export default function Dashboard({ session, onBackToLanding }) {
                   if (active) fetchVehicles();
                 }
               }}
+            />
+          )}
+
+          {showProfileDialog && (
+            <UserProfileDialog
+              session={session}
+              onClose={() => setShowProfileDialog(false)}
             />
           )}
         </main>

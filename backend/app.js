@@ -1,7 +1,7 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import { authenticate, allowRoles } from './src/auth.js';
-import { errorHandler } from './src/http.js';
+import { aiErrorHandlerMiddleware } from './src/aiErrorHandler.js';
 import login from './src/components/Login.js';
 import register from './src/components/Register.js';
 import pricing from './src/components/admin/AdminPricing.js';
@@ -22,7 +22,7 @@ export function createApp(clients) {
   const app = express();
   app.disable('x-powered-by');
   app.use(cors({ origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173' }));
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '10mb' }));
   app.use((req, res, next) => {
     req.db = clients.db;
     req.body ||= {};
@@ -52,6 +52,7 @@ export function createApp(clients) {
   app.use('/api/components/user/VehicleDialog', vehicles);
   app.use('/api/components/shared/SlotInfoDialog', slotInfo);
   app.use((req, res) => res.status(404).json({ error: 'Not found.' }));
-  app.use(errorHandler);
+  
+  app.use(aiErrorHandlerMiddleware);
   return app;
 }

@@ -1,5 +1,6 @@
 import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
+import SlotPreviewModal from './SlotPreviewModal';
 
 export default function UserPayment({ session, fetchNotifications, onSubscriptionChange }) {
   const [pricingConfigs, setPricingConfigs] = useState([]);
@@ -8,6 +9,11 @@ export default function UserPayment({ session, fetchNotifications, onSubscriptio
   const [mode, setMode] = useState('resubscribe'); // 'resubscribe' | 'switch'
   const [isProcessing, setIsProcessing] = useState(false);
   const [notice, setNotice] = useState(null);
+
+  // Slot preview & OCR Payment Proof
+  const [showSlotPreview, setShowSlotPreview] = useState(false);
+  const [chosenSlot, setChosenSlot] = useState(null);
+  const [proofImage, setProofImage] = useState(null);
 
   const paymentBank = import.meta.env.VITE_PAYMENT_BANK || 'BIDV';
   const paymentAccount = import.meta.env.VITE_PAYMENT_ACCOUNT || '6261378455';
@@ -68,6 +74,18 @@ export default function UserPayment({ session, fetchNotifications, onSubscriptio
     }
   }, [pricingConfigs, subscription]);
 
+  const handleProofUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Vui lòng chọn ảnh biên lai chuyển khoản nhỏ hơn 2MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => setProofImage(reader.result);
+    reader.readAsDataURL(file);
+  };
+
   const handlePayment = async () => {
     if (!selectedPlan || isProcessing) return;
     setIsProcessing(true);
@@ -77,22 +95,34 @@ export default function UserPayment({ session, fetchNotifications, onSubscriptio
       const response = await apiFetch('/api/components/user/UserPayment/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId: selectedPlan.id }),
+        body: JSON.stringify({
+          planId: selectedPlan.id,
+          proofImage,
+          selectedSlotId: chosenSlot?.id,
+        }),
       });
 
+      const resData = await response.json().catch(() => ({}));
+
       if (response.ok) {
-        const actionText = mode === 'resubscribe' ? 'Gia hạn gói cước' : 'Đổi gói cước';
-        setNotice({
-          type: 'success',
-          text: `Yêu cầu ${actionText.toLowerCase()} đã được gửi thành công! Nhân viên bãi xe sẽ đối soát và cập nhật thẻ cho bạn.`
-        });
+        if (resData.autoVerified) {
+          setNotice({
+            type: 'success',
+            text: '🎉 Hệ thống AI đã nhận diện chứng từ thành công & tự động kích hoạt gói cước!'
+          });
+        } else {
+          setNotice({
+            type: 'success',
+            text: 'Yêu cầu thanh toán & hoá đơn đã được gửi thành công! Nhân viên bãi xe sẽ đối soát và kích hoạt thẻ cho bạn.'
+          });
+        }
+        setProofImage(null);
         fetchNotifications?.();
         await fetchSubscription();
       } else {
-        const errData = await response.json().catch(() => ({}));
         setNotice({
           type: 'error',
-          text: errData.error || 'Gửi yêu cầu thất bại. Vui lòng thử lại.'
+          text: resData.error || 'Gửi yêu cầu thất bại. Vui lòng thử lại.'
         });
       }
     } catch (err) {
@@ -243,12 +273,41 @@ export default function UserPayment({ session, fetchNotifications, onSubscriptio
                   Quét mã bằng app ngân hàng để chuyển khoản nhanh.<br/>
                   Nội dung chuyển khoản: <b>Gia han the xe {session.user.id.substring(0, 8)}</b>
                 </p>
+
+                {/* Pre-payment Slot Preview */}
+                <div style={{ margin: '14px 0', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'left' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 'bold' }}>📍 Vị trí đỗ mong muốn:</div>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>
+                        {chosenSlot ? `Đã chọn: ${chosenSlot.slot_name}` : 'Xem sơ đồ & chọn slot còn trống trước khi trả'}
+                      </div>
+                    </div>
+                    <button type="button" className="secondary" onClick={() => setShowSlotPreview(true)} style={{ padding: '4px 10px', fontSize: '12px' }}>
+                      {chosenSlot ? 'Đổi vị trí' : 'Chọn vị trí →'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* OCR AI Proof Upload */}
+                <div style={{ margin: '14px 0', padding: '10px', background: '#f0fdf4', borderRadius: '8px', border: '1px dashed #86efac', textAlign: 'left' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#166534', marginBottom: '4px' }}>
+                    🤖 Tải ảnh chuyển khoản (AI Tự động duyệt):
+                  </div>
+                  {proofImage ? (
+                    <div style={{ margin: '6px 0', fontSize: '12px', color: '#15803d' }}>
+                      ✓ Đã đính kèm ảnh bằng chứng chuyển khoản
+                    </div>
+                  ) : null}
+                  <input type="file" accept="image/*" onChange={handleProofUpload} style={{ fontSize: '12px', width: '100%' }} />
+                </div>
+
                 <button
                   className="primary payment-submit"
                   onClick={handlePayment}
                   disabled={isProcessing}
                 >
-                  {isProcessing ? 'Đang gửi yêu cầu...' : '✓ Xác nhận đã chuyển khoản - Gửi yêu cầu gia hạn'}
+                  {isProcessing ? 'Đang kiểm tra AI & gửi...' : '✓ Xác nhận đã chuyển khoản - Gửi yêu cầu'}
                 </button>
               </div>
             ) : (
@@ -325,6 +384,14 @@ export default function UserPayment({ session, fetchNotifications, onSubscriptio
             )}
           </div>
         </div>
+      )}
+
+      {showSlotPreview && (
+        <SlotPreviewModal
+          vehicleType="Ô tô"
+          onSelectSlot={(slot) => setChosenSlot(slot)}
+          onClose={() => setShowSlotPreview(false)}
+        />
       )}
     </div>
   );

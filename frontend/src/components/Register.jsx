@@ -6,10 +6,31 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding, onRegiste
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [idFront, setIdFront] = useState(null);
+  const [idBack, setIdBack] = useState(null);
+  const [privacyAgreed, setPrivacyAgreed] = useState(true);
   const [error, setError] = useState(null);
+
+  const handleFileUpload = (e, setter) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Vui lòng chọn ảnh nhỏ hơn 2MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => setter(reader.result);
+    reader.readAsDataURL(file);
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    if (!privacyAgreed) {
+      setError('Vui lòng đồng ý với Điều khoản Bảo mật Dữ liệu & Zero-Data Retention.');
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -17,7 +38,15 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding, onRegiste
       const response = await apiFetch('/api/components/Register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, full_name: name })
+        body: JSON.stringify({
+          email,
+          password,
+          full_name: name,
+          phone,
+          address,
+          id_card_front: idFront,
+          id_card_back: idBack,
+        })
       });
 
       const data = await response.json();
@@ -80,6 +109,45 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding, onRegiste
               Mật khẩu
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder="Ít nhất 8 ký tự" />
             </label>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <label>
+                Số điện thoại
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0912345678" />
+              </label>
+              <label>
+                Địa chỉ cư trú
+                <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Quận/Huyện, TP" />
+              </label>
+            </div>
+
+            <div style={{ marginTop: '12px', padding: '10px', border: '1px dashed #ccc', borderRadius: '8px', background: '#fafafa' }}>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>Xác thực CCCD (Tùy chọn khi đăng ký / Cập nhật sau):</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
+                <div>
+                  <span>Mặt trước:</span>
+                  <input type="file" accept="image/*" onChange={e => handleFileUpload(e, setIdFront)} style={{ fontSize: '11px' }} />
+                </div>
+                <div>
+                  <span>Mặt sau:</span>
+                  <input type="file" accept="image/*" onChange={e => handleFileUpload(e, setIdBack)} style={{ fontSize: '11px' }} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ margin: '12px 0', fontSize: '12px', color: '#555' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={privacyAgreed}
+                  onChange={e => setPrivacyAgreed(e.target.checked)}
+                  style={{ marginTop: '2px' }}
+                />
+                <span>
+                  Tôi cam kết thông tin là chính chủ và đồng ý với <strong>Chính sách Bảo mật Dữ liệu & Zero-Data Retention</strong> (Dữ liệu không sử dụng trái mục đích, được xóa sạch hoàn toàn khi đóng tài khoản).
+                </span>
+              </label>
+            </div>
 
             {error && <p className="error">{error}</p>}
 

@@ -24,6 +24,9 @@ export default function AdminUsers({ session }) {
   const [addError, setAddError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // KYC Inspection Modal
+  const [viewKycUser, setViewKycUser] = useState(null);
+
   // Delete user modal
   const [userToDelete, setUserToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -56,6 +59,20 @@ export default function AdminUsers({ session }) {
       });
       if (response.ok) fetchUsers();
       else alert('Lỗi khi đổi quyền');
+    }
+  };
+
+  const handleKycStatusChange = async (userId, kyc_status) => {
+    const response = await apiFetch(`/api/components/admin/AdminUsers/${userId}/kyc`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kyc_status }),
+    });
+    if (response.ok) {
+      setViewKycUser(null);
+      fetchUsers();
+    } else {
+      alert('Lỗi khi cập nhật trạng thái KYC');
     }
   };
 
@@ -152,7 +169,9 @@ export default function AdminUsers({ session }) {
             <tr>
               <th>Họ và Tên</th>
               <th>Email</th>
+              <th>SĐT & Địa chỉ</th>
               <th>Role</th>
+              <th>Trạng thái KYC</th>
               <th>Ngày tạo</th>
               <th>Hành động</th>
             </tr>
@@ -162,6 +181,10 @@ export default function AdminUsers({ session }) {
               <tr key={u.id}>
                 <td className="users-name">{u.name || 'Chưa cập nhật'} {session?.user?.id === u.id ? '(You)' : ''}</td>
                 <td>{u.email || '-'}</td>
+                <td style={{ fontSize: '12px' }}>
+                  <div>📞 {u.phone || 'Chưa có'}</div>
+                  <div>🏠 {u.address || 'Chưa có'}</div>
+                </td>
                 <td>
                   <select
                     value={u.role === 'customer' ? 'user' : (u.role || 'user')}
@@ -174,6 +197,22 @@ export default function AdminUsers({ session }) {
                     <option value="admin">ADMIN</option>
                   </select>
                 </td>
+                <td>
+                  <span
+                    onClick={() => setViewKycUser(u)}
+                    style={{
+                      cursor: 'pointer',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      background: u.kyc_status === 'verified' ? '#e8f5e9' : u.kyc_status === 'pending' ? '#fff3e0' : '#f5f5f5',
+                      color: u.kyc_status === 'verified' ? '#2e7d32' : u.kyc_status === 'pending' ? '#ef6c00' : '#666'
+                    }}
+                  >
+                    {u.kyc_status === 'verified' ? '✓ Đã duyệt' : u.kyc_status === 'pending' ? '🔍 Cần duyệt' : 'Chưa nộp'}
+                  </span>
+                </td>
                 <td>{new Date(u.created_at).toLocaleDateString('vi-VN')}</td>
                 <td>
                   <button onClick={() => openEdit(u)} className="text-button users-action-button">Sửa</button>
@@ -184,12 +223,12 @@ export default function AdminUsers({ session }) {
                     id={`delete-user-${u.id}`}
                     title={session?.user?.id === u.id ? 'Không thể tự xóa tài khoản của chính mình' : 'Xóa tài khoản'}
                   >
-                    Xóa
+                    Xóa (Zero-Data)
                   </button>
                 </td>
               </tr>
             ))}
-            {users.length === 0 && <tr><td colSpan="5" className="users-empty">Không có tài khoản.</td></tr>}
+            {users.length === 0 && <tr><td colSpan="7" className="users-empty">Không có tài khoản.</td></tr>}
           </tbody>
         </table>
         <Pagination page={page} pageSize={pageSize} total={total} onChange={setPage} />
@@ -330,6 +369,47 @@ export default function AdminUsers({ session }) {
               >
                 {deleteLoading ? 'Đang xóa...' : 'Xác nhận xóa'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KYC Inspection Modal */}
+      {viewKycUser && (
+        <div className="slot-picker-overlay" style={{ zIndex: 1200 }}>
+          <div className="slot-picker-dialog" style={{ maxWidth: '650px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3>Kiểm tra & Duyệt Hồ sơ KYC: {viewKycUser.name}</h3>
+              <button className="slot-info-close" onClick={() => setViewKycUser(null)}>✕</button>
+            </div>
+            <div style={{ margin: '12px 0', fontSize: '14px' }}>
+              <div><strong>Email:</strong> {viewKycUser.email}</div>
+              <div><strong>Số điện thoại:</strong> {viewKycUser.phone || '(Chưa cung cấp)'}</div>
+              <div><strong>Địa chỉ:</strong> {viewKycUser.address || '(Chưa cung cấp)'}</div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', margin: '16px 0' }}>
+              <div style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>CCCD Mặt trước</div>
+                {viewKycUser.id_card_front ? (
+                  <img src={viewKycUser.id_card_front} alt="CCCD trước" style={{ width: '100%', maxHeight: '160px', objectFit: 'contain' }} />
+                ) : (
+                  <div style={{ padding: '40px', color: '#999' }}>Chưa tải lên</div>
+                )}
+              </div>
+              <div style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>CCCD Mặt sau</div>
+                {viewKycUser.id_card_back ? (
+                  <img src={viewKycUser.id_card_back} alt="CCCD sau" style={{ width: '100%', maxHeight: '160px', objectFit: 'contain' }} />
+                ) : (
+                  <div style={{ padding: '40px', color: '#999' }}>Chưa tải lên</div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+              <button className="secondary" onClick={() => handleKycStatusChange(viewKycUser.id, 'rejected')} style={{ color: '#c62828' }}>Từ chối KYC</button>
+              <button className="primary" onClick={() => handleKycStatusChange(viewKycUser.id, 'verified')} style={{ background: '#2e7d32' }}>✓ Duyệt Hợp Lệ</button>
             </div>
           </div>
         </div>

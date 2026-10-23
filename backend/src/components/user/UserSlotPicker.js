@@ -4,10 +4,22 @@ const router = express.Router();
 
 router.get('/:vehicleType', async (req, res) => {
   const type = requireText(req.params.vehicleType, 'Vehicle type');
+  
   const { data, error } = await req.db.from('parking_slots')
-    .select('id, zone_id, slot_name, status, vehicle_id, parking_zones!inner(vehicle_type)')
+    .select(`
+      id, zone_id, slot_name, status, vehicle_id,
+      parking_zones!inner(id, zone_name, vehicle_type, drainage_status, sensor_status, cctv_coverage, lighting_status)
+    `)
     .eq('parking_zones.vehicle_type', type).order('slot_name');
-  if (error) throw error;
+
+  if (error) {
+    const fallback = await req.db.from('parking_slots')
+      .select('id, zone_id, slot_name, status, vehicle_id, parking_zones!inner(vehicle_type)')
+      .eq('parking_zones.vehicle_type', type).order('slot_name');
+    if (fallback.error) throw fallback.error;
+    return res.json(fallback.data || []);
+  }
+
   res.json(data || []);
 });
 
@@ -19,4 +31,5 @@ router.post('/save', async (req, res) => {
   });
   res.json({ success: true });
 });
+
 export default router;
