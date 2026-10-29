@@ -39,23 +39,23 @@ router.get('/', async (req, res) => {
   res.json({ items: data || [], total: count || 0, page, pageSize });
 });
 
-// 2. APPROVE OR REFUND TRANSACTION STATUS (Existing route preserved)
+// 2. APPROVE, REJECT, OR REFUND TRANSACTION STATUS
 router.put('/:id/status', async (req, res) => {
-  const { status } = req.body;
-  if (!['completed', 'refunded'].includes(status)) throw new HttpError(400, 'Invalid status.');
-  const previousStatus = status === 'completed' ? 'pending' : 'completed';
+  const { status, reason } = req.body;
+  if (!['completed', 'refunded', 'rejected'].includes(status)) throw new HttpError(400, 'Invalid status.');
+  const previousStatus = status === 'refunded' ? 'completed' : 'pending';
   const now = new Date();
   const cycleEnd = new Date(now.getTime() + 30 * 24 * 3600 * 1000);
 
   const changes =
     status === 'completed'
       ? {
-          status,
-          confirmed_at: now.toISOString(),
-          cycle_start: now.toISOString(),
-          cycle_end: cycleEnd.toISOString(),
-          verified_by: req.user?.email || 'Staff'
-        }
+        status,
+        confirmed_at: now.toISOString(),
+        cycle_start: now.toISOString(),
+        cycle_end: cycleEnd.toISOString(),
+        verified_by: req.user?.email || 'Staff'
+      }
       : { status };
 
   let { data, error } = await req.db
@@ -82,14 +82,24 @@ router.put('/:id/status', async (req, res) => {
   if (!data) throw new HttpError(409, 'Transaction not found or its status has already changed.');
 
   if (data.user_id) {
-    const msg =
-      status === 'completed'
-        ? `Gói cước ${data.plan_name || ''} của bạn đã được nhân viên xác nhận thành công!`
-        : `Gói cước ${data.plan_name || ''} của bạn đã được hoàn tiền.`;
+    let title = 'Cập nhật thanh toán';
+    let msg = '';
+    if (status === 'completed') {
+      title = 'Xác nhận thanh toán';
+      msg = `Gói cước ${data.plan_name || ''} của bạn đã được nhân viên xác nhận thành công!`;
+    } else if (status === 'rejected') {
+      title = 'Từ chối thanh toán';
+      msg = reason
+        ? `Yêu cầu thanh toán gói ${data.plan_name || ''} bị từ chối. Lý do: ${reason}`
+        : `Yêu cầu thanh toán gói cước ${data.plan_name || ''} của bạn đã bị từ chối. Vui lòng kiểm tra lại biên lai.`;
+    } else {
+      title = 'Hoàn tiền giao dịch';
+      msg = `Gói cước ${data.plan_name || ''} của bạn đã được hoàn tiền.`;
+    }
     try {
       await req.db.from('notifications').insert({
         user_id: data.user_id,
-        title: status === 'completed' ? 'Xác nhận thanh toán' : 'Hoàn tiền giao dịch',
+        title,
         message: msg
       });
     } catch {
@@ -110,22 +120,22 @@ router.put('/:id/details', async (req, res) => {
   if (cycle_end !== undefined) updates.cycle_end = cycle_end || null;
   if (confirmed_at !== undefined) updates.confirmed_at = confirmed_at || null;
   if (payment_proof !== undefined) updates.payment_proof = payment_proof || null;
-  if (status && ['pending', 'completed', 'refunded'].includes(status)) {
-    updates.status = status;
-  }
+    if (status && ['pending', 'completed', 'refunded', 'rejected'].includes(status)) {
+      updates.status = status;
+    }
 
-  const { error } = await req.db.from('transactions').update(updates).eq('id', id);
-  if (error && error.code === '42703') {
-    const basicUpdates = {};
-    if (updates.status) basicUpdates.status = updates.status;
-    if (updates.confirmed_at) basicUpdates.confirmed_at = updates.confirmed_at;
-    await req.db.from('transactions').update(basicUpdates).eq('id', id);
-  } else if (error) {
-    throw error;
-  }
+    const { error } = await req.db.from('transactions').update(updates).eq('id', id);
+    if (error && error.code === '42703') {
+      const basicUpdates = {};
+      if (updates.status) basicUpdates.status = updates.status;
+      if (updates.confirmed_at) basicUpdates.confirmed_at = updates.confirmed_at;
+      await req.db.from('transactions').update(basicUpdates).eq('id', id);
+    } else if (error) {
+      throw error;
+    }
 
-  res.json({ success: true, message: 'Đã cập nhật chu kỳ thuê và ảnh xác thực giao dịch!' });
-});
+    res.json({ success: true, message: 'Đã cập nhật chu kỳ thuê và ảnh xác thực giao dịch!' });
+  });
 
 // 4. RUN AI OCR VERIFICATION ON TRANSACTION PROOF
 router.post('/:id/ai-verify', async (req, res) => {
