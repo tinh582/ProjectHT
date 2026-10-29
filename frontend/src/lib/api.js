@@ -39,6 +39,9 @@ async function refreshSession() {
 export async function apiFetch(path, options = {}) {
   const isPublic = /^\/api\/components\/(Login|Register)(\/|$)/.test(path);
   const headers = new Headers(options.headers);
+  if (typeof options.body === 'string' && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
   const token = localStorage.getItem('token');
   if (token && !isPublic) headers.set('Authorization', `Bearer ${token}`);
   let response;

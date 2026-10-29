@@ -13,14 +13,15 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState('landing'); // 'landing' | 'login' | 'register' | 'activation-pricing' | 'dashboard'
+  const [currentView, setCurrentView] = useState('landing'); // Always start on 'landing'
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
 
   useEffect(() => {
     const onExpired = () => {
       setSession(null);
       setRole(null);
-      setCurrentView('login');
+      // Never force redirect away from Landing page if user is browsing Landing
+      setCurrentView((prev) => (prev === 'landing' ? 'landing' : 'login'));
     };
     window.addEventListener('auth-expired', onExpired);
 
@@ -32,7 +33,8 @@ export default function App() {
       }
 
       try {
-        const response = await apiFetch('/api/components/AppAuth', {
+        // Use plain fetch during silent startup check so an expired token never forces a redirect to Login
+        const response = await fetch('/api/components/AppAuth', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -40,9 +42,6 @@ export default function App() {
           const data = await response.json();
           setSession({ user: data.user });
           setRole(data.role);
-          if (data.role === 'admin' || data.role === 'staff') {
-            setCurrentView('dashboard');
-          }
         } else if (response.status === 401 || response.status === 403) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
@@ -93,7 +92,7 @@ export default function App() {
     if (resolvedRole === 'admin' || resolvedRole === 'staff') {
       setCurrentView('dashboard');
     } else {
-      // Regular customer stays on landing page
+      // Regular customer stays on landing page or proceeds to dashboard/onboarding
       setCurrentView('landing');
     }
   };

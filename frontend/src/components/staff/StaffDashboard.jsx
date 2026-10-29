@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../../lib/api';
+import NotificationMenu from '../user/NotificationMenu';
 import StaffCheckin from './StaffCheckin';
 import StaffCamera from './StaffCamera';
 import StaffExceptions from './StaffExceptions';
@@ -7,6 +9,26 @@ import StaffSlotMap from './StaffSlotMap';
 
 export default function StaffDashboard({ session, onBackToLanding }) {
   const [activeTab, setActiveTab] = useState('checkin');
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchNotifications = async () => {
+    if (!session?.user?.id) return;
+    try {
+      const response = await apiFetch(`/api/components/user/Dashboard/notifications/${session.user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data || []);
+      }
+    } catch (err) {
+      console.error('Failed fetching staff notifications:', err);
+    }
+  };
 
   const handleLogout = async () => {
     localStorage.removeItem('token');
@@ -51,6 +73,7 @@ export default function StaffDashboard({ session, onBackToLanding }) {
             >
               🏠 Về Trang chủ
             </button>
+            <NotificationMenu notifications={notifications} />
             <span id="user-name">{session?.user?.email}</span>
             <button id="logout" className="text-button" onClick={handleLogout}>Đăng xuất</button>
           </div>

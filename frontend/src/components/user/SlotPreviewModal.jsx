@@ -60,6 +60,9 @@ export default function SlotPreviewModal({ vehicleType = 'Ô tô', onSelectSlot,
       <div className="slot-picker-dialog" style={{ maxWidth: '720px' }}>
         <h2 className="slot-picker-title">Sơ đồ bãi đỗ (Xem trước & Chọn vị trí)</h2>
         <p className="slot-picker-description">Loại xe: {vehicleType} | Vị trí thực tế còn trống: <strong>{emptySlotsCount}</strong> slot</p>
+        <div style={{ margin: '6px 0 10px 0', fontSize: '12px', color: '#1e3a8a', background: '#eff6ff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+          🔒 <strong>Ràng buộc cố định (1 Slot = 1 Xe):</strong> Mỗi vị trí đỗ chỉ gắn duy nhất cho một phương tiện, tuyệt đối không overbooking hay đỗ trùng lặp.
+        </div>
 
         {/* Technical Infrastructure Highlights */}
         <div style={{

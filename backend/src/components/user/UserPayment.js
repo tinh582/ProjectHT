@@ -42,12 +42,24 @@ router.post('/pay', async (req, res) => {
     p_plan_id: planId,
   });
 
+  if (selectedSlotId && vehicleId) {
+    try {
+      await rpc(req.db, 'reserve_parking_slot', {
+        p_user_id: req.user.id,
+        p_vehicle_id: String(vehicleId),
+        p_slot_id: String(selectedSlotId),
+      });
+    } catch (slotErr) {
+      console.warn('Slot reservation fallback:', slotErr?.message);
+    }
+  }
+
   if (!proofImage) {
     return res.json({
       success: true,
       status: 'pending',
       transaction: result,
-      message: 'Yêu cầu thanh toán đã được ghi nhận. Vui lòng gửi biên lai chuyển khoản.',
+      message: 'Yêu cầu thanh toán và giữ chỗ đã được ghi nhận. Vui lòng gửi biên lai chuyển khoản.',
     });
   }
 
@@ -80,18 +92,6 @@ router.post('/pay', async (req, res) => {
         confirmed_at: now.toISOString(),
       }).eq('id', result.id).select().maybeSingle();
       if (fallback) txData = fallback;
-    }
-
-    if (selectedSlotId && vehicleId) {
-      try {
-        await rpc(req.db, 'reserve_parking_slot', {
-          p_user_id: req.user.id,
-          p_vehicle_id: String(vehicleId),
-          p_slot_id: String(selectedSlotId),
-        });
-      } catch (slotErr) {
-        console.warn('Slot reservation fallback:', slotErr?.message);
-      }
     }
 
     await req.db.from('notifications').insert({

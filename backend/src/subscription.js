@@ -12,7 +12,7 @@ export async function getSubscriptionStatus(db, userId) {
 
   try {
     const res = await db.from('transactions')
-      .select('id, plan_name, amount, created_at, confirmed_at, status')
+      .select('id, plan_name, amount, created_at, confirmed_at, cycle_start, cycle_end, verified_by, status')
       .eq('user_id', userId)
       .eq('status', 'completed')
       .order('confirmed_at', { ascending: false })
@@ -56,7 +56,10 @@ export async function getSubscriptionStatus(db, userId) {
 
   if (data) {
     const purchaseDate = new Date(data.confirmed_at || data.created_at);
-    if (!isNaN(purchaseDate.getTime())) {
+    if (data.cycle_end) {
+      expiryDate = new Date(data.cycle_end).toISOString();
+      isActive = new Date() <= new Date(data.cycle_end);
+    } else if (!isNaN(purchaseDate.getTime())) {
       const expiry = new Date(purchaseDate);
       expiry.setDate(expiry.getDate() + 30);
       expiryDate = expiry.toISOString();

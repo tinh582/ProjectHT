@@ -50,12 +50,10 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
           setPlate(data.plate);
           setScanSuccess(true);
         } else {
-          setPlate('');
-          setScanError(data.error || 'Ảnh không có biển số xe rõ ràng. Vui lòng tải ảnh rõ nét chụp trực diện biển số xe.');
+          setScanError(data.error || 'AI chưa nhận diện rõ biển số từ ảnh này. Bạn có thể tải ảnh khác hoặc nhập biển số thủ công (AI Fallback).');
         }
       } catch (err) {
-        setPlate('');
-        setScanError('Không thể kết nối đến máy chủ AI để quét biển số. Vui lòng thử lại.');
+        setScanError('Dịch vụ AI đang bận. Đã kích hoạt chế độ nhập biển số dự phòng (AI Fallback).');
       } finally {
         setIsScanning(false);
       }
@@ -72,7 +70,7 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
     }
 
     if (!plate || !plate.trim()) {
-      alert('Chưa có biển số xe hợp lệ. Vui lòng tải lên ảnh xe có biển số rõ nét để hệ thống AI nhận diện trước khi thêm phương tiện.');
+      alert('Vui lòng cung cấp biển số xe hợp lệ.');
       return;
     }
 
@@ -109,12 +107,12 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
         });
       }
 
+      const resData = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || 'Lỗi khi lưu phương tiện.');
+        throw new Error(resData.error || 'Lỗi khi lưu phương tiện.');
       }
 
-      onSaved();
+      onSaved?.(resData.vehicle || vehicle);
       onClose();
     } catch (error) {
       alert('Lỗi: ' + error.message);
@@ -174,27 +172,27 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
             </div>
 
             <label style={{ gridColumn: '1 / -1' }}>
-              Biển số xe <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>(Tự động điền từ ảnh - không thể tự nhập)</span>
+              Biển số xe <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>(Tự động điền bởi AI hoặc nhập dự phòng)</span>
               <input
                 name="plate"
                 value={plate}
-                readOnly
-                onKeyDown={(e) => e.preventDefault()}
-                placeholder={isScanning ? 'Đang nhận diện biển số xe...' : 'Tự động điền sau khi quét ảnh có biển số'}
-                className="plate-readonly-input"
+                onChange={(e) => setPlate(e.target.value.toUpperCase())}
+                readOnly={scanSuccess && !scanError}
+                placeholder={isScanning ? 'Đang nhận diện biển số xe...' : 'Ví dụ: 51A-123.45'}
+                className={scanSuccess && !scanError ? 'plate-readonly-input' : ''}
                 required
               />
             </label>
 
             <label>Loại phương tiện
-              <select name="type" defaultValue={vehicleToEdit?.type || 'Xe máy'}>
-                <option>Xe máy</option>
-                <option>Ô tô</option>
+              <select name="type" defaultValue={vehicleToEdit?.type || 'Ô tô'}>
+                <option value="Ô tô">Ô tô</option>
+                <option value="Xe máy">Xe máy</option>
               </select>
             </label>
 
-            <label>Hãng xe <input name="brand" required defaultValue={vehicleToEdit?.brand || ''} placeholder="Ví dụ: Honda, Toyota..." /></label>
-            <label>Mẫu xe <input name="model" required defaultValue={vehicleToEdit?.model || ''} placeholder="Ví dụ: Vision, Vios..." /></label>
+            <label>Hãng xe <input name="brand" required defaultValue={vehicleToEdit?.brand || ''} placeholder="Ví dụ: Toyota, Honda..." /></label>
+            <label>Mẫu xe <input name="model" required defaultValue={vehicleToEdit?.model || ''} placeholder="Ví dụ: Vios, Vision..." /></label>
             <label>Màu sắc <input name="color" required defaultValue={vehicleToEdit?.color || ''} placeholder="Ví dụ: Đen, Trắng, Đỏ..." /></label>
             <label>Thời hạn (tháng) <input name="months" type="number" min="1" max="120" defaultValue={vehicleToEdit?.months || '1'} required /></label>
           </div>
@@ -204,7 +202,7 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
             <button
               type="submit"
               className="primary"
-              disabled={loading || isScanning || (!isEditMode && (!imageBase64 || !plate))}
+              disabled={loading || isScanning || (!isEditMode && (!imageBase64 || !plate.trim()))}
             >
               {isScanning
                 ? 'Đang nhận diện biển số...'

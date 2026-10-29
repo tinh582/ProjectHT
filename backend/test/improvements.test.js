@@ -434,3 +434,87 @@ test('Admin Reports API: car-centric analytics returns accurate metrics and tech
     assert.equal(data.carMetrics.infrastructureZones[0].drainage_status, 'Tốt');
   });
 });
+
+test('Onboarding Flow: user can register vehicle first, reserve parking slot second, and pay third before dashboard access', async () => {
+  const clients = mockImprovementsApi();
+  await withCustomApi(clients, async (request) => {
+    // Step 1: Register vehicle BEFORE having an active subscription
+    const vehRes = await request('user/VehicleDialog', {
+      method: 'POST',
+      body: {
+        vehicle: {
+          type: 'Ô tô',
+          brand: 'Toyota',
+          model: 'Vios',
+          color: 'Trắng',
+          plate: '51A-888.88',
+          months: 1,
+          image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        },
+      },
+    });
+    assert.equal(vehRes.status, 200);
+    const vehBody = await vehRes.json();
+    assert.equal(vehBody.success, true);
+
+    // Step 2: Choose and reserve parking slot for that vehicle
+    const slotRes = await request('user/UserSlotPicker/save', {
+      method: 'POST',
+      body: {
+        vehicleId: 'veh-1',
+        selectedSlotId: 'slot-1',
+      },
+    });
+    assert.equal(slotRes.status, 200);
+
+    // Step 3: Pay for the plan linked to that vehicle and slot
+    const payRes = await request('user/UserPayment/pay', {
+      method: 'POST',
+      body: {
+        planId: 'plan-1',
+        vehicleId: 'veh-1',
+        selectedSlotId: 'slot-1',
+        proofImage: 'Giao dich thanh toan 200,000 VND. Ma user',
+      },
+    });
+    assert.equal(payRes.status, 200);
+    const payBody = await payRes.json();
+    assert.equal(payBody.success, true);
+    assert.equal(payBody.status, 'completed');
+  });
+});
+
+
+test('Email OTP Verification: rejects disposable email, issues 6-digit OTP, and enforces OTP before registration', async () => {
+  const clients = mockImprovementsApi();
+  await withCustomApi(clients, async (request) => {
+    // 1. Rejects disposable/fake email domain
+    const fakeRes = await request('Register/send-otp', {
+      token: null,
+      method: 'POST',
+      body: { email: 'hacker@mailinator.com' }
+    });
+    assert.equal(fakeRes.status, 400);
+
+    // 2. Issues 6-digit OTP for real email domain
+    const otpRes = await request('Register/send-otp', {
+      token: null,
+      method: 'POST',
+      body: { email: 'minhtuan@gmail.com' }
+    });
+    assert.equal(otpRes.status, 200);
+    const otpBody = await otpRes.json();
+    assert.equal(otpBody.success, true);
+    assert.match(String(otpBody.devOtpPreview || ''), /^\d{6}$/);
+
+    // 3. Verify 6-digit OTP
+    const verifyRes = await request('Register/verify-otp', {
+      token: null,
+      method: 'POST',
+      body: { email: 'minhtuan@gmail.com', otp: otpBody.devOtpPreview }
+    });
+    assert.equal(verifyRes.status, 200);
+    const verifyBody = await verifyRes.json();
+    assert.equal(verifyBody.verified, true);
+  });
+});

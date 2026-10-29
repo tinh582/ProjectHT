@@ -7,6 +7,8 @@ import UserPayment from './UserPayment';
 import UserSlotPicker from './UserSlotPicker';
 import ParkingHistoryDialog from './ParkingHistoryDialog';
 import UserProfileDialog from './UserProfileDialog';
+import ActivationPricing from './ActivationPricing';
+import UserSupportCenter from './UserSupportCenter';
 
 export default function Dashboard({ session, onBackToLanding }) {
   const [vehicles, setVehicles] = useState([]);
@@ -17,6 +19,7 @@ export default function Dashboard({ session, onBackToLanding }) {
   const [slotPickerVehicle, setSlotPickerVehicle] = useState(null);
   const [historyVehicle, setHistoryVehicle] = useState(null);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [supportPrefill, setSupportPrefill] = useState(null);
 
   // All user parking history
   const [allSessions, setAllSessions] = useState([]);
@@ -24,7 +27,8 @@ export default function Dashboard({ session, onBackToLanding }) {
 
   const [notifications, setNotifications] = useState([]);
   const [activeTab, setActiveTab] = useState('vehicles');
-  const [hasActivePlan, setHasActivePlan] = useState(true);
+  const [hasActivePlan, setHasActivePlan] = useState(false);
+  const [checkingSub, setCheckingSub] = useState(true);
   const [lockNotice, setLockNotice] = useState(null);
 
   const parkedVehicleIds = new Set(activeVehicleIds);
@@ -41,6 +45,7 @@ export default function Dashboard({ session, onBackToLanding }) {
         const data = await response.json();
         const active = Boolean(data?.isActive);
         setHasActivePlan(active);
+        setCheckingSub(false);
         if (active) {
           fetchVehicles();
         } else {
@@ -48,10 +53,12 @@ export default function Dashboard({ session, onBackToLanding }) {
         }
       } else {
         setHasActivePlan(false);
+        setCheckingSub(false);
         setActiveTab('payment');
       }
     } catch (err) {
       console.error('Failed checking subscription:', err);
+      setCheckingSub(false);
       setHasActivePlan(false);
       setActiveTab('payment');
     }
@@ -132,6 +139,11 @@ export default function Dashboard({ session, onBackToLanding }) {
     setIsDialogOpen(true);
   };
 
+  const handleOpenSupportWithPrefill = (context) => {
+    setSupportPrefill(context);
+    setActiveTab('support');
+  };
+
   const handleTabClick = (tab) => {
     if ((tab === 'vehicles' || tab === 'history') && !hasActivePlan) {
       setLockNotice('Khách hàng mới cần thanh toán gói cước trước khi truy cập vào dịch vụ phương tiện và lịch sử đỗ xe.');
@@ -150,7 +162,11 @@ export default function Dashboard({ session, onBackToLanding }) {
     if (!ts) return '-';
     try {
       const d = new Date(ts);
-      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return (
+        d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) +
+        ' ' +
+        d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      );
     } catch {
       return ts;
     }
@@ -174,10 +190,30 @@ export default function Dashboard({ session, onBackToLanding }) {
     return parts.join(' ');
   };
 
-  return (
+  return checkingSub ? (
+    <div className="app-loading">Đang kiểm tra trạng thái kích hoạt gói cước...</div>
+  ) : !hasActivePlan ? (
+    <ActivationPricing
+      session={session}
+      onBackToLanding={onBackToLanding}
+      onUnlocked={() => {
+        setHasActivePlan(true);
+        fetchVehicles();
+        setActiveTab('vehicles');
+      }}
+      onLogout={handleLogout}
+    />
+  ) : (
     <div id="workspace">
       <aside>
-        <a className="logo" href="/" onClick={(e) => { e.preventDefault(); onBackToLanding?.(); }}>
+        <a
+          className="logo"
+          href="/"
+          onClick={(e) => {
+            e.preventDefault();
+            onBackToLanding?.();
+          }}
+        >
           HT<span> PARKING</span>
         </a>
         <p className="nav-label">KHÔNG GIAN CỦA BẠN</p>
@@ -205,6 +241,12 @@ export default function Dashboard({ session, onBackToLanding }) {
         >
           <span>💳</span> <span>Gia hạn & Đổi gói</span>
         </div>
+        <div
+          className={`nav-item ${activeTab === 'support' ? 'active' : ''}`}
+          onClick={() => handleTabClick('support')}
+        >
+          <span>💬</span> <span>Hỗ trợ & Báo sự cố</span>
+        </div>
 
         <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
           <div
@@ -219,7 +261,19 @@ export default function Dashboard({ session, onBackToLanding }) {
 
       <div className="main">
         <header>
-          <span>Cổng khách hàng <b>/ {activeTab === 'vehicles' ? 'Phương tiện' : activeTab === 'history' ? 'Lịch sử ra/vào' : 'Gia hạn & Đổi gói'}</b></span>
+          <span>
+            Cổng khách hàng{' '}
+            <b>
+              /{' '}
+              {activeTab === 'vehicles'
+                ? 'Phương tiện'
+                : activeTab === 'history'
+                ? 'Lịch sử ra/vào'
+                : activeTab === 'support'
+                ? 'Hỗ trợ & Báo chiếm ô'
+                : 'Gia hạn & Đổi gói'}
+            </b>
+          </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               className="text-button"
@@ -237,9 +291,11 @@ export default function Dashboard({ session, onBackToLanding }) {
             >
               🏠 Về Trang chủ
             </button>
-            <NotificationMenu notifications={notifications} />
+            <NotificationMenu notifications={notifications} onReplyNotification={handleOpenSupportWithPrefill} />
             <span id="user-name">{session.user.email}</span>
-            <button id="logout" className="text-button" onClick={handleLogout}>Đăng xuất</button>
+            <button id="logout" className="text-button" onClick={handleLogout}>
+              Đăng xuất
+            </button>
           </div>
         </header>
 
@@ -248,25 +304,31 @@ export default function Dashboard({ session, onBackToLanding }) {
             <div className="dashboard-gate-alert">
               <span>🔒</span>
               <p>{lockNotice}</p>
-              <button type="button" onClick={() => setLockNotice(null)}>✕</button>
+              <button type="button" onClick={() => setLockNotice(null)}>
+                ✕
+              </button>
             </div>
           )}
 
-          {activeTab === 'vehicles' && (
-            hasActivePlan ? (
+          {activeTab === 'vehicles' &&
+            (hasActivePlan ? (
               <div>
                 <div className="page-heading">
                   <div>
                     <p className="eyebrow">QUẢN LÝ PHƯƠNG TIỆN</p>
-                    <h1>Phương tiện của tôi<span>.</span></h1>
+                    <h1>
+                      Phương tiện của tôi<span>.</span>
+                    </h1>
                   </div>
-                  <button className="primary" onClick={openAddDialog}>＋ Thêm phương tiện</button>
+                  <button className="primary" onClick={openAddDialog}>
+                    ＋ Thêm phương tiện
+                  </button>
                 </div>
 
                 <div className="vehicle-grid">
-                  {vehicles.map(vehicle => {
+                  {vehicles.map((vehicle) => {
                     const vehicleSessions = sessionsByVehicle[vehicle.id] || [];
-                    const activeSession = vehicleSessions.find(s => s.status === 'active') || null;
+                    const activeSession = vehicleSessions.find((s) => s.status === 'active') || null;
                     const latestSession = vehicleSessions[0] || null;
 
                     return (
@@ -279,6 +341,7 @@ export default function Dashboard({ session, onBackToLanding }) {
                         onEdit={openEditDialog}
                         onDelete={handleDelete}
                         onViewHistory={() => setHistoryVehicle(vehicle)}
+                        onReportIssue={handleOpenSupportWithPrefill}
                       />
                     );
                   })}
@@ -313,19 +376,25 @@ export default function Dashboard({ session, onBackToLanding }) {
               <div className="gated-service-box">
                 <span className="gated-lock-icon">🔒</span>
                 <h2>Dịch vụ chưa được kích hoạt</h2>
-                <p>Khách hàng cần thanh toán một gói cước đỗ xe để kích hoạt tài khoản trước khi có thể quản lý phương tiện hoặc chọn vị trí đỗ.</p>
-                <button className="primary" onClick={() => setActiveTab('payment')}>Đi đến Gia hạn & Đổi gói</button>
+                <p>
+                  Khách hàng cần thanh toán một gói cước đỗ xe để kích hoạt tài khoản trước khi có thể quản lý phương
+                  tiện hoặc chọn vị trí đỗ.
+                </p>
+                <button className="primary" onClick={() => setActiveTab('payment')}>
+                  Đi đến Gia hạn & Đổi gói
+                </button>
               </div>
-            )
-          )}
+            ))}
 
-          {activeTab === 'history' && (
-            hasActivePlan ? (
+          {activeTab === 'history' &&
+            (hasActivePlan ? (
               <div>
                 <div className="page-heading">
                   <div>
                     <p className="eyebrow">NHẬT KÝ BÃI ĐỖ</p>
-                    <h1>Lịch sử xe ra & vào bãi<span>.</span></h1>
+                    <h1>
+                      Lịch sử xe ra & vào bãi<span>.</span>
+                    </h1>
                   </div>
                   <button className="secondary" onClick={fetchAllSessions} disabled={loadingHistory}>
                     {loadingHistory ? 'Đang tải...' : '🔄 Làm mới'}
@@ -334,7 +403,8 @@ export default function Dashboard({ session, onBackToLanding }) {
 
                 <div className="panel">
                   <p className="users-description">
-                    Theo dõi thời gian bắt đầu vào đỗ và rời khỏi bãi xe của tất cả các phương tiện thuộc sở hữu của bạn.
+                    Theo dõi thời gian bắt đầu vào đỗ và rời khỏi bãi xe của tất cả các phương tiện thuộc sở hữu của
+                    bạn.
                   </p>
 
                   {loadingHistory ? (
@@ -358,14 +428,22 @@ export default function Dashboard({ session, onBackToLanding }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {allSessions.map(s => {
+                        {allSessions.map((s) => {
                           const isActive = s.status === 'active';
                           return (
                             <tr key={s.id}>
-                              <td><strong>{s.vehicle?.brand} {s.vehicle?.model}</strong></td>
-                              <td><span className="plate">{s.vehicle?.plate || '-'}</span></td>
+                              <td>
+                                <strong>
+                                  {s.vehicle?.brand} {s.vehicle?.model}
+                                </strong>
+                              </td>
+                              <td>
+                                <span className="plate">{s.vehicle?.plate || '-'}</span>
+                              </td>
                               <td>{s.vehicle?.type || '-'}</td>
-                              <td><strong className="history-time-text">{formatDateTime(s.entry_time)}</strong></td>
+                              <td>
+                                <strong className="history-time-text">{formatDateTime(s.entry_time)}</strong>
+                              </td>
                               <td>
                                 {isActive ? (
                                   <span className="history-ongoing">Đang trong bãi</span>
@@ -373,7 +451,9 @@ export default function Dashboard({ session, onBackToLanding }) {
                                   <strong className="history-time-text">{formatDateTime(s.exit_time)}</strong>
                                 )}
                               </td>
-                              <td><span className="history-duration">{calculateDuration(s.entry_time, s.exit_time)}</span></td>
+                              <td>
+                                <span className="history-duration">{calculateDuration(s.entry_time, s.exit_time)}</span>
+                              </td>
                               <td>
                                 {isActive ? (
                                   <span className="history-badge-active">
@@ -395,11 +475,15 @@ export default function Dashboard({ session, onBackToLanding }) {
               <div className="gated-service-box">
                 <span className="gated-lock-icon">🔒</span>
                 <h2>Dịch vụ chưa được kích hoạt</h2>
-                <p>Khách hàng cần thanh toán một gói cước đỗ xe để kích hoạt tài khoản trước khi có thể xem lịch sử đỗ xe.</p>
-                <button className="primary" onClick={() => setActiveTab('payment')}>Đi đến Gia hạn & Đổi gói</button>
+                <p>
+                  Khách hàng cần thanh toán một gói cước đỗ xe để kích hoạt tài khoản trước khi có thể xem lịch sử đỗ
+                  xe.
+                </p>
+                <button className="primary" onClick={() => setActiveTab('payment')}>
+                  Đi đến Gia hạn & Đổi gói
+                </button>
               </div>
-            )
-          )}
+            ))}
 
           {activeTab === 'payment' && (
             <UserPayment
@@ -409,18 +493,23 @@ export default function Dashboard({ session, onBackToLanding }) {
                 const active = Boolean(data?.isActive);
                 if (active !== hasActivePlan) {
                   setHasActivePlan(active);
+                  setCheckingSub(false);
                   if (active) fetchVehicles();
                 }
               }}
             />
           )}
 
-          {showProfileDialog && (
-            <UserProfileDialog
+          {activeTab === 'support' && (
+            <UserSupportCenter
               session={session}
-              onClose={() => setShowProfileDialog(false)}
+              vehicles={vehicles}
+              prefillContext={supportPrefill}
+              onClearPrefill={() => setSupportPrefill(null)}
             />
           )}
+
+          {showProfileDialog && <UserProfileDialog session={session} onClose={() => setShowProfileDialog(false)} />}
         </main>
       </div>
     </div>

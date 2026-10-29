@@ -87,6 +87,9 @@ export default function UserSlotPicker({ vehicle, onClose, onSaved }) {
       <div className="slot-picker-dialog">
         <h2 className="slot-picker-title">Chọn vị trí đỗ: {vehicle.plate}</h2>
         <p className="slot-picker-description">Loại xe: {vehicle.type} | Vui lòng chọn một vị trí đỗ cố định cho xe của bạn.</p>
+        <div style={{ margin: '6px 0 10px 0', fontSize: '12px', color: '#1e3a8a', background: '#eff6ff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+          🔒 <strong>Ràng buộc cố định (1 Slot = 1 Xe):</strong> Vị trí bạn chọn sẽ liên kết cố định với biển số xe <strong>{vehicle.plate}</strong>.
+        </div>
 
         <div className="slot-picker-suggestions">
           <button className="secondary" onClick={handleAuto}>Tự động chọn (Gần nhất)</button>

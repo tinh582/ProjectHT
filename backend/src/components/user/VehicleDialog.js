@@ -1,7 +1,6 @@
 import express from 'express';
 import { HttpError, requireId, requireText, rpc } from '../../http.js';
 import { extractLicensePlate } from '../../roboflow.js';
-import { hasActiveSubscription } from '../../subscription.js';
 
 const router = express.Router();
 
@@ -42,21 +41,21 @@ router.post('/extract-plate', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const hasSub = await hasActiveSubscription(req.db, req.user.id);
-  if (!hasSub) {
-    throw new HttpError(403, 'Bạn cần đăng ký và thanh toán gói cước đỗ xe trước khi đăng ký phương tiện.');
-  }
   const fields = vehicleFields(req.body.vehicle, true);
-  const { error } = await req.db.from('vehicles').insert({ ...fields, user_id: req.user.id });
-  if (error) throw error;
-  res.json({ success: true });
+  const insertQuery = req.db.from('vehicles').insert({ ...fields, user_id: req.user.id });
+  let createdVehicle = null;
+  if (typeof insertQuery.select === 'function') {
+    const { data, error } = await insertQuery.select().maybeSingle();
+    if (error) throw error;
+    createdVehicle = data;
+  } else {
+    const { error } = await insertQuery;
+    if (error) throw error;
+  }
+  res.json({ success: true, vehicle: createdVehicle });
 });
 
 router.put('/:id', async (req, res) => {
-  const hasSub = await hasActiveSubscription(req.db, req.user.id);
-  if (!hasSub) {
-    throw new HttpError(403, 'Gói cước đỗ xe của bạn đã hết hạn. Vui lòng thanh toán gia hạn.');
-  }
   await rpc(req.db, 'edit_parking_vehicle', {
     p_user_id: req.user.id, p_vehicle_id: requireId(req.params.id), p_fields: vehicleFields(req.body.vehicle, false), p_delete: false,
   });
