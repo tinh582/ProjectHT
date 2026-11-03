@@ -16,11 +16,27 @@ router.get('/pricing', async (req, res) => {
 router.get('/subscription/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
   const status = await getSubscriptionStatus(req.db, req.user.id);
+
+  // Loyalty calculation for existing customers on fixed slots
+  const isReturningCustomer = Boolean(status.latestTransaction);
+  const loyaltyPolicy = {
+    isEligible: isReturningCustomer,
+    tierName: isReturningCustomer ? 'Khách hàng Thân thiết (Chỗ đỗ cố định)' : 'Khách hàng Mới',
+    baseDiscountPercent: isReturningCustomer ? 10 : 0,
+    bonusDays: isReturningCustomer ? 3 : 0,
+    tiers: [
+      { months: 1, label: 'Gia hạn cố định 1 tháng', discountPercent: isReturningCustomer ? 10 : 0, bonusDays: isReturningCustomer ? 3 : 0 },
+      { months: 3, label: 'Gắn bó cố định 3 tháng', discountPercent: 15, bonusDays: 7 },
+      { months: 6, label: 'Gắn bó cố định 6 tháng (VIP)', discountPercent: 20, bonusDays: 15 }
+    ]
+  };
+
   if (!status.latestTransaction) {
     return res.json({
       isActive: false,
       hasPending: status.hasPending,
       expiryDate: null,
+      loyaltyPolicy
     });
   }
   res.json({
@@ -28,6 +44,7 @@ router.get('/subscription/:userId', async (req, res) => {
     isActive: status.isActive,
     hasPending: status.hasPending,
     expiryDate: status.expiryDate,
+    loyaltyPolicy
   });
 });
 
@@ -36,6 +53,8 @@ router.post('/pay', async (req, res) => {
   const proofImage = req.body.proofImage || null;
   const selectedSlotId = req.body.selectedSlotId || null;
   const vehicleId = req.body.vehicleId || null;
+  const fixedMonths = Math.max(1, Math.min(12, Number(req.body.fixedMonths || 1)));
+  const applyLoyalty = Boolean(req.body.applyLoyalty);
 
   const result = await rpc(req.db, 'request_parking_payment', {
     p_user_id: req.user.id,
@@ -59,18 +78,44 @@ router.post('/pay', async (req, res) => {
       success: true,
       status: 'pending',
       transaction: result,
-      message: 'Yêu cầu thanh toán và giữ chỗ đã được ghi nhận. Vui lòng gửi biên lai chuyển khoản.',
+      message: 'Yêu cầu thanh toán và giữ chỗ cố định đã được ghi nhận. Vui lòng gửi biên lai chuyển khoản.',
     });
   }
 
   const { data: plan } = await req.db.from('pricing_configs').select('*').eq('id', planId).maybeSingle();
-  const planPrice = plan?.price || result?.amount || 0;
+  const basePrice = plan?.price || result?.amount || 0;
   const planName = plan?.plan_type || 'Gói thuê';
 
-  let aiResult = verifyPaymentReceipt(proofImage, planPrice, req.user.id);
+  // Calculate loyalty discount & bonus days for existing customers on fixed terms
+  let discountPercent = 0;
+  let bonusDays = 0;
+  if (fixedMonths >= 6) {
+    discountPercent = 20;
+    bonusDays = 15;
+  } else if (fixedMonths >= 3) {
+    discountPercent = 15;
+    bonusDays = 7;
+  } else if (applyLoyalty) {
+    discountPercent = 10;
+    bonusDays = 3;
+  }
+
+  const totalRaw = basePrice * fixedMonths;
+  const discountedPrice = Math.round(totalRaw * (1 - discountPercent / 100));
+
+  // Verify against basePrice OR discountedPrice so both standard and loyalty receipts pass AI OCR
+  let aiResult = verifyPaymentReceipt(proofImage, basePrice, req.user.id);
+  if (!aiResult.autoApproved && discountedPrice !== basePrice) {
+    const loyaltyAi = verifyPaymentReceipt(proofImage, discountedPrice, req.user.id);
+    if (loyaltyAi.autoApproved || loyaltyAi.matchedAmount) {
+      aiResult = loyaltyAi;
+    }
+  }
+
   const isAutoCompleted = Boolean(aiResult.autoApproved);
   const now = new Date();
-  const cycleEnd = new Date(now.getTime() + 30 * 24 * 3600 * 1000);
+  const totalDays = fixedMonths * 30 + bonusDays;
+  const cycleEnd = new Date(now.getTime() + totalDays * 24 * 3600 * 1000);
 
   if (isAutoCompleted) {
     let txData = { ...result, status: 'completed' };
@@ -97,12 +142,12 @@ router.post('/pay', async (req, res) => {
     await req.db.from('notifications').insert({
       user_id: req.user.id,
       title: 'Thanh toán thành công (Tự động)',
-      message: `Gói cước ${planName} của bạn đã được hệ thống AI kích hoạt tự động.`,
+      message: `Gói cước ${planName} (${totalDays} ngày${discountPercent > 0 ? `, ưu đãi khách hàng cũ -${discountPercent}%` : ''}) của bạn đã được kích hoạt tự động.`,
     });
 
     await dispatchStaffAlert(req.db, {
       title: 'Giao dịch duyệt tự động qua AI',
-      message: `Khách hàng ${req.user.email || req.user.id} đã được AI duyệt gói ${planName} (${planPrice} đ).`,
+      message: `Khách hàng ${req.user.email || req.user.id} đã được AI duyệt gói ${planName} (${basePrice} đ).`,
       priority: 'normal',
     });
 
@@ -111,7 +156,8 @@ router.post('/pay', async (req, res) => {
       status: 'completed',
       autoVerified: true,
       transaction: txData,
-      message: 'Giao dịch đã được duyệt tự động thành công bởi hệ thống AI!',
+      loyaltyApplied: { discountPercent, bonusDays, totalDays, discountedPrice },
+      message: `Giao dịch đã được duyệt tự động bởi AI!${discountPercent > 0 ? ` (Áp dụng ưu đãi khách hàng cũ -${discountPercent}% & tặng +${bonusDays} ngày)` : ''}`,
     });
   } else {
     try {
@@ -135,6 +181,7 @@ router.post('/pay', async (req, res) => {
       status: 'pending',
       autoVerified: false,
       transaction: result,
+      loyaltyApplied: { discountPercent, bonusDays, totalDays, discountedPrice },
       message: 'Đã gửi chứng từ thanh toán! Nhân viên đang kiểm tra và kích hoạt gói cho bạn.',
     });
   }

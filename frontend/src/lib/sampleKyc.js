@@ -1,4 +1,5 @@
-// Helper to generate realistic Vietnamese Citizen ID Card (CCCD gắn chip) Front & Back sample images + sample profile info
+// Helper to generate realistic Vietnamese Driver's License (Giấy phép lái xe - GPLX PET)
+// and Citizen ID Card (CCCD gắn chip) sample images.
 
 function escapeXml(str) {
   return String(str ?? '')
@@ -7,6 +8,107 @@ function escapeXml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+export function buildSampleGplxFront({
+  name = 'NGUYỄN MINH TUẤN',
+  gplxNo = '790195008868',
+  dob = '15/08/1995',
+  address = 'Căn hộ 1205, Tòa HT Tower, Quận 1, TP. Hồ Chí Minh',
+  licenseClass = 'B2',
+  issueDate = '12/06/2022',
+  expiry = '12/06/2032'
+} = {}) {
+  const safeName = escapeXml(String(name || 'NGUYỄN MINH TUẤN').toUpperCase());
+  const safeNo = escapeXml(gplxNo);
+  const safeDob = escapeXml(dob);
+  const safeAddress = escapeXml(address);
+  const safeClass = escapeXml(licenseClass);
+  const safeIssue = escapeXml(issueDate);
+  const safeExpiry = escapeXml(expiry);
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400">
+  <defs>
+    <linearGradient id="gplxBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef9c3" />
+      <stop offset="50%" stop-color="#fde68a" />
+      <stop offset="100%" stop-color="#fef08a" />
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="632" height="392" rx="22" fill="url(#gplxBg)" stroke="#d97706" stroke-width="3" />
+  <circle cx="330" cy="220" r="125" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.55" />
+  <text x="115" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#1e3a8a">BỘ GIAO THÔNG VẬN TẢI</text>
+  <text x="115" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="9.5" fill="#1e3a8a">MINISTRY OF TRANSPORT</text>
+  <line x1="55" y1="62" x2="175" y2="62" stroke="#1e3a8a" stroke-width="1.2" />
+  <text x="415" y="38" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" font-weight="bold" fill="#0f172a">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</text>
+  <text x="415" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Độc lập - Tự do - Hạnh phúc</text>
+  <text x="415" y="70" text-anchor="middle" font-family="Arial, sans-serif" font-size="9.5" fill="#475569">Socialist Republic of Viet Nam</text>
+  <text x="345" y="102" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="900" fill="#dc2626">GIẤY PHÉP LÁI XE / DRIVER&apos;S LICENSE</text>
+  <text x="345" y="126" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Số / No.: <tspan font-family="Courier New, monospace" font-size="20" fill="#dc2626">${safeNo}</tspan></text>
+  <rect x="34" y="110" width="132" height="170" rx="8" fill="#e0f2fe" stroke="#0284c7" stroke-width="2" />
+  <circle cx="100" cy="168" r="28" fill="#0369a1" />
+  <path d="M56,268 C56,222 144,222 144,268 Z" fill="#0284c7" />
+  <text x="100" y="305" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Hạng / Class: <tspan font-size="18" fill="#dc2626">${safeClass}</tspan></text>
+  <text x="100" y="330" text-anchor="middle" font-family="Arial, sans-serif" font-size="10.5" fill="#334155">Có giá trị đến / Expires:</text>
+  <text x="100" y="348" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0f172a">${safeExpiry}</text>
+  <text x="188" y="156" font-family="Arial, sans-serif" font-size="11.5" fill="#334155">Họ tên / Full name:</text>
+  <text x="188" y="178" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#0f172a">${safeName}</text>
+  <text x="188" y="206" font-family="Arial, sans-serif" font-size="11.5" fill="#334155">Ngày sinh / Date of Birth: <tspan font-weight="bold" fill="#0f172a">${safeDob}</tspan></text>
+  <text x="188" y="232" font-family="Arial, sans-serif" font-size="11.5" fill="#334155">Quốc tịch / Nationality: <tspan font-weight="bold" fill="#0f172a">VIỆT NAM</tspan></text>
+  <text x="188" y="258" font-family="Arial, sans-serif" font-size="11.5" fill="#334155">Nơi cư trú / Address:</text>
+  <text x="188" y="278" font-family="Arial, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">${safeAddress}</text>
+  <text x="480" y="310" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#334155">TP. Hồ Chí Minh, ngày ${safeIssue}</text>
+  <text x="480" y="326" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#1e3a8a">GIÁM ĐỐC SỞ GTVT</text>
+  <circle cx="430" cy="345" r="26" fill="none" stroke="#dc2626" stroke-width="2" opacity="0.8" />
+  <text x="430" y="349" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#dc2626">SỞ GTVT</text>
+  <rect x="188" y="348" width="205" height="26" rx="13" fill="#b45309" />
+  <text x="290" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#ffffff">GPLX MẶT TRƯỚC (ĐỐI CHIẾU)</text>
+</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+export function buildSampleGplxBack({
+  gplxNo = '790195008868',
+  issueDate = '12/06/2022'
+} = {}) {
+  const safeNo = escapeXml(gplxNo);
+  const safeIssue = escapeXml(issueDate);
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400">
+  <defs>
+    <linearGradient id="gplxBackBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fefce8" />
+      <stop offset="100%" stop-color="#fde68a" />
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="632" height="392" rx="22" fill="url(#gplxBackBg)" stroke="#d97706" stroke-width="3" />
+  <text x="320" y="36" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">CÁC LOẠI XE CƠ GIỚI ĐƯỜNG BỘ ĐƯỢC ĐIỀU KHIỂN</text>
+  <text x="320" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-size="10.5" fill="#475569">Motor vehicles Polished for Driving (Đối chiếu thủ công)</text>
+  <rect x="30" y="66" width="580" height="240" rx="8" fill="#ffffff" stroke="#b45309" stroke-width="1.5" />
+  <line x1="100" y1="66" x2="100" y2="306" stroke="#cbd5e1" stroke-width="1.5" />
+  <line x1="485" y1="66" x2="485" y2="306" stroke="#cbd5e1" stroke-width="1.5" />
+  <line x1="30" y1="102" x2="610" y2="102" stroke="#b45309" stroke-width="1.5" />
+  <line x1="30" y1="168" x2="610" y2="168" stroke="#e2e8f0" stroke-width="1.2" />
+  <line x1="30" y1="236" x2="610" y2="236" stroke="#e2e8f0" stroke-width="1.2" />
+  <text x="65" y="89" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Hạng</text>
+  <text x="292" y="89" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Các loại xe được điều khiển</text>
+  <text x="547" y="89" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Ngày trúng tuyển</text>
+  <text x="65" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#dc2626">A1</text>
+  <text x="112" y="132" font-family="Arial, sans-serif" font-size="12" fill="#0f172a">Xe mô tô hai bánh có dung tích xi-lanh từ 50 cm3</text>
+  <text x="112" y="150" font-family="Arial, sans-serif" font-size="12" fill="#0f172a">đến dưới 175 cm3</text>
+  <text x="547" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">15/09/2015</text>
+  <text x="65" y="206" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#dc2626">B2</text>
+  <text x="112" y="196" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Ô tô chở người đến 9 chỗ ngồi; Ô tô tải, máy kéo</text>
+  <text x="112" y="214" font-family="Arial, sans-serif" font-size="12" fill="#0f172a">có trọng tải dưới 3.500 kg</text>
+  <text x="547" y="206" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#059669">${safeIssue}</text>
+  <text x="65" y="274" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#94a3b8">C</text>
+  <text x="112" y="274" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">Ô tô tải, đầu kéo có trọng tải từ 3.500 kg trở lên</text>
+  <text x="547" y="274" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">-</text>
+  <text x="40" y="346" font-family="Courier New, monospace" font-size="14" font-weight="bold" fill="#334155">Mã phôi GPLX: VN-${safeNo}-BGTVT</text>
+  <rect x="415" y="326" width="195" height="30" rx="15" fill="#059669" />
+  <text x="512" y="345" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#ffffff">✓ GPLX MẶT SAU HỢP LỆ</text>
+</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
 export function buildSampleCccdFront({
@@ -140,36 +242,42 @@ export function buildSampleCccdBack({
 
 export const SAMPLE_KYC_PROFILES = [
   {
-    label: 'Mẫu 1: Nguyễn Minh Tuấn (Chủ xe Ô tô Mazda CX-5)',
+    label: 'Mẫu 1: Nguyễn Minh Tuấn (Chủ xe Ô tô Mazda CX-5 - GPLX B2)',
     name: 'Nguyễn Minh Tuấn',
     email: 'minhtuan.nguyen@htparking.vn',
     phone: '0901234567',
     address: 'Căn hộ 1205, Tòa HT Tower, Quận 1, TP. Hồ Chí Minh',
     cccdNo: '001095012345',
+    gplxNo: '790195008868',
+    licenseClass: 'B2',
     dob: '15/08/1995',
     sex: 'Nam',
     origin: 'Phường Điện Biên, Quận Ba Đình, TP. Hà Nội',
     feature: 'Nốt ruồi C: 1cm dưới đuôi mắt phải'
   },
   {
-    label: 'Mẫu 2: Trần Thanh Hương (Chủ xe Ô tô Mercedes C300)',
+    label: 'Mẫu 2: Trần Thanh Hương (Chủ xe Ô tô Mercedes C300 - GPLX B2)',
     name: 'Trần Thanh Hương',
     email: 'thanhhuong.tran@htparking.vn',
     phone: '0918886688',
     address: 'Biệt thự B08, Khu đô thị Sala, TP. Thủ Đức, TP. Hồ Chí Minh',
     cccdNo: '079196088688',
+    gplxNo: '791196006688',
+    licenseClass: 'B2',
     dob: '22/11/1996',
     sex: 'Nữ',
     origin: 'Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
     feature: 'Nốt ruồi C: 0.5cm trên cánh mũi trái'
   },
   {
-    label: 'Mẫu 3: Lê Hoàng Nam (Chủ xe Ô tô VinFast VF8)',
+    label: 'Mẫu 3: Lê Hoàng Nam (Chủ xe Ô tô VinFast VF8 - GPLX B2)',
     name: 'Lê Hoàng Nam',
     email: 'hoangnam.le@htparking.vn',
     phone: '0989777999',
     address: 'Căn hộ P-2402, Tháp Đông HT Tower, Quận Cầu Giấy, TP. Hà Nội',
     cccdNo: '001092068886',
+    gplxNo: '010192009988',
+    licenseClass: 'B2',
     dob: '10/03/1992',
     sex: 'Nam',
     origin: 'Phường Dịch Vọng, Quận Cầu Giấy, TP. Hà Nội',

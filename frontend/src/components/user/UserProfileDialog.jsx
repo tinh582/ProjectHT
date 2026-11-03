@@ -1,6 +1,12 @@
 import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect } from 'react';
-import { SAMPLE_KYC_PROFILES, buildSampleCccdFront, buildSampleCccdBack } from '../../lib/sampleKyc';
+import {
+  SAMPLE_KYC_PROFILES,
+  buildSampleCccdFront,
+  buildSampleCccdBack,
+  buildSampleGplxFront,
+  buildSampleGplxBack
+} from '../../lib/sampleKyc';
 
 export default function UserProfileDialog({ session, onClose }) {
   const [profile, setProfile] = useState(null);
@@ -114,6 +120,33 @@ export default function UserProfileDialog({ session, onClose }) {
     reader.readAsDataURL(file);
   };
 
+  const applySampleGplx = (sampleIdx = 0) => {
+    const s = SAMPLE_KYC_PROFILES[sampleIdx] || SAMPLE_KYC_PROFILES[0];
+    const targetName = name.trim() || s.name;
+    const targetAddress = address.trim() || s.address;
+    setName(targetName);
+    setPhone(phone.trim() || s.phone);
+    setAddress(targetAddress);
+    setIdFront(
+      buildSampleGplxFront({
+        name: targetName,
+        gplxNo: s.gplxNo || '790195008868',
+        dob: s.dob,
+        address: targetAddress,
+        licenseClass: s.licenseClass || 'B2'
+      })
+    );
+    setIdBack(
+      buildSampleGplxBack({
+        gplxNo: s.gplxNo || '790195008868'
+      })
+    );
+    setMessage({
+      type: 'success',
+      text: `Đã tạo ảnh chụp Giấy phép lái xe (GPLX Hạng B2) 2 mặt cho "${targetName}" để đối chiếu thủ công. Nhấn "Lưu hồ sơ & Gửi đối chiếu"!`
+    });
+  };
+
   const applySampleKyc = (sampleIdx = 0) => {
     const s = SAMPLE_KYC_PROFILES[sampleIdx] || SAMPLE_KYC_PROFILES[0];
     const targetName = name.trim() || s.name;
@@ -206,9 +239,9 @@ export default function UserProfileDialog({ session, onClose }) {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 className="slot-picker-title">Xác thực Danh tính (KYC) & Hồ sơ Cá nhân</h2>
+            <h2 className="slot-picker-title">Chụp Giấy phép lái xe (GPLX) — Đối chiếu thủ công</h2>
             <p className="slot-picker-description">
-              Bảo vệ tài khoản và nâng cao an toàn tài sản phương tiện.
+              Chụp ảnh Giấy phép lái xe (hoặc CCCD) để nhân viên bãi đỗ xe đối chiếu thủ công phương tiện & chủ xe.
             </p>
           </div>
           <button className="slot-info-close" onClick={onClose}>
@@ -216,11 +249,11 @@ export default function UserProfileDialog({ session, onClose }) {
           </button>
         </div>
 
-        {/* 1-Click Sample CCCD & Info Helper Box */}
+        {/* 1-Click Sample GPLX & CCCD Info Helper Box */}
         <div
           style={{
-            background: '#ecfdf5',
-            border: '1px solid #a7f3d0',
+            background: '#fffbeb',
+            border: '1px solid #fcd34d',
             borderRadius: '8px',
             padding: '10px 14px',
             marginBottom: '14px',
@@ -231,10 +264,26 @@ export default function UserProfileDialog({ session, onClose }) {
             gap: '10px'
           }}
         >
-          <div style={{ fontSize: '12.5px', color: '#065f46' }}>
-            🪪 <b>Chưa có sẵn ảnh chụp CCCD?</b> Bạn có thể điền nhanh bộ dữ liệu & ảnh CCCD 2 mặt mẫu để thử nghiệm:
+          <div style={{ fontSize: '12.5px', color: '#92400e' }}>
+            🪪 <b>Chụp Giấy phép lái xe (GPLX) đối chiếu thủ công:</b> Điền nhanh ảnh chụp GPLX 2 mặt mẫu (hoặc CCCD):
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => applySampleGplx(0)}
+              style={{
+                background: '#d97706',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              🚗 Tạo ảnh chụp Giấy phép lái xe (GPLX) 2 mặt
+            </button>
             <button
               type="button"
               onClick={() => applySampleKyc(0)}
@@ -249,32 +298,8 @@ export default function UserProfileDialog({ session, onClose }) {
                 cursor: 'pointer'
               }}
             >
-              ⚡ Điền mẫu CCCD 2 mặt & Thông tin
+              🪪 Mẫu CCCD 2 mặt
             </button>
-            <a
-              href="/samples/cccd_mat_truoc.svg"
-              download="cccd_mat_truoc.svg"
-              style={{
-                fontSize: '11.5px',
-                color: '#047857',
-                textDecoration: 'underline',
-                alignSelf: 'center'
-              }}
-            >
-              Tải file Mặt trước
-            </a>
-            <a
-              href="/samples/cccd_mat_sau.svg"
-              download="cccd_mat_sau.svg"
-              style={{
-                fontSize: '11.5px',
-                color: '#047857',
-                textDecoration: 'underline',
-                alignSelf: 'center'
-              }}
-            >
-              Tải file Mặt sau
-            </a>
           </div>
         </div>
 
@@ -412,7 +437,7 @@ export default function UserProfileDialog({ session, onClose }) {
                 border: '1px solid #eee'
               }}
             >
-              <strong>Trạng thái KYC: </strong>
+              <strong>Trạng thái Đối chiếu Thủ công Giấy phép lái xe (GPLX): </strong>
               <span
                 style={{
                   fontWeight: 'bold',
@@ -434,20 +459,22 @@ export default function UserProfileDialog({ session, onClose }) {
                 }}
               >
                 {profile?.kyc_status === 'verified'
-                  ? '✓ Đã xác thực CCCD'
+                  ? '✓ Đã đối chiếu thủ công GPLX hợp lệ'
                   : profile?.kyc_status === 'pending'
-                  ? '⏳ Đang chờ đối chiếu'
-                  : 'Chưa nộp CCCD'}
+                  ? '⏳ Chờ nhân viên đối chiếu thủ công GPLX'
+                  : 'Chưa chụp Giấy phép lái xe'}
               </span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
               <div style={{ border: '1px dashed #ccc', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Ảnh CCCD mặt trước</div>
+                <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>
+                  📸 Chụp Giấy phép lái xe (Mặt trước)
+                </div>
                 {idFront ? (
                   <img
                     src={idFront}
-                    alt="CCCD trước"
+                    alt="GPLX trước"
                     style={{ width: '100%', maxHeight: '150px', objectFit: 'contain', borderRadius: '4px' }}
                   />
                 ) : (
@@ -460,7 +487,7 @@ export default function UserProfileDialog({ session, onClose }) {
                       color: '#999'
                     }}
                   >
-                    Chưa có ảnh
+                    Chưa có ảnh GPLX mặt trước
                   </div>
                 )}
                 <input
@@ -472,11 +499,13 @@ export default function UserProfileDialog({ session, onClose }) {
               </div>
 
               <div style={{ border: '1px dashed #ccc', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Ảnh CCCD mặt sau</div>
+                <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>
+                  📸 Chụp Giấy phép lái xe (Mặt sau)
+                </div>
                 {idBack ? (
                   <img
                     src={idBack}
-                    alt="CCCD sau"
+                    alt="GPLX sau"
                     style={{ width: '100%', maxHeight: '150px', objectFit: 'contain', borderRadius: '4px' }}
                   />
                 ) : (
@@ -489,7 +518,7 @@ export default function UserProfileDialog({ session, onClose }) {
                       color: '#999'
                     }}
                   >
-                    Chưa có ảnh
+                    Chưa có ảnh GPLX mặt sau
                   </div>
                 )}
                 <input

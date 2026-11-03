@@ -28,6 +28,10 @@ export default function VehicleCard({
   const lastSession = sessionInfo?.latest;
   const assignedSlot =
     vehicle.parking_slots && vehicle.parking_slots.length > 0 ? vehicle.parking_slots[0].slot_name : '';
+  const assignedZone =
+    vehicle.parking_slots && vehicle.parking_slots.length > 0
+      ? vehicle.parking_slots[0]?.parking_zones?.zone_name || ''
+      : '';
 
   return (
     <article className="vehicle-card vehicle-card-layout">
@@ -92,45 +96,54 @@ export default function VehicleCard({
           <div className="vehicle-card-slot-details">
             <span className="vehicle-card-slot-label">Vị trí cố định (1 Slot = 1 Xe): </span>
             {assignedSlot ? (
-              <strong className="vehicle-card-slot-name">{assignedSlot}</strong>
+              <strong className="vehicle-card-slot-name">
+                {assignedZone ? `${assignedZone} - ` : ''}Ô {assignedSlot}
+              </strong>
             ) : (
               <span className="vehicle-card-unassigned">Chưa chọn</span>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            <button
-              className={`secondary vehicle-card-slot-button ${isParked ? 'is-parked' : 'is-available'}`}
-              onClick={() => onSelectSlot(vehicle)}
-              disabled={isParked}
-            >
-              {assignedSlot ? 'Đổi chỗ' : 'Chọn chỗ'}
-            </button>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {!assignedSlot ? (
+              <button
+                className="secondary vehicle-card-slot-button is-available"
+                onClick={() => onSelectSlot(vehicle)}
+                disabled={isParked}
+              >
+                Chọn chỗ cố định
+              </button>
+            ) : (
+              <span
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  background: '#ecfdf5',
+                  color: '#047857',
+                  border: '1px solid #a7f3d0'
+                }}
+                title="Chỗ đỗ cố định đã được khóa theo chính sách 1 Slot = 1 Xe"
+              >
+                🔒 Chỗ đỗ cố định
+              </span>
+            )}
             {onReportIssue && (
               <button
                 type="button"
                 className="secondary"
-                onClick={() =>
-                  onReportIssue({
-                    category: 'SPOT_INTRUSION',
-                    plate: vehicle.plate,
-                    slot_name: assignedSlot || 'Chưa gán',
-                    subject: `Báo xe khác đỗ chiếm ô cố định ${assignedSlot || ''} của xe ${vehicle.plate}`,
-                    message: `Tôi là chủ xe ${vehicle.plate} (đăng ký ô cố định ${
-                      assignedSlot || '1 Slot = 1 Xe'
-                    }). Hiện có phương tiện khác đỗ vào vị trí của tôi, nhờ nhân viên trực ban kiểm tra và hỗ trợ ngay.`
-                  })
-                }
+                onClick={() => onReportIssue(vehicle)}
                 style={{
                   padding: '6px 10px',
                   fontSize: '0.78rem',
                   fontWeight: 700,
-                  color: '#dc2626',
-                  borderColor: '#fecaca',
-                  background: '#fef2f2'
+                  color: '#0369a1',
+                  borderColor: '#bae6fd',
+                  background: '#f0f9ff'
                 }}
-                title="Báo cho nhân viên khi có xe khác đỗ nhầm vào ô cố định của bạn"
+                title="Gửi ý kiến phản hồi, góp ý hoặc báo sự cố tại chỗ đỗ này"
               >
-                🚨 Báo chiếm ô
+                💬 Phản hồi & Góp ý
               </button>
             )}
           </div>

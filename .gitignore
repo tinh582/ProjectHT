@@ -7,25 +7,64 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# Production build outputs
 dist/
 dist-ssr/
-*.local
+build/
+out/
+.next/
+.nuxt/
+.vuepress/dist
+
+# Environment variables and secrets
 .env
 .env.*
 !.env.example
+*.local
 
+# Tests and Coverage
+test/
+tests/
+__tests__/
+*.test.js
+*.spec.js
+coverage/
+.nyc_output/
 
-# Editor directories and files
+# Editor & OS directories and temporary files
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Tt]humbs.db
+
+# Cache and temporary directories
+.cache/
+.temp/
+.tmp/
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+*.pid
+*.seed
 
 # Documents
 ProjectHT Document/

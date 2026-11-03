@@ -68,6 +68,8 @@ export default function StaffSupport() {
     customer_name: '',
     customer_email: '',
     plate: '',
+    zone_name: 'Khu A (Hầm B1)',
+    slot_name: 'A-05',
     subject: '',
     message: '',
     staff_reply: ''
@@ -266,6 +268,8 @@ export default function StaffSupport() {
       customer_name: '',
       customer_email: '',
       plate: '',
+      zone_name: 'Khu A (Hầm B1)',
+      slot_name: 'A-05',
       subject: '',
       message: '',
       staff_reply: ''
@@ -279,6 +283,8 @@ export default function StaffSupport() {
       customer_name: fb.customer_name || '',
       customer_email: fb.customer_email || '',
       plate: fb.plate || '',
+      zone_name: fb.zone_name || 'Khu A (Hầm B1)',
+      slot_name: fb.slot_name || 'A-05',
       subject: fb.subject || '',
       message: fb.message || '',
       staff_reply: fb.staff_reply || ''
@@ -716,7 +722,8 @@ export default function StaffSupport() {
       <thead>
         <tr className="records-heading">
           <th className="records-cell">Khách hàng & Xe</th>
-          <th className="records-cell">Nội dung Ý kiến Phản hồi</th>
+          <th className="records-cell">Vị trí & Chỗ đỗ</th>
+          <th className="records-cell">Nội dung Ý kiến Phản hồi & Góp ý</th>
           <th className="records-cell">Hình thức Nhân viên Nhận thông báo</th>
           <th className="records-cell">Phản hồi từ Nhân viên</th>
           <th className="records-cell">Trạng thái</th>
@@ -726,22 +733,46 @@ export default function StaffSupport() {
       <tbody>
         {feedbacks.length === 0 ? (
           <tr>
-            <td colSpan="6" className="records-empty">
+            <td colSpan="7" className="records-empty">
               Chưa có ý kiến phản hồi nào.
             </td>
           </tr>
         ) : (
           feedbacks.map((fb) => (
-            <tr key={fb.id} className="records-row">
-              <td className="records-cell">
-                <div style={{ fontWeight: 700 }}>{fb.customer_name}</div>
-                <div style={{ fontSize: '11.5px', color: '#64748b' }}>{fb.customer_email}</div>
-                {fb.plate && <span className="plate" style={{ marginTop: '4px', display: 'inline-block' }}>{fb.plate}</span>}
-              </td>
-              <td className="records-cell" style={{ maxWidth: '260px' }}>
-                <div style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>{fb.subject}</div>
-                <div style={{ fontSize: '12px', color: '#475569', marginTop: '3px' }}>{fb.message}</div>
-              </td>
+              <tr key={fb.id} className="records-row">
+                <td className="records-cell">
+                  <div style={{ fontWeight: 700 }}>{fb.customer_name}</div>
+                  <div style={{ fontSize: '11.5px', color: '#64748b' }}>{fb.customer_email}</div>
+                  {fb.plate && (
+                    <span className="plate" style={{ marginTop: '4px', display: 'inline-block' }}>
+                      {fb.plate}
+                    </span>
+                  )}
+                </td>
+                <td className="records-cell">
+                  <div style={{ fontWeight: 700, color: '#0369a1', fontSize: '12.5px' }}>
+                    📍 {fb.zone_name || 'Khu A (Hầm B1)'}
+                  </div>
+                  <div
+                    style={{
+                      display: 'inline-block',
+                      marginTop: '3px',
+                      background: '#ecfdf5',
+                      color: '#047857',
+                      border: '1px solid #a7f3d0',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontSize: '11.5px',
+                      fontWeight: 800
+                    }}
+                  >
+                    Chỗ đỗ: Ô {fb.slot_name || 'A-05'}
+                  </div>
+                </td>
+                <td className="records-cell" style={{ maxWidth: '250px' }}>
+                  <div style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>{fb.subject}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', marginTop: '3px' }}>{fb.message}</div>
+                </td>
               <td className="records-cell">
                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxWidth: '200px' }}>
                   {(fb.notified_channels || ['Dashboard Bell', 'Email']).map((ch, idx) => (

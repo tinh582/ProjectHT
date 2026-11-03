@@ -2,7 +2,13 @@ import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect, useMemo } from 'react';
 import Pagination from '../shared/Pagination';
 import { readPage } from '../../lib/pagination';
-import { SAMPLE_KYC_PROFILES, buildSampleCccdFront, buildSampleCccdBack } from '../../lib/sampleKyc';
+import {
+  SAMPLE_KYC_PROFILES,
+  buildSampleCccdFront,
+  buildSampleCccdBack,
+  buildSampleGplxFront,
+  buildSampleGplxBack
+} from '../../lib/sampleKyc';
 
 const EMPTY_ADD_FORM = {
   name: '',
@@ -70,6 +76,12 @@ export default function AdminUsers({ session }) {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  // 6. STAFF EMAIL CONFIRMATION Modal
+  const [staffConfirmModalUser, setStaffConfirmModalUser] = useState(null);
+  const [staffOtpInput, setStaffOtpInput] = useState('');
+  const [staffConfirmLoading, setStaffConfirmLoading] = useState(false);
+  const [staffConfirmError, setStaffConfirmError] = useState('');
+
   useEffect(() => {
     fetchUsers();
   }, [page]);
@@ -125,7 +137,10 @@ export default function AdminUsers({ session }) {
     const verifiedKyc = users.filter((u) => u.kyc_status === 'verified').length;
     const pendingKyc = users.filter((u) => u.kyc_status === 'pending').length;
     const staffAndAdmin = users.filter((u) => u.role === 'admin' || u.role === 'staff').length;
-    return { totalLoaded, verifiedKyc, pendingKyc, staffAndAdmin };
+    const pendingStaffConfirm = users.filter(
+      (u) => u.role === 'staff' && (u.staff_confirmation_status === 'pending' || u.email_verified === false)
+    ).length;
+    return { totalLoaded, verifiedKyc, pendingKyc, staffAndAdmin, pendingStaffConfirm };
   }, [users]);
 
   // Helper to read uploaded CCCD image as base64 data URL
@@ -166,13 +181,94 @@ export default function AdminUsers({ session }) {
         return;
       }
       setShowAddDialog(false);
+      const createdEmail = addForm.email;
+      const createdRole = addForm.role;
+      const createdName = addForm.name;
       setAddForm(EMPTY_ADD_FORM);
-      showToast(`Đã tạo tài khoản ${addForm.email} thành công!`);
-      fetchUsers();
+      await fetchUsers();
+      if (createdRole === 'staff') {
+        showToast(
+          `📩 Đã tạo tài khoản Nhân viên ${createdEmail} và gửi thư xác nhận tới Email thật! Trạng thái: Chờ nhân viên xác nhận Email.${
+            data.devOtpPreview ? ` (Mã OTP trong thư: ${data.devOtpPreview})` : ''
+          }`
+        );
+        setStaffConfirmModalUser({
+          id: data.id,
+          name: createdName,
+          email: createdEmail,
+          role: 'staff',
+          staff_confirmation_status: 'pending',
+          dev_otp_preview: data.devOtpPreview,
+          confirm_url: data.confirmUrl
+        });
+        setStaffOtpInput(data.devOtpPreview || '');
+        setStaffConfirmError('');
+      } else {
+        showToast(`Đã tạo tài khoản ${createdEmail} thành công!`);
+      }
     } catch (err) {
       setAddError(err.message);
     } finally {
       setAddLoading(false);
+    }
+  };
+
+  // ------------------------------------------------------------
+  // STAFF EMAIL CONFIRMATION HANDLERS
+  // ------------------------------------------------------------
+  const handleResendStaffConfirm = async (u) => {
+    try {
+      const res = await apiFetch(`/api/components/admin/AdminUsers/${u.id}/resend-staff-confirm`, {
+        method: 'POST',
+        body: JSON.stringify({ email: u.email, name: u.name })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(
+          `${data.message || 'Đã gửi lại mail xác nhận!'}${
+            data.devOtpPreview ? ` (Mã OTP mới: ${data.devOtpPreview})` : ''
+          }`
+        );
+        fetchUsers();
+      } else {
+        alert(data.error || 'Không thể gửi lại mail xác nhận.');
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const openStaffConfirmModal = (u) => {
+    setStaffConfirmModalUser(u);
+    setStaffOtpInput(u.dev_otp_preview || '');
+    setStaffConfirmError('');
+  };
+
+  const handleConfirmStaffOtpSubmit = async (e) => {
+    e.preventDefault();
+    if (!staffConfirmModalUser) return;
+    setStaffConfirmLoading(true);
+    setStaffConfirmError('');
+    try {
+      const res = await apiFetch(`/api/components/admin/AdminUsers/${staffConfirmModalUser.id}/confirm-staff-otp`, {
+        method: 'POST',
+        body: JSON.stringify({
+          email: staffConfirmModalUser.email,
+          otp: staffOtpInput
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStaffConfirmError(data.error || 'Mã xác nhận không hợp lệ.');
+        return;
+      }
+      setStaffConfirmModalUser(null);
+      showToast(data.message || `✓ Nhân viên ${staffConfirmModalUser.email} đã xác nhận Email kích hoạt sử dụng!`);
+      fetchUsers();
+    } catch (err) {
+      setStaffConfirmError(err.message);
+    } finally {
+      setStaffConfirmLoading(false);
     }
   };
 
@@ -374,7 +470,11 @@ export default function AdminUsers({ session }) {
         <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
           <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>NHÂN SỰ VẬN HÀNH (ADMIN / STAFF)</div>
           <div style={{ fontSize: '26px', fontWeight: 800, color: '#2563eb', marginTop: '4px' }}>{stats.staffAndAdmin}</div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Bảo mật Zero-Data Retention</div>
+          <div style={{ fontSize: '12px', color: stats.pendingStaffConfirm > 0 ? '#d97706' : '#059669', fontWeight: 600 }}>
+            {stats.pendingStaffConfirm > 0
+              ? `⏳ ${stats.pendingStaffConfirm} nhân viên đang chờ xác nhận Email`
+              : '✓ 100% Nhân viên đã xác nhận Email sử dụng'}
+          </div>
         </div>
       </div>
 
@@ -491,8 +591,82 @@ export default function AdminUsers({ session }) {
                     )}
                   </div>
                   <div style={{ fontSize: '12px', color: '#475569' }}>{u.email || '-'}</div>
-                  <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                    {u.email_verified !== false ? (
+                  <div style={{ fontSize: '11px', marginTop: '4px' }}>
+                    {u.role === 'staff' ? (
+                      u.staff_confirmation_status === 'pending' || u.email_verified === false ? (
+                        <div
+                          style={{
+                            background: '#fffbeb',
+                            border: '1px solid #fcd34d',
+                            borderRadius: '6px',
+                            padding: '5px 8px',
+                            marginTop: '3px'
+                          }}
+                        >
+                          <div style={{ color: '#b45309', fontWeight: 700 }}>
+                            ⏳ Nhân viên chờ xác nhận Email (Chưa kích hoạt)
+                          </div>
+                          {u.dev_otp_preview && (
+                            <div style={{ fontSize: '10.5px', color: '#92400e', marginTop: '2px' }}>
+                              Mã OTP gửi vào mail: <b>{u.dev_otp_preview}</b>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              onClick={() => openStaffConfirmModal(u)}
+                              style={{
+                                background: '#059669',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '2px 7px',
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ✓ Xác nhận mã Mail
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleResendStaffConfirm(u)}
+                              style={{
+                                background: '#fff',
+                                color: '#b45309',
+                                border: '1px solid #f59e0b',
+                                borderRadius: '4px',
+                                padding: '2px 7px',
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              📩 Gửi lại mail
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            display: 'inline-block',
+                            background: '#ecfdf5',
+                            border: '1px solid #a7f3d0',
+                            color: '#047857',
+                            borderRadius: '6px',
+                            padding: '3px 8px',
+                            fontWeight: 700
+                          }}
+                        >
+                          ✅ Nhân viên đã xác nhận Email (Đang sử dụng)
+                          {u.staff_confirmed_at && (
+                            <span style={{ fontWeight: 500, fontSize: '10.5px', marginLeft: '4px' }}>
+                              • {new Date(u.staff_confirmed_at).toLocaleTimeString('vi-VN')}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    ) : u.email_verified !== false ? (
                       <span style={{ color: '#059669', fontWeight: 600 }}>✓ Email thật đã xác thực</span>
                     ) : (
                       <span style={{ color: '#d97706' }}>⚠ Chưa xác thực email</span>
@@ -773,41 +947,73 @@ export default function AdminUsers({ session }) {
                   }}
                 >
                   <div style={{ fontSize: '13px', fontWeight: 700 }}>
-                    🪪 Hồ sơ ảnh CCCD 2 mặt (Đối chiếu định danh chủ xe)
+                    🪪 Hồ sơ ảnh Giấy phép lái xe (GPLX) / CCCD 2 mặt (Đối chiếu thủ công)
                   </div>
-                  <button
-                    type="button"
-                    className="secondary"
-                    style={{ fontSize: '11.5px', padding: '4px 10px', background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}
-                    onClick={() => {
-                      const s = SAMPLE_KYC_PROFILES[0];
-                      const targetName = editForm.name.trim() || s.name;
-                      const targetAddress = editForm.address.trim() || s.address;
-                      setEditForm((f) => ({
-                        ...f,
-                        name: targetName,
-                        phone: f.phone.trim() || s.phone,
-                        address: targetAddress,
-                        kyc_status: 'verified',
-                        email_verified: true,
-                        id_card_front: buildSampleCccdFront({
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="secondary"
+                      style={{ fontSize: '11.5px', padding: '4px 10px', background: '#fffbeb', color: '#b45309', borderColor: '#fcd34d', fontWeight: 700 }}
+                      onClick={() => {
+                        const s = SAMPLE_KYC_PROFILES[0];
+                        const targetName = editForm.name.trim() || s.name;
+                        const targetAddress = editForm.address.trim() || s.address;
+                        setEditForm((f) => ({
+                          ...f,
                           name: targetName,
-                          cccdNo: s.cccdNo,
-                          dob: s.dob,
-                          sex: s.sex,
-                          origin: s.origin,
-                          address: targetAddress
-                        }),
-                        id_card_back: buildSampleCccdBack({
+                          phone: f.phone.trim() || s.phone,
+                          address: targetAddress,
+                          kyc_status: 'verified',
+                          email_verified: true,
+                          id_card_front: buildSampleGplxFront({
+                            name: targetName,
+                            gplxNo: s.gplxNo || '790195008868',
+                            dob: s.dob,
+                            address: targetAddress,
+                            licenseClass: s.licenseClass || 'B2'
+                          }),
+                          id_card_back: buildSampleGplxBack({
+                            gplxNo: s.gplxNo || '790195008868'
+                          })
+                        }));
+                      }}
+                    >
+                      🚗 Tạo ảnh chụp Giấy phép lái xe (GPLX) 2 mặt
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      style={{ fontSize: '11.5px', padding: '4px 10px', background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}
+                      onClick={() => {
+                        const s = SAMPLE_KYC_PROFILES[0];
+                        const targetName = editForm.name.trim() || s.name;
+                        const targetAddress = editForm.address.trim() || s.address;
+                        setEditForm((f) => ({
+                          ...f,
                           name: targetName,
-                          cccdNo: s.cccdNo,
-                          feature: s.feature
-                        })
-                      }));
-                    }}
-                  >
-                    ⚡ Tạo nhanh ảnh CCCD 2 mặt & SĐT/Địa chỉ mẫu
-                  </button>
+                          phone: f.phone.trim() || s.phone,
+                          address: targetAddress,
+                          kyc_status: 'verified',
+                          email_verified: true,
+                          id_card_front: buildSampleCccdFront({
+                            name: targetName,
+                            cccdNo: s.cccdNo,
+                            dob: s.dob,
+                            sex: s.sex,
+                            origin: s.origin,
+                            address: targetAddress
+                          }),
+                          id_card_back: buildSampleCccdBack({
+                            name: targetName,
+                            cccdNo: s.cccdNo,
+                            feature: s.feature
+                          })
+                        }));
+                      }}
+                    >
+                      ⚡ Mẫu CCCD 2 mặt
+                    </button>
+                  </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
@@ -1049,11 +1255,32 @@ export default function AdminUsers({ session }) {
                     style={{ width: '100%' }}
                   >
                     <option value="user">USER – Khách hàng thông thường</option>
-                    <option value="staff">STAFF – Nhân viên bãi xe</option>
+                    <option value="staff">STAFF – Nhân viên bãi xe (Cần xác nhận qua Email)</option>
                     <option value="admin">ADMIN – Quản trị viên</option>
                   </select>
                 </label>
               </div>
+
+              {addForm.role === 'staff' && (
+                <div
+                  style={{
+                    marginTop: '12px',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    background: '#fffbeb',
+                    border: '1px solid #fde68a',
+                    color: '#92400e',
+                    fontSize: '12.5px',
+                    lineHeight: 1.5
+                  }}
+                >
+                  <strong>📧 Yêu cầu xác nhận Email thật đối với Nhân viên (STAFF):</strong>
+                  <div style={{ marginTop: '4px' }}>
+                    Khi Admin thêm tài khoản Nhân viên, hệ thống sẽ kiểm tra tính hợp lệ của <b>Email thật</b> và gửi thư xác nhận kích hoạt (kèm đường dẫn xác nhận & mã OTP 6 chữ số) tới hộp thư của nhân viên.
+                    Tài khoản sẽ hiển thị trạng thái <b>“⏳ Nhân viên chờ xác nhận Email”</b> cho tới khi nhân viên xác nhận sử dụng tài khoản.
+                  </div>
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '10px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 600 }}>
@@ -1334,7 +1561,7 @@ export default function AdminUsers({ session }) {
         <div className="slot-picker-overlay" style={{ zIndex: 1200 }}>
           <div className="slot-picker-dialog" style={{ maxWidth: '650px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3>Kiểm tra & Duyệt Hồ sơ KYC: {viewKycUser.name}</h3>
+              <h3>Đối chiếu Thủ công Giấy phép lái xe (GPLX) / KYC: {viewKycUser.name}</h3>
               <button className="slot-info-close" onClick={() => setViewKycUser(null)}>✕</button>
             </div>
             <div style={{ margin: '12px 0', fontSize: '14px', lineHeight: 1.6 }}>
@@ -1345,11 +1572,11 @@ export default function AdminUsers({ session }) {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', margin: '16px 0' }}>
               <div style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>CCCD Mặt trước</div>
+                <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>Giấy phép lái xe (GPLX) / CCCD Mặt trước</div>
                 {viewKycUser.id_card_front ? (
                   <img
                     src={viewKycUser.id_card_front}
-                    alt="CCCD trước"
+                    alt="GPLX trước"
                     style={{ width: '100%', maxHeight: '180px', objectFit: 'contain' }}
                   />
                 ) : (
@@ -1357,7 +1584,7 @@ export default function AdminUsers({ session }) {
                 )}
               </div>
               <div style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>CCCD Mặt sau</div>
+                <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>Giấy phép lái xe (GPLX) / CCCD Mặt sau</div>
                 {viewKycUser.id_card_back ? (
                   <img
                     src={viewKycUser.id_card_back}
@@ -1398,6 +1625,121 @@ export default function AdminUsers({ session }) {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* 6. STAFF EMAIL CONFIRMATION MODAL                            */}
+      {/* ============================================================ */}
+      {staffConfirmModalUser && (
+        <div className="dialog-overlay" onClick={() => !staffConfirmLoading && setStaffConfirmModalUser(null)}>
+          <div
+            className="dialog-content"
+            style={{ maxWidth: '520px', width: '95%' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 className="users-dialog-title" style={{ margin: 0 }}>
+                📧 Xác nhận Email Kích hoạt Tài khoản Nhân viên
+              </h3>
+              <button className="slot-info-close" onClick={() => setStaffConfirmModalUser(null)}>✕</button>
+            </div>
+
+            <div
+              style={{
+                background: '#f0fdf4',
+                border: '1px solid #a7f3d0',
+                borderRadius: '10px',
+                padding: '12px',
+                fontSize: '13px',
+                color: '#065f46',
+                lineHeight: 1.55,
+                marginBottom: '14px'
+              }}
+            >
+              <div>
+                <strong>Nhân viên:</strong> {staffConfirmModalUser.name || 'Nhân viên mới'} ({staffConfirmModalUser.email})
+              </div>
+              <div style={{ marginTop: '4px' }}>
+                Hệ thống đã gửi thư xác nhận kích hoạt tới hộp thư thật <b>{staffConfirmModalUser.email}</b>. Nhân viên có thể:
+              </div>
+              <ol style={{ margin: '6px 0 0 18px', padding: 0 }}>
+                <li>Nhấn trực tiếp vào đường dẫn xác nhận trong Email, <b>HOẶC</b></li>
+                <li>Nhập mã OTP 6 chữ số trong Email vào ô dưới đây (hoặc khi nhân viên đăng nhập vào Cổng Nhân viên).</li>
+              </ol>
+              {staffConfirmModalUser.dev_otp_preview && (
+                <div
+                  style={{
+                    marginTop: '10px',
+                    padding: '8px 10px',
+                    background: '#ffffff',
+                    border: '1px dashed #10b981',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}
+                >
+                  <div style={{ fontSize: '11px', color: '#047857', fontWeight: 700 }}>
+                    MÃ OTP TRONG EMAIL GỬI TỚI NHÂN VIÊN:
+                  </div>
+                  <div style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '4px', color: '#065f46' }}>
+                    {staffConfirmModalUser.dev_otp_preview}
+                  </div>
+                  {staffConfirmModalUser.confirm_url && (
+                    <div style={{ marginTop: '4px' }}>
+                      <a
+                        href={staffConfirmModalUser.confirm_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ fontSize: '11.5px', color: '#059669', fontWeight: 700, textDecoration: 'underline' }}
+                      >
+                        🔗 Mở Link xác nhận trong Email của Nhân viên (Tab mới)
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {staffConfirmError && (
+              <p className="error" role="alert" style={{ marginBottom: '10px' }}>
+                {staffConfirmError}
+              </p>
+            )}
+
+            <form onSubmit={handleConfirmStaffOtpSubmit}>
+              <label style={{ fontSize: '13px', fontWeight: 700 }}>
+                Nhập mã OTP 6 chữ số từ Email của Nhân viên *
+                <input
+                  type="text"
+                  value={staffOtpInput}
+                  onChange={(e) => setStaffOtpInput(e.target.value)}
+                  placeholder="Nhập 6 chữ số (VD: 123456)"
+                  maxLength={8}
+                  required
+                  style={{
+                    marginTop: '6px',
+                    fontSize: '18px',
+                    fontWeight: 800,
+                    letterSpacing: '4px',
+                    textAlign: 'center'
+                  }}
+                />
+              </label>
+
+              <div className="users-dialog-actions" style={{ marginTop: '16px' }}>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setStaffConfirmModalUser(null)}
+                >
+                  Để nhân viên tự xác nhận sau
+                </button>
+                <button type="submit" className="primary" disabled={staffConfirmLoading}>
+                  {staffConfirmLoading ? 'Đang xác nhận...' : '✓ Xác nhận kích hoạt tài khoản'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

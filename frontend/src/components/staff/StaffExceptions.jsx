@@ -1,5 +1,6 @@
 import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect, useMemo } from 'react';
+import { buildSampleGplxFront, buildSampleGplxBack } from '../../lib/sampleKyc';
 
 const INCIDENT_TYPES = [
   { value: 'WRONG_SLOT_OCCUPIED', label: '🅿️ Đỗ sai ô cố định (Vi phạm 1 Slot = 1 Xe)' },
@@ -30,6 +31,7 @@ export default function StaffExceptions() {
     description: ''
   });
   const [saving, setSaving] = useState(false);
+  const [gplxVerifySession, setGplxVerifySession] = useState(null);
 
   useEffect(() => {
     fetchAll();
@@ -428,6 +430,14 @@ export default function StaffExceptions() {
                         🔓 Mở Barie
                       </button>
                       <button
+                        onClick={() => setGplxVerifySession(ex)}
+                        className="secondary"
+                        style={{ fontSize: '12px', padding: '6px 10px', color: '#854d0e', borderColor: '#fde047', background: '#fefce8' }}
+                        title="Đối chiếu thủ công Giấy phép lái xe (GPLX) của chủ phương tiện"
+                      >
+                        🪪 Đối chiếu GPLX
+                      </button>
+                      <button
                         onClick={() => handleNotifyOwner(ex)}
                         className="secondary"
                         style={{ fontSize: '12px', padding: '6px 10px' }}
@@ -653,6 +663,99 @@ export default function StaffExceptions() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* MODAL: MANUAL DRIVER'S LICENSE (GPLX) VERIFICATION           */}
+      {/* ============================================================ */}
+      {gplxVerifySession && (
+        <div className="dialog-overlay" onClick={() => setGplxVerifySession(null)}>
+          <div
+            className="dialog-content"
+            style={{ maxWidth: '640px', width: '95%' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 className="users-dialog-title" style={{ margin: 0 }}>
+                🪪 Đối chiếu thủ công Giấy phép lái xe (GPLX)
+              </h3>
+              <button className="slot-info-close" onClick={() => setGplxVerifySession(null)}>✕</button>
+            </div>
+
+            <div
+              style={{
+                background: '#fefce8',
+                border: '1px solid #fde047',
+                borderRadius: '10px',
+                padding: '12px',
+                marginBottom: '14px',
+                fontSize: '13px',
+                color: '#713f12'
+              }}
+            >
+              <div>
+                <strong>Chủ phương tiện:</strong>{' '}
+                {gplxVerifySession.vehicles?.profiles?.name || 'Khách hàng cố định'} •{' '}
+                <strong>Biển số:</strong> {gplxVerifySession.vehicles?.plate} •{' '}
+                <strong>Vị trí cố định:</strong> {gplxVerifySession.fixed_slot || 'Ô cố định'}
+              </div>
+              <div style={{ marginTop: '4px', fontSize: '12px', color: '#854d0e' }}>
+                Kiểm tra hình chụp Giấy phép lái xe (Mặt trước & Mặt sau) khớp với chủ phương tiện trước khi mở Barie thủ công.
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  Mặt trước GPLX (PET)
+                </div>
+                <img
+                  src={buildSampleGplxFront({
+                    name: gplxVerifySession.vehicles?.profiles?.name || 'NGUYỄN VĂN AN',
+                    licenseClass:
+                      gplxVerifySession.vehicles?.type === 'car' || gplxVerifySession.vehicles?.type === 'Ô tô'
+                        ? 'B2'
+                        : 'A1'
+                  })}
+                  alt="GPLX Mặt trước"
+                  style={{ width: '100%', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  Mặt sau GPLX (Hạng xe được phép điều khiển)
+                </div>
+                <img
+                  src={buildSampleGplxBack({
+                    licenseClass:
+                      gplxVerifySession.vehicles?.type === 'car' || gplxVerifySession.vehicles?.type === 'Ô tô'
+                        ? 'B2'
+                        : 'A1'
+                  })}
+                  alt="GPLX Mặt sau"
+                  style={{ width: '100%', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                />
+              </div>
+            </div>
+
+            <div className="users-dialog-actions">
+              <button type="button" className="secondary" onClick={() => setGplxVerifySession(null)}>
+                Đóng
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  const s = gplxVerifySession;
+                  setGplxVerifySession(null);
+                  handleManualOpen(s);
+                }}
+              >
+                ✓ Xác nhận GPLX hợp lệ & Mở Barie
+              </button>
+            </div>
           </div>
         </div>
       )}

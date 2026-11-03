@@ -141,8 +141,9 @@ router.get('/support-tickets/:userId', async (req, res) => {
 
 router.post('/support-tickets/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
-  const category = req.body?.category || 'SPOT_INTRUSION';
+  const category = req.body?.category || 'GENERAL_FEEDBACK';
   const plate = String(req.body?.plate || 'Chưa rõ').trim().toUpperCase();
+  const zone_name = String(req.body?.zone_name || 'Khu A (Hầm B1)').trim();
   const slot_name = String(req.body?.slot_name || '').trim().toUpperCase();
   const intruder_plate = String(req.body?.intruder_plate || '').trim().toUpperCase();
 
@@ -150,15 +151,15 @@ router.post('/support-tickets/:userId', async (req, res) => {
   const subject =
     rawSubject ||
     (category === 'SPOT_INTRUSION'
-      ? `Báo chiếm ô ${slot_name || ''} (Xe ${plate})`
-      : `Câu hỏi hỗ trợ (${plate})`);
+      ? `Báo chiếm chỗ tại ${zone_name} - Ô ${slot_name || ''} (Xe ${plate})`
+      : `Ý kiến phản hồi & Góp ý tại ${zone_name} - Ô ${slot_name || 'Cố định'} (${plate})`);
 
   const rawMessage = String(req.body?.message || '').trim();
   const message =
     rawMessage ||
     (category === 'SPOT_INTRUSION'
-      ? `Xe ${intruder_plate || 'lạ'} đang đỗ vào ô cố định ${slot_name || ''} của xe ${plate}. Nhờ nhân viên kiểm tra.`
-      : `Nhờ nhân viên hỗ trợ kiểm tra cho phương tiện ${plate}.`);
+      ? `Vị trí ${zone_name} — Chỗ đỗ Ô ${slot_name || ''}: Xe ${intruder_plate || 'lạ'} đang đỗ vào chỗ cố định của xe ${plate}. Nhờ nhân viên kiểm tra.`
+      : `Góp ý & phản hồi tại vị trí ${zone_name} — Chỗ đỗ Ô ${slot_name || ''} (Xe ${plate}).`);
 
   let customerName = req.body.customer_name || req.user?.email?.split('@')[0] || 'Khách hàng';
   try {
@@ -177,13 +178,14 @@ router.post('/support-tickets/:userId', async (req, res) => {
     customer_name: customerName,
     customer_email: req.user?.email || 'customer@htparking.vn',
     plate,
+    zone_name,
     slot_name,
     intruder_plate,
     category,
     subject,
     message,
     linked_incident_id: category === 'SPOT_INTRUSION' || category === 'INFRASTRUCTURE_ISSUE' ? incId : null,
-    notified_channels: ['Dashboard Realtime Bell', 'Email SMTP', 'Telegram/Zalo Bot', 'SMS Alert'],
+    notified_channels: ['Dashboard Realtime Bell', 'Email SMTP', 'SMS Alert'],
     status: 'open',
     staff_reply: '',
     replies: [

@@ -239,13 +239,13 @@ export default function Dashboard({ session, onBackToLanding }) {
           className={`nav-item ${activeTab === 'payment' ? 'active' : ''}`}
           onClick={() => handleTabClick('payment')}
         >
-          <span>💳</span> <span>Gia hạn & Đổi gói</span>
+          <span>💳</span> <span>Gia hạn & Ưu đãi cố định</span>
         </div>
         <div
           className={`nav-item ${activeTab === 'support' ? 'active' : ''}`}
           onClick={() => handleTabClick('support')}
         >
-          <span>💬</span> <span>Hỗ trợ & Báo sự cố</span>
+          <span>💬</span> <span>Ý kiến phản hồi & Góp ý</span>
         </div>
 
         <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
@@ -279,9 +279,9 @@ export default function Dashboard({ session, onBackToLanding }) {
               className="text-button"
               onClick={() => setShowProfileDialog(true)}
               style={{ fontWeight: 600, color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}
-              title="Hồ sơ & KYC"
+              title="Chụp Giấy phép lái xe đối chiếu thủ công & Hồ sơ"
             >
-              👤 Hồ sơ & KYC
+              🪪 Hồ sơ & Chụp GPLX
             </button>
             <button
               className="text-button"
@@ -504,8 +504,6 @@ export default function Dashboard({ session, onBackToLanding }) {
             <UserSupportCenter
               session={session}
               vehicles={vehicles}
-              prefillContext={supportPrefill}
-              onClearPrefill={() => setSupportPrefill(null)}
             />
           )}
 

@@ -1,10 +1,17 @@
 import express from 'express';
 import { HttpError, pageRange, requireId, requireText } from '../../http.js';
 import { purgeSensitiveUserData } from '../../privacyEngine.js';
+import {
+  validateRealEmailAddress,
+  issueAndSendStaffConfirmationEmail,
+  confirmStaffAccountByTokenOrOtp,
+  markStaffConfirmedByAdmin,
+  getStaffConfirmationStatus
+} from '../../emailVerification.js';
 
 const router = express.Router();
 
-// 1. READ ALL ACCOUNTS (Paginated)
+// 1. READ ALL ACCOUNTS (Paginated + Staff Email Confirmation Status)
 router.get('/', async (req, res) => {
   const { page, pageSize, from, to } = pageRange(req.query);
   let data = null;
@@ -27,7 +34,16 @@ router.get('/', async (req, res) => {
     data = fallback.data;
     count = fallback.count;
   }
-  res.json({ items: data || [], total: count || 0, page, pageSize });
+
+  const enrichedItems = (data || []).map((u) => {
+    const staffConf = getStaffConfirmationStatus(u);
+    return {
+      ...u,
+      ...staffConf
+    };
+  });
+
+  res.json({ items: enrichedItems, total: count || 0, page, pageSize });
 });
 
 // 2. READ SINGLE ACCOUNT 360° DETAILS (Profile + Vehicles + Fixed Slots + Transactions)
@@ -53,6 +69,11 @@ router.get('/:id/details', async (req, res) => {
   }
 
   if (!profile) throw new HttpError(404, 'Không tìm thấy tài khoản.');
+
+  profile = {
+    ...profile,
+    ...getStaffConfirmationStatus(profile)
+  };
 
   let vehicles = [];
   try {
@@ -110,20 +131,28 @@ router.get('/:id/details', async (req, res) => {
   });
 });
 
-// 3. CREATE NEW ACCOUNT (Full fields)
+// 3. CREATE NEW ACCOUNT (Full fields + Staff Real Email Confirmation Workflow)
 router.post('/', async (req, res) => {
   const name = requireText(req.body.name, 'Full name');
-  const email = requireText(req.body.email, 'Email');
+  const rawEmail = requireText(req.body.email, 'Email');
+  const email = await validateRealEmailAddress(rawEmail);
   const password = requireText(req.body.password, 'Password', 1024);
   const role = req.body.role || 'user';
   const phone = req.body.phone ? String(req.body.phone).trim() : null;
   const address = req.body.address ? String(req.body.address).trim() : null;
   const kyc_status = req.body.kyc_status || 'verified';
-  const email_verified = req.body.email_verified !== undefined ? Boolean(req.body.email_verified) : true;
   const id_card_front = req.body.id_card_front || null;
   const id_card_back = req.body.id_card_back || null;
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'Địa chỉ email không hợp lệ.');
+  // When Admin creates a Staff account, the Staff member must confirm in their real email
+  // before the account is marked as confirmed/in-use.
+  const isStaff = role === 'staff';
+  const email_verified = isStaff
+    ? false
+    : req.body.email_verified !== undefined
+    ? Boolean(req.body.email_verified)
+    : true;
+
   if (password.length < 8) throw new HttpError(400, 'Mật khẩu phải có ít nhất 8 ký tự.');
   if (!['user', 'staff', 'admin'].includes(role)) throw new HttpError(400, 'Quyền (Role) không hợp lệ.');
   if (!['unverified', 'pending', 'verified', 'rejected'].includes(kyc_status)) {
@@ -133,8 +162,9 @@ router.post('/', async (req, res) => {
   const { data: authData, error: authError } = await req.db.auth.admin.createUser({
     email,
     password,
-    email_confirm: email_verified,
-    user_metadata: { full_name: name, phone, address }
+    // Keep Supabase Auth login enabled so Staff can sign in and enter their email OTP / click email link
+    email_confirm: true,
+    user_metadata: { full_name: name, phone, address, staff_confirmed: !isStaff }
   });
   if (authError) throw new HttpError(400, authError.message);
 
@@ -164,7 +194,72 @@ router.post('/', async (req, res) => {
     if (fallbackError) throw fallbackError;
   }
 
-  res.status(201).json({ success: true, id: userId });
+  let staffConfirmation = null;
+  if (isStaff) {
+    staffConfirmation = await issueAndSendStaffConfirmationEmail({
+      userId,
+      email,
+      name
+    });
+  }
+
+  res.status(201).json({
+    success: true,
+    id: userId,
+    staffConfirmationRequired: isStaff,
+    ...(staffConfirmation || {})
+  });
+});
+
+// 3b. RESEND STAFF EMAIL CONFIRMATION (Admin action)
+router.post('/:id/resend-staff-confirm', async (req, res) => {
+  const id = requireId(req.params.id);
+  const { data: profile } = await req.db
+    .from('profiles')
+    .select('id, name, email, role')
+    .eq('id', id)
+    .maybeSingle();
+
+  const email = req.body.email || profile?.email;
+  const name = req.body.name || profile?.name || 'Nhân viên';
+  if (!email) throw new HttpError(400, 'Không tìm thấy địa chỉ email của tài khoản.');
+
+  try {
+    await req.db.from('profiles').update({ email_verified: false }).eq('id', id);
+  } catch {
+    // Ignore if optional column missing
+  }
+
+  const result = await issueAndSendStaffConfirmationEmail({ userId: id, email, name });
+  res.json({
+    success: true,
+    ...result,
+    message: result.sentViaSmtp
+      ? `Đã gửi thư xác nhận kích hoạt tới hộp thư ${result.email} của nhân viên ${name}!`
+      : `Đã tạo và gửi mã xác nhận kích hoạt cho nhân viên ${name} (${result.email})!`
+  });
+});
+
+// 3c. CONFIRM STAFF ACCOUNT BY OTP (Admin or Staff enters 6-digit OTP from staff's email)
+router.post('/:id/confirm-staff-otp', async (req, res) => {
+  const id = requireId(req.params.id);
+  const otp = requireText(req.body.otp, 'Mã OTP xác nhận', 16);
+  const email = req.body.email || '';
+
+  const record = confirmStaffAccountByTokenOrOtp({ email, userId: id, otp });
+
+  try {
+    await req.db.from('profiles').update({ email_verified: true }).eq('id', id);
+  } catch {
+    // Ignore if optional column missing
+  }
+
+  res.json({
+    success: true,
+    confirmed: true,
+    confirmedAt: record.confirmedAt,
+    message: `✓ Nhân viên (${record.email}) đã xác nhận Email thành công và kích hoạt tài khoản sử dụng!`
+  });
 });
 
 // 4. UPDATE ROLE QUICK ACTION
@@ -224,6 +319,11 @@ router.put('/:id', async (req, res) => {
   }
   if (req.body.email_verified !== undefined) {
     updatePayload.email_verified = Boolean(req.body.email_verified);
+    markStaffConfirmedByAdmin({
+      userId: id,
+      email,
+      confirmed: Boolean(req.body.email_verified)
+    });
   }
   if (req.body.id_card_front !== undefined) {
     updatePayload.id_card_front = req.body.id_card_front || null;
