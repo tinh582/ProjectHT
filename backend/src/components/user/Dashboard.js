@@ -4,43 +4,104 @@ import { requireId, requireText, rpc, HttpError } from '../../http.js';
 import { purgeSensitiveUserData } from '../../privacyEngine.js';
 import { issueAndSendEmailOtp, verifyEmailOtpCode } from '../../emailVerification.js';
 import { dispatchStaffAlert } from '../../notifications.js';
-import { feedbackStore, incidentLogStore } from '../../supportStore.js';
+import { feedbackStore, incidentLogStore, userDocumentsStore } from '../../supportStore.js';
 
 const router = express.Router();
 
 router.get('/profile/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
-  const { data, error } = await req.db
-    .from('profiles')
-    .select('id, name, email, phone, address, id_card_front, id_card_back, kyc_status, email_verified, created_at')
-    .eq('id', req.user.id)
-    .single();
-  if (error) throw error;
-  res.json(data);
+  let data = null;
+  try {
+    const resDb = await req.db
+      .from('profiles')
+      .select('id, name, email, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back, kyc_status, email_verified, created_at')
+      .eq('id', req.user.id)
+      .single();
+    if (resDb.error) throw resDb.error;
+    data = resDb.data;
+  } catch {
+    const fallback = await req.db
+      .from('profiles')
+      .select('id, name, email, phone, address, id_card_front, id_card_back, kyc_status, email_verified, created_at')
+      .eq('id', req.user.id)
+      .single();
+    if (fallback.error) throw fallback.error;
+    data = fallback.data;
+  }
+
+  const extraDocs = userDocumentsStore.get(req.user.id) || {};
+  res.json({
+    ...data,
+    driver_license_front: data?.driver_license_front || extraDocs.driver_license_front || null,
+    driver_license_back: data?.driver_license_back || extraDocs.driver_license_back || null,
+  });
 });
 
 router.put('/profile/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
-  const { name, phone, address, id_card_front, id_card_back } = req.body;
+  const { name, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back } = req.body;
   const updateData = {};
   if (name) updateData.name = name;
   if (phone !== undefined) updateData.phone = phone;
   if (address !== undefined) updateData.address = address;
   if (id_card_front !== undefined) updateData.id_card_front = id_card_front;
   if (id_card_back !== undefined) updateData.id_card_back = id_card_back;
+  if (driver_license_front !== undefined) updateData.driver_license_front = driver_license_front;
+  if (driver_license_back !== undefined) updateData.driver_license_back = driver_license_back;
 
-  if (id_card_front && id_card_back) {
+  // Persist documents in memory store as fallback cache
+  if (driver_license_front !== undefined || driver_license_back !== undefined || id_card_front !== undefined || id_card_back !== undefined) {
+    const prev = userDocumentsStore.get(req.user.id) || {};
+    userDocumentsStore.set(req.user.id, {
+      ...prev,
+      id_card_front: id_card_front !== undefined ? id_card_front : prev.id_card_front,
+      id_card_back: id_card_back !== undefined ? id_card_back : prev.id_card_back,
+      driver_license_front: driver_license_front !== undefined ? driver_license_front : prev.driver_license_front,
+      driver_license_back: driver_license_back !== undefined ? driver_license_back : prev.driver_license_back,
+    });
+  }
+
+  const hasAnyDoc = (id_card_front && id_card_back) || (driver_license_front && driver_license_back);
+  if (hasAnyDoc) {
     updateData.kyc_status = 'pending';
   }
 
-  const { data, error } = await req.db
-    .from('profiles')
-    .update(updateData)
-    .eq('id', req.user.id)
-    .select()
-    .single();
-  if (error) throw error;
-  res.json({ success: true, profile: data });
+  let data = null;
+  let error = null;
+  try {
+    const resDb = await req.db
+      .from('profiles')
+      .update(updateData)
+      .eq('id', req.user.id)
+      .select()
+      .single();
+    data = resDb.data;
+    error = resDb.error;
+    if (error) throw error;
+  } catch (err) {
+    // If schema lacks driver_license columns, fallback to core columns
+    const safeData = { ...updateData };
+    delete safeData.driver_license_front;
+    delete safeData.driver_license_back;
+    const fallback = await req.db
+      .from('profiles')
+      .update(safeData)
+      .eq('id', req.user.id)
+      .select()
+      .single();
+    if (fallback.error) throw fallback.error;
+    data = fallback.data;
+  }
+
+  const extraDocs = userDocumentsStore.get(req.user.id) || {};
+  res.json({
+    success: true,
+    profile: {
+      ...data,
+      driver_license_front: data?.driver_license_front || extraDocs.driver_license_front || null,
+      driver_license_back: data?.driver_license_back || extraDocs.driver_license_back || null,
+    }
+  });
 });
 
 // Send 6-Digit OTP to verify Real Email

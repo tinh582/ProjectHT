@@ -1,6 +1,11 @@
 import { apiFetch } from '../../lib/api';
 import React, { useState, useEffect, useMemo } from 'react';
-import { buildSampleGplxFront, buildSampleGplxBack } from '../../lib/sampleKyc';
+import {
+  buildSampleGplxFront,
+  buildSampleGplxBack,
+  buildSampleCccdFront,
+  buildSampleCccdBack
+} from '../../lib/sampleKyc';
 
 const INCIDENT_TYPES = [
   { value: 'WRONG_SLOT_OCCUPIED', label: '🅿️ Đỗ sai ô cố định (Vi phạm 1 Slot = 1 Xe)' },
@@ -390,9 +395,9 @@ export default function StaffExceptions() {
                       <button
                         onClick={() => setGplxVerifySession(ex)}
                         className="secondary exceptions-btn-gplx"
-                        title="Đối chiếu thủ công Giấy phép lái xe (GPLX) của chủ phương tiện"
+                        title="Đối chiếu thủ công Căn cước công dân (CCCD) và Giấy phép lái xe (GPLX) của chủ phương tiện"
                       >
-                        🪪 Đối chiếu GPLX
+                        🪪 Đối chiếu CCCD & GPLX
                       </button>
                       <button
                         onClick={() => handleNotifyOwner(ex)}
@@ -601,17 +606,18 @@ export default function StaffExceptions() {
       )}
 
       {/* ============================================================ */}
-      {/* MODAL: MANUAL DRIVER'S LICENSE (GPLX) VERIFICATION           */}
+      {/* MODAL: MANUAL DRIVER'S LICENSE (GPLX) & CCCD VERIFICATION    */}
       {/* ============================================================ */}
       {gplxVerifySession && (
         <div className="dialog-overlay" onClick={() => setGplxVerifySession(null)}>
           <div
             className="dialog-content exceptions-dialog-gplx"
+            style={{ maxWidth: '820px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="users-dialog-header">
               <h3 className="users-dialog-title">
-                🪪 Đối chiếu thủ công Giấy phép lái xe (GPLX)
+                🪪 Đối chiếu Thủ công Hồ sơ Định danh (CCCD & GPLX)
               </h3>
               <button className="slot-info-close" onClick={() => setGplxVerifySession(null)}>✕</button>
             </div>
@@ -624,41 +630,87 @@ export default function StaffExceptions() {
                 <strong>Vị trí cố định:</strong> {gplxVerifySession.fixed_slot || 'Ô cố định'}
               </div>
               <div className="exceptions-gplx-banner-sub">
-                Kiểm tra hình chụp Giấy phép lái xe (Mặt trước & Mặt sau) khớp với chủ phương tiện trước khi mở Barie thủ công.
+                Kiểm tra đầy đủ Căn cước công dân (CCCD) và Giấy phép lái xe (GPLX) khớp với chủ phương tiện trước khi mở Barie thủ công.
               </div>
             </div>
 
-            <div className="exceptions-gplx-grid">
-              <div>
-                <div className="exceptions-gplx-title">
-                  Mặt trước GPLX (PET)
-                </div>
-                <img
-                  src={buildSampleGplxFront({
-                    name: gplxVerifySession.vehicles?.profiles?.name || 'NGUYỄN VĂN AN',
-                    licenseClass:
-                      gplxVerifySession.vehicles?.type === 'car' || gplxVerifySession.vehicles?.type === 'Ô tô'
-                        ? 'B2'
-                        : 'A1'
-                  })}
-                  alt="GPLX Mặt trước"
-                  className="exceptions-gplx-img"
-                />
+            {/* Document 1: GPLX */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
+                🚗 1. Giấy phép lái xe (GPLX) — 2 mặt:
               </div>
-              <div>
-                <div className="exceptions-gplx-title">
-                  Mặt sau GPLX (Hạng xe được phép điều khiển)
+              <div className="exceptions-gplx-grid">
+                <div>
+                  <div className="exceptions-gplx-title">
+                    Mặt trước GPLX (Thẻ PET)
+                  </div>
+                  <img
+                    src={buildSampleGplxFront({
+                      name: gplxVerifySession.vehicles?.profiles?.name || 'NGUYỄN VĂN AN',
+                      licenseClass:
+                        gplxVerifySession.vehicles?.type === 'car' || gplxVerifySession.vehicles?.type === 'Ô tô'
+                          ? 'B2'
+                          : 'A1'
+                    })}
+                    alt="GPLX Mặt trước"
+                    className="exceptions-gplx-img"
+                  />
                 </div>
-                <img
-                  src={buildSampleGplxBack({
-                    licenseClass:
-                      gplxVerifySession.vehicles?.type === 'car' || gplxVerifySession.vehicles?.type === 'Ô tô'
-                        ? 'B2'
-                        : 'A1'
-                  })}
-                  alt="GPLX Mặt sau"
-                  className="exceptions-gplx-img"
-                />
+                <div>
+                  <div className="exceptions-gplx-title">
+                    Mặt sau GPLX (Hạng xe được phép điều khiển)
+                  </div>
+                  <img
+                    src={buildSampleGplxBack({
+                      licenseClass:
+                        gplxVerifySession.vehicles?.type === 'car' || gplxVerifySession.vehicles?.type === 'Ô tô'
+                          ? 'B2'
+                          : 'A1'
+                    })}
+                    alt="GPLX Mặt sau"
+                    className="exceptions-gplx-img"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Document 2: CCCD */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
+                🪪 2. Căn cước công dân (CCCD) — 2 mặt:
+              </div>
+              <div className="exceptions-gplx-grid">
+                <div>
+                  <div className="exceptions-gplx-title">
+                    Ảnh CCCD Mặt trước
+                  </div>
+                  <img
+                    src={buildSampleCccdFront({
+                      name: gplxVerifySession.vehicles?.profiles?.name || 'NGUYỄN VĂN AN',
+                      cccdNo: '001095012345',
+                      dob: '15/08/1995',
+                      sex: 'Nam',
+                      origin: 'TP. Hà Nội',
+                      address: 'TP. Hồ Chí Minh'
+                    })}
+                    alt="CCCD Mặt trước"
+                    className="exceptions-gplx-img"
+                  />
+                </div>
+                <div>
+                  <div className="exceptions-gplx-title">
+                    Ảnh CCCD Mặt sau
+                  </div>
+                  <img
+                    src={buildSampleCccdBack({
+                      name: gplxVerifySession.vehicles?.profiles?.name || 'NGUYỄN VĂN AN',
+                      cccdNo: '001095012345',
+                      feature: 'Nốt ruồi C: 1cm dưới đuôi mắt phải'
+                    })}
+                    alt="CCCD Mặt sau"
+                    className="exceptions-gplx-img"
+                  />
+                </div>
               </div>
             </div>
 
@@ -675,7 +727,7 @@ export default function StaffExceptions() {
                   handleManualOpen(s);
                 }}
               >
-                ✓ Xác nhận GPLX hợp lệ & Mở Barie
+                ✓ Xác nhận CCCD & GPLX hợp lệ & Mở Barie
               </button>
             </div>
           </div>

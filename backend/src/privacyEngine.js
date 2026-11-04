@@ -1,8 +1,12 @@
+import { userDocumentsStore } from './supportStore.js';
+
 export async function purgeSensitiveUserData(db, userId, reason = 'USER_TERMINATION') {
   if (!db || !userId) throw new Error('Invalid userId for zero-data purge.');
 
   const timestamp = new Date().toISOString();
   console.log(`[PRIVACY-ENGINE] Initiating Zero-Data Retention purge for user: ${userId}. Reason: ${reason}`);
+
+  userDocumentsStore.delete(userId);
 
   const { data: vehicles } = await db.from('vehicles').select('id').eq('user_id', userId);
   const vehicleIds = (vehicles || []).map(v => v.id);
@@ -22,14 +26,28 @@ export async function purgeSensitiveUserData(db, userId, reason = 'USER_TERMINAT
 
   await db.from('notifications').delete().eq('user_id', userId);
 
-  const { error: profileError } = await db.from('profiles').update({
+  let { error: profileError } = await db.from('profiles').update({
     phone: null,
     address: null,
     id_card_front: null,
     id_card_back: null,
+    driver_license_front: null,
+    driver_license_back: null,
     kyc_status: 'purged',
     name: 'Anonymous User',
   }).eq('id', userId);
+
+  if (profileError) {
+    const fallback = await db.from('profiles').update({
+      phone: null,
+      address: null,
+      id_card_front: null,
+      id_card_back: null,
+      kyc_status: 'purged',
+      name: 'Anonymous User',
+    }).eq('id', userId);
+    profileError = fallback.error;
+  }
 
   if (profileError) throw profileError;
 

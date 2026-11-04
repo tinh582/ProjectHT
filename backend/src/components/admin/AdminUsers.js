@@ -1,6 +1,7 @@
 import express from 'express';
 import { HttpError, pageRange, requireId, requireText } from '../../http.js';
 import { purgeSensitiveUserData } from '../../privacyEngine.js';
+import { userDocumentsStore } from '../../supportStore.js';
 import {
   validateRealEmailAddress,
   issueAndSendStaffConfirmationEmail,
@@ -18,7 +19,7 @@ router.get('/', async (req, res) => {
   let count = null;
   try {
     const resDb = await req.db.from('profiles')
-      .select('id, name, email, role, phone, address, id_card_front, id_card_back, kyc_status, email_verified, created_at', { count: 'exact' })
+      .select('id, name, email, role, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back, kyc_status, email_verified, created_at', { count: 'exact' })
       .order('created_at', { ascending: false })
       .order('id')
       .range(from, to);
@@ -26,19 +27,32 @@ router.get('/', async (req, res) => {
     count = resDb.count;
     if (resDb.error) throw resDb.error;
   } catch {
-    const fallback = await req.db.from('profiles')
-      .select('id, name, email, role, created_at', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .order('id')
-      .range(from, to);
-    data = fallback.data;
-    count = fallback.count;
+    try {
+      const resFallback = await req.db.from('profiles')
+        .select('id, name, email, role, phone, address, id_card_front, id_card_back, kyc_status, email_verified, created_at', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .order('id')
+        .range(from, to);
+      data = resFallback.data;
+      count = resFallback.count;
+    } catch {
+      const fallback = await req.db.from('profiles')
+        .select('id, name, email, role, created_at', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .order('id')
+        .range(from, to);
+      data = fallback.data;
+      count = fallback.count;
+    }
   }
 
   const enrichedItems = (data || []).map((u) => {
     const staffConf = getStaffConfirmationStatus(u);
+    const extraDocs = userDocumentsStore.get(u.id) || {};
     return {
       ...u,
+      driver_license_front: u.driver_license_front || extraDocs.driver_license_front || null,
+      driver_license_back: u.driver_license_back || extraDocs.driver_license_back || null,
       ...staffConf
     };
   });
@@ -54,24 +68,36 @@ router.get('/:id/details', async (req, res) => {
   try {
     const { data, error } = await req.db
       .from('profiles')
-      .select('id, name, email, role, phone, address, id_card_front, id_card_back, kyc_status, email_verified, created_at')
+      .select('id, name, email, role, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back, kyc_status, email_verified, created_at')
       .eq('id', id)
       .maybeSingle();
     if (error) throw error;
     profile = data;
   } catch {
-    const { data } = await req.db
-      .from('profiles')
-      .select('id, name, email, role, created_at')
-      .eq('id', id)
-      .maybeSingle();
-    profile = data;
+    try {
+      const { data } = await req.db
+        .from('profiles')
+        .select('id, name, email, role, phone, address, id_card_front, id_card_back, kyc_status, email_verified, created_at')
+        .eq('id', id)
+        .maybeSingle();
+      profile = data;
+    } catch {
+      const { data } = await req.db
+        .from('profiles')
+        .select('id, name, email, role, created_at')
+        .eq('id', id)
+        .maybeSingle();
+      profile = data;
+    }
   }
 
   if (!profile) throw new HttpError(404, 'Không tìm thấy tài khoản.');
 
+  const extraDocs = userDocumentsStore.get(id) || {};
   profile = {
     ...profile,
+    driver_license_front: profile.driver_license_front || extraDocs.driver_license_front || null,
+    driver_license_back: profile.driver_license_back || extraDocs.driver_license_back || null,
     ...getStaffConfirmationStatus(profile)
   };
 
@@ -143,6 +169,8 @@ router.post('/', async (req, res) => {
   const kyc_status = req.body.kyc_status || 'verified';
   const id_card_front = req.body.id_card_front || null;
   const id_card_back = req.body.id_card_back || null;
+  const driver_license_front = req.body.driver_license_front || null;
+  const driver_license_back = req.body.driver_license_back || null;
 
   // When Admin creates a Staff account, the Staff member must confirm in their real email
   // before the account is marked as confirmed/in-use.
@@ -169,6 +197,13 @@ router.post('/', async (req, res) => {
   if (authError) throw new HttpError(400, authError.message);
 
   const userId = authData.user.id;
+  userDocumentsStore.set(userId, {
+    id_card_front,
+    id_card_back,
+    driver_license_front,
+    driver_license_back
+  });
+
   const fullProfilePayload = {
     id: userId,
     name,
@@ -179,7 +214,9 @@ router.post('/', async (req, res) => {
     email_verified,
     kyc_status,
     id_card_front,
-    id_card_back
+    id_card_back,
+    driver_license_front,
+    driver_license_back
   };
 
   const { error: profileError } = await req.db
@@ -330,6 +367,28 @@ router.put('/:id', async (req, res) => {
   }
   if (req.body.id_card_back !== undefined) {
     updatePayload.id_card_back = req.body.id_card_back || null;
+  }
+  if (req.body.driver_license_front !== undefined) {
+    updatePayload.driver_license_front = req.body.driver_license_front || null;
+  }
+  if (req.body.driver_license_back !== undefined) {
+    updatePayload.driver_license_back = req.body.driver_license_back || null;
+  }
+
+  if (
+    req.body.driver_license_front !== undefined ||
+    req.body.driver_license_back !== undefined ||
+    req.body.id_card_front !== undefined ||
+    req.body.id_card_back !== undefined
+  ) {
+    const prev = userDocumentsStore.get(id) || {};
+    userDocumentsStore.set(id, {
+      ...prev,
+      id_card_front: req.body.id_card_front !== undefined ? (req.body.id_card_front || null) : prev.id_card_front,
+      id_card_back: req.body.id_card_back !== undefined ? (req.body.id_card_back || null) : prev.id_card_back,
+      driver_license_front: req.body.driver_license_front !== undefined ? (req.body.driver_license_front || null) : prev.driver_license_front,
+      driver_license_back: req.body.driver_license_back !== undefined ? (req.body.driver_license_back || null) : prev.driver_license_back,
+    });
   }
 
   // Optional password reset / auth email sync via Supabase Auth Admin API

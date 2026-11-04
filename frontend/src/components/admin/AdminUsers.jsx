@@ -20,7 +20,9 @@ const EMPTY_ADD_FORM = {
   kyc_status: 'verified',
   email_verified: true,
   id_card_front: '',
-  id_card_back: ''
+  id_card_back: '',
+  driver_license_front: '',
+  driver_license_back: ''
 };
 
 export default function AdminUsers({ session }) {
@@ -61,6 +63,8 @@ export default function AdminUsers({ session }) {
     email_verified: true,
     id_card_front: '',
     id_card_back: '',
+    driver_license_front: '',
+    driver_license_back: '',
     password: ''
   });
   const [editLoading, setEditLoading] = useState(false);
@@ -308,6 +312,8 @@ export default function AdminUsers({ session }) {
       email_verified: u.email_verified !== false,
       id_card_front: u.id_card_front || '',
       id_card_back: u.id_card_back || '',
+      driver_license_front: u.driver_license_front || '',
+      driver_license_back: u.driver_license_back || '',
       password: ''
     });
   };
@@ -327,7 +333,9 @@ export default function AdminUsers({ session }) {
         kyc_status: editForm.kyc_status,
         email_verified: editForm.email_verified,
         id_card_front: editForm.id_card_front || null,
-        id_card_back: editForm.id_card_back || null
+        id_card_back: editForm.id_card_back || null,
+        driver_license_front: editForm.driver_license_front || null,
+        driver_license_back: editForm.driver_license_back || null
       };
       if (editForm.password && editForm.password.trim().length > 0) {
         payload.password = editForm.password;
@@ -626,7 +634,7 @@ export default function AdminUsers({ session }) {
                     <span
                       onClick={() => setViewKycUser(u)}
                       className={`users-kyc-badge ${u.kyc_status || 'unverified'}`}
-                      title="Nhấn để xem và duyệt ảnh CCCD 2 mặt"
+                      title="Nhấn để xem và duyệt hồ sơ CCCD & GPLX"
                     >
                       {u.kyc_status === 'verified'
                         ? '✓ Đã duyệt KYC'
@@ -641,6 +649,14 @@ export default function AdminUsers({ session }) {
                       {u.id_card_front && u.id_card_back
                         ? 'Đủ 2 mặt'
                         : u.id_card_front || u.id_card_back
+                        ? '1 mặt'
+                        : 'Chưa tải'}
+                    </span>
+                    <span className="users-kyc-cccd-sub">
+                      🚗 GPLX:{' '}
+                      {u.driver_license_front && u.driver_license_back
+                        ? 'Đủ 2 mặt'
+                        : u.driver_license_front || u.driver_license_back
                         ? '1 mặt'
                         : 'Chưa tải'}
                     </span>
@@ -827,16 +843,17 @@ export default function AdminUsers({ session }) {
                 </div>
               </div>
 
-              {/* 2-Sided CCCD Management inside Edit Dialog */}
+              {/* Document Management inside Edit Dialog: BOTH CCCD & GPLX */}
               <div className="users-cccd-section">
                 <div className="users-cccd-header">
                   <div className="users-cccd-header-title">
-                    🪪 Hồ sơ ảnh Giấy phép lái xe (GPLX) / CCCD 2 mặt (Đối chiếu thủ công)
+                    🪪 Hồ sơ Định danh: Căn cước công dân (CCCD) & Giấy phép lái xe (GPLX)
                   </div>
                   <div className="users-cccd-btn-wrap">
                     <button
                       type="button"
-                      className="secondary users-sample-btn-gplx"
+                      className="secondary"
+                      style={{ background: '#0284c7', color: '#fff', border: 'none', fontWeight: 700 }}
                       onClick={() => {
                         const s = SAMPLE_KYC_PROFILES[0];
                         const targetName = editForm.name.trim() || s.name;
@@ -848,20 +865,33 @@ export default function AdminUsers({ session }) {
                           address: targetAddress,
                           kyc_status: 'verified',
                           email_verified: true,
-                          id_card_front: buildSampleGplxFront({
+                          id_card_front: buildSampleCccdFront({
+                            name: targetName,
+                            cccdNo: s.cccdNo,
+                            dob: s.dob,
+                            sex: s.sex,
+                            origin: s.origin,
+                            address: targetAddress
+                          }),
+                          id_card_back: buildSampleCccdBack({
+                            name: targetName,
+                            cccdNo: s.cccdNo,
+                            feature: s.feature
+                          }),
+                          driver_license_front: buildSampleGplxFront({
                             name: targetName,
                             gplxNo: s.gplxNo || '790195008868',
                             dob: s.dob,
                             address: targetAddress,
                             licenseClass: s.licenseClass || 'B2'
                           }),
-                          id_card_back: buildSampleGplxBack({
+                          driver_license_back: buildSampleGplxBack({
                             gplxNo: s.gplxNo || '790195008868'
                           })
                         }));
                       }}
                     >
-                      🚗 Tạo ảnh chụp Giấy phép lái xe (GPLX) 2 mặt
+                      ✨ Tạo đủ cả CCCD & GPLX (4 mặt)
                     </button>
                     <button
                       type="button"
@@ -893,73 +923,181 @@ export default function AdminUsers({ session }) {
                         }));
                       }}
                     >
-                      ⚡ Mẫu CCCD 2 mặt
+                      🪪 Mẫu CCCD 2 mặt
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary users-sample-btn-gplx"
+                      onClick={() => {
+                        const s = SAMPLE_KYC_PROFILES[0];
+                        const targetName = editForm.name.trim() || s.name;
+                        const targetAddress = editForm.address.trim() || s.address;
+                        setEditForm((f) => ({
+                          ...f,
+                          name: targetName,
+                          phone: f.phone.trim() || s.phone,
+                          address: targetAddress,
+                          kyc_status: 'verified',
+                          email_verified: true,
+                          driver_license_front: buildSampleGplxFront({
+                            name: targetName,
+                            gplxNo: s.gplxNo || '790195008868',
+                            dob: s.dob,
+                            address: targetAddress,
+                            licenseClass: s.licenseClass || 'B2'
+                          }),
+                          driver_license_back: buildSampleGplxBack({
+                            gplxNo: s.gplxNo || '790195008868'
+                          })
+                        }));
+                      }}
+                    >
+                      🚗 Mẫu GPLX 2 mặt
                     </button>
                   </div>
                 </div>
-                <div className="users-cccd-grid">
-                  <div className="users-cccd-box">
-                    <div className="users-cccd-title">CCCD Mặt trước</div>
-                    {editForm.id_card_front ? (
-                      <div className="users-cccd-preview-wrap">
-                        <img
-                          src={editForm.id_card_front}
-                          alt="CCCD Mặt trước"
-                          className="users-cccd-img"
-                        />
-                        <button
-                          type="button"
-                          className="text-button error users-cccd-del-btn"
-                          onClick={() => setEditForm((f) => ({ ...f, id_card_front: '' }))}
-                        >
-                          Xóa ảnh mặt trước
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="users-cccd-empty">Chưa có ảnh</div>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="users-cccd-file-input"
-                      onChange={(e) =>
-                        handleImageFile(e.target.files?.[0], (base64) =>
-                          setEditForm((f) => ({ ...f, id_card_front: base64 }))
-                        )
-                      }
-                    />
-                  </div>
 
-                  <div className="users-cccd-box">
-                    <div className="users-cccd-title">CCCD Mặt sau</div>
-                    {editForm.id_card_back ? (
-                      <div className="users-cccd-preview-wrap">
-                        <img
-                          src={editForm.id_card_back}
-                          alt="CCCD Mặt sau"
-                          className="users-cccd-img"
-                        />
-                        <button
-                          type="button"
-                          className="text-button error users-cccd-del-btn"
-                          onClick={() => setEditForm((f) => ({ ...f, id_card_back: '' }))}
-                        >
-                          Xóa ảnh mặt sau
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="users-cccd-empty">Chưa có ảnh</div>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="users-cccd-file-input"
-                      onChange={(e) =>
-                        handleImageFile(e.target.files?.[0], (base64) =>
-                          setEditForm((f) => ({ ...f, id_card_back: base64 }))
-                        )
-                      }
-                    />
+                {/* Section 1: CCCD 2 mặt */}
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
+                    1. Căn cước công dân (CCCD):
+                  </div>
+                  <div className="users-cccd-grid">
+                    <div className="users-cccd-box">
+                      <div className="users-cccd-title">CCCD Mặt trước</div>
+                      {editForm.id_card_front ? (
+                        <div className="users-cccd-preview-wrap">
+                          <img
+                            src={editForm.id_card_front}
+                            alt="CCCD Mặt trước"
+                            className="users-cccd-img"
+                          />
+                          <button
+                            type="button"
+                            className="text-button error users-cccd-del-btn"
+                            onClick={() => setEditForm((f) => ({ ...f, id_card_front: '' }))}
+                          >
+                            Xóa ảnh mặt trước
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="users-cccd-empty">Chưa có ảnh CCCD trước</div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="users-cccd-file-input"
+                        onChange={(e) =>
+                          handleImageFile(e.target.files?.[0], (base64) =>
+                            setEditForm((f) => ({ ...f, id_card_front: base64 }))
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="users-cccd-box">
+                      <div className="users-cccd-title">CCCD Mặt sau</div>
+                      {editForm.id_card_back ? (
+                        <div className="users-cccd-preview-wrap">
+                          <img
+                            src={editForm.id_card_back}
+                            alt="CCCD Mặt sau"
+                            className="users-cccd-img"
+                          />
+                          <button
+                            type="button"
+                            className="text-button error users-cccd-del-btn"
+                            onClick={() => setEditForm((f) => ({ ...f, id_card_back: '' }))}
+                          >
+                            Xóa ảnh mặt sau
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="users-cccd-empty">Chưa có ảnh CCCD sau</div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="users-cccd-file-input"
+                        onChange={(e) =>
+                          handleImageFile(e.target.files?.[0], (base64) =>
+                            setEditForm((f) => ({ ...f, id_card_back: base64 }))
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: GPLX 2 mặt */}
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
+                    2. Giấy phép lái xe (GPLX):
+                  </div>
+                  <div className="users-cccd-grid">
+                    <div className="users-cccd-box">
+                      <div className="users-cccd-title">GPLX Mặt trước (Thẻ PET)</div>
+                      {editForm.driver_license_front ? (
+                        <div className="users-cccd-preview-wrap">
+                          <img
+                            src={editForm.driver_license_front}
+                            alt="GPLX Mặt trước"
+                            className="users-cccd-img"
+                          />
+                          <button
+                            type="button"
+                            className="text-button error users-cccd-del-btn"
+                            onClick={() => setEditForm((f) => ({ ...f, driver_license_front: '' }))}
+                          >
+                            Xóa ảnh GPLX trước
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="users-cccd-empty">Chưa có ảnh GPLX trước</div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="users-cccd-file-input"
+                        onChange={(e) =>
+                          handleImageFile(e.target.files?.[0], (base64) =>
+                            setEditForm((f) => ({ ...f, driver_license_front: base64 }))
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="users-cccd-box">
+                      <div className="users-cccd-title">GPLX Mặt sau (Hạng xe)</div>
+                      {editForm.driver_license_back ? (
+                        <div className="users-cccd-preview-wrap">
+                          <img
+                            src={editForm.driver_license_back}
+                            alt="GPLX Mặt sau"
+                            className="users-cccd-img"
+                          />
+                          <button
+                            type="button"
+                            className="text-button error users-cccd-del-btn"
+                            onClick={() => setEditForm((f) => ({ ...f, driver_license_back: '' }))}
+                          >
+                            Xóa ảnh GPLX sau
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="users-cccd-empty">Chưa có ảnh GPLX sau</div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="users-cccd-file-input"
+                        onChange={(e) =>
+                          handleImageFile(e.target.files?.[0], (base64) =>
+                            setEditForm((f) => ({ ...f, driver_license_back: base64 }))
+                          )
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1026,11 +1164,21 @@ export default function AdminUsers({ session }) {
                           name: s.name,
                           cccdNo: s.cccdNo,
                           feature: s.feature
+                        }),
+                        driver_license_front: buildSampleGplxFront({
+                          name: s.name,
+                          gplxNo: s.gplxNo || '790195008868',
+                          dob: s.dob,
+                          address: s.address,
+                          licenseClass: s.licenseClass || 'B2'
+                        }),
+                        driver_license_back: buildSampleGplxBack({
+                          gplxNo: s.gplxNo || '790195008868'
                         })
                       }))
                     }
                   >
-                    ⚡ Mẫu {idx + 1}: {s.name}
+                    ⚡ Mẫu {idx + 1}: {s.name} (Đủ CCCD & GPLX)
                   </button>
                 ))}
               </div>
@@ -1135,33 +1283,65 @@ export default function AdminUsers({ session }) {
                 </div>
               )}
 
-              <div className="users-add-cccd-grid">
-                <label className="users-add-cccd-label">
-                  Ảnh CCCD Mặt trước (Tùy chọn)
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="users-add-cccd-input"
-                    onChange={(e) =>
-                      handleImageFile(e.target.files?.[0], (base64) =>
-                        setAddForm((f) => ({ ...f, id_card_front: base64 }))
-                      )
-                    }
-                  />
-                </label>
-                <label className="users-add-cccd-label">
-                  Ảnh CCCD Mặt sau (Tùy chọn)
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="users-add-cccd-input"
-                    onChange={(e) =>
-                      handleImageFile(e.target.files?.[0], (base64) =>
-                        setAddForm((f) => ({ ...f, id_card_back: base64 }))
-                      )
-                    }
-                  />
-                </label>
+              {/* CCCD & GPLX Upload section for Add Form */}
+              <div style={{ marginTop: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#f8fafc' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
+                  🪪 Hồ sơ Giấy tờ: CCCD & GPLX (Tùy chọn tải trước):
+                </div>
+                <div className="users-add-cccd-grid">
+                  <label className="users-add-cccd-label">
+                    Ảnh CCCD Mặt trước
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="users-add-cccd-input"
+                      onChange={(e) =>
+                        handleImageFile(e.target.files?.[0], (base64) =>
+                          setAddForm((f) => ({ ...f, id_card_front: base64 }))
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="users-add-cccd-label">
+                    Ảnh CCCD Mặt sau
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="users-add-cccd-input"
+                      onChange={(e) =>
+                        handleImageFile(e.target.files?.[0], (base64) =>
+                          setAddForm((f) => ({ ...f, id_card_back: base64 }))
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="users-add-cccd-label">
+                    Ảnh GPLX Mặt trước (Thẻ PET)
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="users-add-cccd-input"
+                      onChange={(e) =>
+                        handleImageFile(e.target.files?.[0], (base64) =>
+                          setAddForm((f) => ({ ...f, driver_license_front: base64 }))
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="users-add-cccd-label">
+                    Ảnh GPLX Mặt sau (Hạng xe)
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="users-add-cccd-input"
+                      onChange={(e) =>
+                        handleImageFile(e.target.files?.[0], (base64) =>
+                          setAddForm((f) => ({ ...f, driver_license_back: base64 }))
+                        )
+                      }
+                    />
+                  </label>
+                </div>
               </div>
 
               <div className="users-dialog-actions users-dialog-actions-mt">
@@ -1376,45 +1556,92 @@ export default function AdminUsers({ session }) {
       )}
 
       {/* ============================================================ */}
-      {/* 5. KYC QUICK INSPECTION MODAL                                */}
+      {/* 5. KYC QUICK INSPECTION MODAL (BOTH CCCD & GPLX)             */}
       {/* ============================================================ */}
       {viewKycUser && (
         <div className="slot-picker-overlay users-kyc-overlay">
-          <div className="slot-picker-dialog users-kyc-dialog">
+          <div className="slot-picker-dialog users-kyc-dialog" style={{ maxWidth: '820px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="users-dialog-header">
-              <h3>Đối chiếu Thủ công Giấy phép lái xe (GPLX) / KYC: {viewKycUser.name}</h3>
+              <h3>Đối chiếu Hồ sơ Định danh CCCD & GPLX: {viewKycUser.name}</h3>
               <button className="slot-info-close" onClick={() => setViewKycUser(null)}>✕</button>
             </div>
             <div className="users-kyc-dialog-info">
               <div><strong>Email:</strong> {viewKycUser.email}</div>
               <div><strong>Số điện thoại:</strong> {viewKycUser.phone || '(Chưa cung cấp)'}</div>
               <div><strong>Địa chỉ cư trú:</strong> {viewKycUser.address || '(Chưa cung cấp)'}</div>
+              <div style={{ marginTop: '4px', fontSize: '12px' }}>
+                <span style={{ color: viewKycUser.id_card_front && viewKycUser.id_card_back ? '#059669' : '#dc2626', fontWeight: 700, marginRight: '14px' }}>
+                  🪪 CCCD: {viewKycUser.id_card_front && viewKycUser.id_card_back ? '✓ Đủ 2 mặt' : viewKycUser.id_card_front || viewKycUser.id_card_back ? '⚠ Thiếu 1 mặt' : '✕ Chưa nộp'}
+                </span>
+                <span style={{ color: viewKycUser.driver_license_front && viewKycUser.driver_license_back ? '#059669' : '#dc2626', fontWeight: 700 }}>
+                  🚗 GPLX: {viewKycUser.driver_license_front && viewKycUser.driver_license_back ? '✓ Đủ 2 mặt' : viewKycUser.driver_license_front || viewKycUser.driver_license_back ? '⚠ Thiếu 1 mặt' : '✕ Chưa nộp'}
+                </span>
+              </div>
             </div>
 
-            <div className="users-kyc-dialog-grid">
-              <div className="users-kyc-img-box">
-                <div className="users-kyc-img-title">Giấy phép lái xe (GPLX) / CCCD Mặt trước</div>
-                {viewKycUser.id_card_front ? (
-                  <img
-                    src={viewKycUser.id_card_front}
-                    alt="GPLX trước"
-                    className="users-kyc-img"
-                  />
-                ) : (
-                  <div className="users-kyc-empty">Chưa tải lên</div>
-                )}
+            {/* Document 1: CCCD */}
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                🪪 1. Căn cước công dân (CCCD - 2 mặt):
               </div>
-              <div className="users-kyc-img-box">
-                <div className="users-kyc-img-title">Giấy phép lái xe (GPLX) / CCCD Mặt sau</div>
-                {viewKycUser.id_card_back ? (
-                  <img
-                    src={viewKycUser.id_card_back}
-                    alt="CCCD sau"
-                    className="users-kyc-img"
-                  />
-                ) : (
-                  <div className="users-kyc-empty">Chưa tải lên</div>
-                )}
+              <div className="users-kyc-dialog-grid">
+                <div className="users-kyc-img-box">
+                  <div className="users-kyc-img-title">Ảnh CCCD Mặt trước</div>
+                  {viewKycUser.id_card_front ? (
+                    <img
+                      src={viewKycUser.id_card_front}
+                      alt="CCCD trước"
+                      className="users-kyc-img"
+                    />
+                  ) : (
+                    <div className="users-kyc-empty">Chưa tải lên</div>
+                  )}
+                </div>
+                <div className="users-kyc-img-box">
+                  <div className="users-kyc-img-title">Ảnh CCCD Mặt sau</div>
+                  {viewKycUser.id_card_back ? (
+                    <img
+                      src={viewKycUser.id_card_back}
+                      alt="CCCD sau"
+                      className="users-kyc-img"
+                    />
+                  ) : (
+                    <div className="users-kyc-empty">Chưa tải lên</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Document 2: GPLX */}
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                🚗 2. Giấy phép lái xe (GPLX - 2 mặt):
+              </div>
+              <div className="users-kyc-dialog-grid">
+                <div className="users-kyc-img-box">
+                  <div className="users-kyc-img-title">Ảnh GPLX Mặt trước (Thẻ PET)</div>
+                  {viewKycUser.driver_license_front ? (
+                    <img
+                      src={viewKycUser.driver_license_front}
+                      alt="GPLX trước"
+                      className="users-kyc-img"
+                    />
+                  ) : (
+                    <div className="users-kyc-empty">Chưa tải lên</div>
+                  )}
+                </div>
+                <div className="users-kyc-img-box">
+                  <div className="users-kyc-img-title">Ảnh GPLX Mặt sau (Hạng xe)</div>
+                  {viewKycUser.driver_license_back ? (
+                    <img
+                      src={viewKycUser.driver_license_back}
+                      alt="GPLX sau"
+                      className="users-kyc-img"
+                    />
+                  ) : (
+                    <div className="users-kyc-empty">Chưa tải lên</div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1427,7 +1654,7 @@ export default function AdminUsers({ session }) {
                   openEdit(target);
                 }}
               >
-                ✏️ Sửa thông tin / Tải hộ ảnh CCCD
+                ✏️ Sửa thông tin / Tải ảnh CCCD & GPLX
               </button>
               <div className="users-kyc-action-group">
                 <button
@@ -1440,7 +1667,7 @@ export default function AdminUsers({ session }) {
                   className="primary users-kyc-btn-approve"
                   onClick={() => handleKycStatusChange(viewKycUser.id, 'verified')}
                 >
-                  ✓ Duyệt Hợp Lệ
+                  ✓ Duyệt Hợp Lệ (CCCD & GPLX)
                 </button>
               </div>
             </div>

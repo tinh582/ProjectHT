@@ -83,3 +83,7 @@ export const feedbackStore = [
     created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString()
   }
 ];
+
+// Document store supporting both CCCD & Driver's License (GPLX) across user profiles
+export const userDocumentsStore = new Map();
+

@@ -1,5 +1,6 @@
 import express from 'express';
 import { HttpError, requireText } from '../http.js';
+import { userDocumentsStore } from '../supportStore.js';
 import {
   validateRealEmailAddress,
   issueAndSendEmailOtp,
@@ -49,6 +50,8 @@ router.post('/', async (req, res) => {
   const address = req.body.address || null;
   const id_card_front = req.body.id_card_front || null;
   const id_card_back = req.body.id_card_back || null;
+  const driver_license_front = req.body.driver_license_front || null;
+  const driver_license_back = req.body.driver_license_back || null;
 
   if (password.length < 8) throw new HttpError(400, 'Mật khẩu phải có ít nhất 8 ký tự.');
 
@@ -80,7 +83,14 @@ router.post('/', async (req, res) => {
   }
 
   if (data.user && data.user.identities?.length > 0) {
-    const kyc_status = id_card_front && id_card_back ? 'pending' : 'unverified';
+    userDocumentsStore.set(data.user.id, {
+      id_card_front,
+      id_card_back,
+      driver_license_front,
+      driver_license_back
+    });
+
+    const kyc_status = (id_card_front && id_card_back) || (driver_license_front && driver_license_back) ? 'pending' : 'unverified';
     const profileRow = {
       id: data.user.id,
       name,
@@ -90,6 +100,8 @@ router.post('/', async (req, res) => {
       address,
       id_card_front,
       id_card_back,
+      driver_license_front,
+      driver_license_back,
       kyc_status,
       email_verified: Boolean(otpConfirmed || data.user.email_confirmed_at),
       privacy_accepted: true
@@ -98,10 +110,18 @@ router.post('/', async (req, res) => {
     try {
       await req.db.from('profiles').upsert(profileRow, { onConflict: 'id', ignoreDuplicates: false });
     } catch {
-      await req.db.from('profiles').upsert(
-        { id: data.user.id, name, email, role: 'user' },
-        { onConflict: 'id', ignoreDuplicates: true }
-      );
+      // Fallback if driver_license columns do not exist in DB schema
+      const fallbackRow = { ...profileRow };
+      delete fallbackRow.driver_license_front;
+      delete fallbackRow.driver_license_back;
+      try {
+        await req.db.from('profiles').upsert(fallbackRow, { onConflict: 'id', ignoreDuplicates: false });
+      } catch {
+        await req.db.from('profiles').upsert(
+          { id: data.user.id, name, email, role: 'user' },
+          { onConflict: 'id', ignoreDuplicates: true }
+        );
+      }
     }
   }
 
