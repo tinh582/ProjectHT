@@ -237,7 +237,7 @@ export default function StaffExceptions() {
           <p className="eyebrow">AI-DRIVEN ERROR HANDLING & INCIDENT CONTROL</p>
           <h1>Xử lý Lỗi & Sự cố Vận hành bằng AI<span>.</span></h1>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="support-header-actions">
           <button className="secondary" onClick={fetchAll} disabled={loading}>
             {loading ? 'Đang tải...' : '↻ Làm mới'}
           </button>
@@ -248,87 +248,55 @@ export default function StaffExceptions() {
       </div>
 
       {/* KPI Summary Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '14px',
-          marginBottom: '18px'
-        }}
-      >
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>XE ĐANG CÓ MẶT TRONG BÃI</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
+      <div className="users-kpi-grid">
+        <div className="panel users-kpi-card">
+          <div className="users-kpi-label">XE ĐANG CÓ MẶT TRONG BÃI</div>
+          <div className="users-kpi-val">
             {exceptions.length}
           </div>
-          <div style={{ fontSize: '12px', color: '#059669' }}>Giám sát vị trí cố định 1 Slot = 1 Xe</div>
+          <div className="users-kpi-desc is-success">Giám sát vị trí cố định 1 Slot = 1 Xe</div>
         </div>
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>SỰ CỐ ĐANG CẦN XỬ LÝ</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#d97706', marginTop: '4px' }}>
+        <div className="panel users-kpi-card">
+          <div className="users-kpi-label">SỰ CỐ ĐANG CẦN XỬ LÝ</div>
+          <div className="users-kpi-val is-warning">
             {incidents.filter((i) => i.status === 'open').length}
           </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>AI tự động phân loại & gợi ý giải pháp</div>
+          <div className="users-kpi-desc">AI tự động phân loại & gợi ý giải pháp</div>
         </div>
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>ĐÃ KHẮC PHỤC (AI FALLBACK)</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#059669', marginTop: '4px' }}>
+        <div className="panel users-kpi-card">
+          <div className="users-kpi-label">ĐÃ KHẮC PHỤC (AI FALLBACK)</div>
+          <div className="users-kpi-val is-success">
             {incidents.filter((i) => i.status === 'resolved').length}
           </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Tự động lưu nhật ký kiểm toán</div>
+          <div className="users-kpi-desc">Tự động lưu nhật ký kiểm toán</div>
         </div>
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>HỆ THỐNG THOÁT NƯỚC & BARIE</div>
-          <div style={{ fontSize: '18px', fontWeight: 800, color: '#059669', marginTop: '6px' }}>
+        <div className="panel users-kpi-card">
+          <div className="users-kpi-label">HỆ THỐNG THOÁT NƯỚC & BARIE</div>
+          <div className="users-kpi-val is-success">
             💧 Khô ráo 100%
           </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Bơm chống ngập 3 cấp • Camera AI ổn định</div>
+          <div className="users-kpi-desc">Bơm chống ngập 3 cấp • Camera AI ổn định</div>
         </div>
       </div>
 
       {toastMsg && (
-        <div
-          style={{
-            background: '#ecfdf5',
-            border: '1px solid #a7f3d0',
-            color: '#065f46',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            marginBottom: '14px',
-            fontWeight: 600,
-            fontSize: '13px'
-          }}
-        >
+        <div className="users-toast">
           ✓ {toastMsg}
         </div>
       )}
 
       {/* Search Bar */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '12px',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          marginBottom: '16px',
-          padding: '12px',
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '10px'
-        }}
-      >
+      <div className="support-filter-bar">
         <input
           type="text"
           value={searchPlate}
           onChange={(e) => setSearchPlate(e.target.value)}
           placeholder="🔍 Tìm nhanh theo Biển số xe, Hãng xe, Chủ xe hoặc Nội dung sự cố..."
-          style={{ flex: '1 1 280px', margin: 0 }}
+          className="support-filter-input"
         />
         <select
           value={incidentFilter}
           onChange={(e) => setIncidentFilter(e.target.value)}
-          style={{ margin: 0, padding: '8px 12px' }}
         >
           <option value="all">Tất cả nhật ký sự cố AI</option>
           <option value="open">🟠 Đang chờ xử lý (Open)</option>
@@ -339,12 +307,12 @@ export default function StaffExceptions() {
       {/* ============================================================ */}
       {/* PANEL 1: ACTIVE VEHICLES IN LOT & AI BARRIER FALLBACK        */}
       {/* ============================================================ */}
-      <div className="records-panel" style={{ marginBottom: '22px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <h3 style={{ margin: 0, fontSize: '16px' }}>
+      <div className="records-panel support-records-panel">
+        <div className="support-fb-header">
+          <h3 className="support-fb-title">
             🚗 Danh sách Phương tiện Đang có mặt trong Bãi ({filteredSessions.length})
           </h3>
-          <span style={{ fontSize: '12px', color: '#059669', fontWeight: 600 }}>
+          <span className="users-email-verified-badge">
             🤖 AI Fallback: Hỗ trợ mở Barie từ xa khi biển số mờ hoặc đỗ sai ô
           </span>
         </div>
@@ -374,55 +342,45 @@ export default function StaffExceptions() {
             ) : (
               filteredSessions.map((ex, idx) => (
                 <tr key={ex.id} className="records-row">
-                  <td className="records-cell" style={{ fontWeight: 600, color: '#64748b' }}>
+                  <td className="records-cell support-col-stt">
                     {idx + 1}
                   </td>
                   <td className="records-cell">
                     <span className="plate">{ex.vehicles?.plate}</span>
                     {ex.vehicles?.profiles && (
-                      <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '4px' }}>
+                      <div className="support-customer-email">
                         👤 {ex.vehicles.profiles.name || ex.vehicles.profiles.email}
                       </div>
                     )}
                   </td>
                   <td className="records-cell">
-                    <div style={{ fontWeight: 600 }}>
+                    <div className="support-plan-cell">
                       {ex.vehicles?.brand || ''} {ex.vehicles?.model || ''}
                     </div>
-                    <div style={{ fontSize: '11.5px', color: '#64748b' }}>
+                    <div className="support-customer-email">
                       {ex.vehicles?.type === 'car' || ex.vehicles?.type === 'Ô tô' ? '🚗 Ô tô' : '🛵 Xe máy'}
                     </div>
                   </td>
                   <td className="records-cell">
-                    <span
-                      style={{
-                        background: '#eff6ff',
-                        color: '#1d4ed8',
-                        border: '1px solid #bfdbfe',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 700
-                      }}
-                    >
+                    <span className="exceptions-fixed-slot-tag">
                       🔒 {ex.fixed_slot || 'Ô cố định'}
                     </span>
                   </td>
-                  <td className="records-cell" style={{ fontSize: '12px' }}>
+                  <td className="records-cell support-date-cell">
                     <div>{new Date(ex.entry_time).toLocaleString('vi-VN')}</div>
-                    <div style={{ color: '#059669', fontWeight: 600 }}>
+                    <div className="users-email-verified-badge">
                       ⏱️ Đã đỗ: {ex.hours_parked || 0.5} giờ
                     </div>
                   </td>
-                  <td className="records-cell" style={{ fontSize: '12px', maxWidth: '240px' }}>
+                  <td className="records-cell support-cycle-cell">
                     {ex.ai_status === 'OVERSTAY_WARNING' ? (
-                      <span style={{ color: '#d97706', fontWeight: 600 }}>⚠️ {ex.ai_recommendation}</span>
+                      <span className="exceptions-diag-warn">⚠️ {ex.ai_recommendation}</span>
                     ) : (
-                      <span style={{ color: '#059669' }}>✓ {ex.ai_recommendation}</span>
+                      <span className="exceptions-diag-ok">✓ {ex.ai_recommendation}</span>
                     )}
                   </td>
                   <td className="records-cell">
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <div className="support-action-btns">
                       <button
                         onClick={() => handleManualOpen(ex)}
                         className="primary exceptions-open-button"
@@ -431,24 +389,21 @@ export default function StaffExceptions() {
                       </button>
                       <button
                         onClick={() => setGplxVerifySession(ex)}
-                        className="secondary"
-                        style={{ fontSize: '12px', padding: '6px 10px', color: '#854d0e', borderColor: '#fde047', background: '#fefce8' }}
+                        className="secondary exceptions-btn-gplx"
                         title="Đối chiếu thủ công Giấy phép lái xe (GPLX) của chủ phương tiện"
                       >
                         🪪 Đối chiếu GPLX
                       </button>
                       <button
                         onClick={() => handleNotifyOwner(ex)}
-                        className="secondary"
-                        style={{ fontSize: '12px', padding: '6px 10px' }}
+                        className="secondary exceptions-btn-notify"
                         title="Gửi thông báo nhắc nhở tới chủ xe"
                       >
                         🔔 Nhắc chủ xe
                       </button>
                       <button
                         onClick={() => openCreateIncident(ex.vehicles?.plate || '')}
-                        className="secondary"
-                        style={{ fontSize: '12px', padding: '6px 10px', color: '#d97706', borderColor: '#fde68a' }}
+                        className="secondary exceptions-btn-report"
                         title="Ghi nhận sự cố / đỗ sai ô cho xe này"
                       >
                         ⚠️ Báo sự cố
@@ -466,12 +421,12 @@ export default function StaffExceptions() {
       {/* PANEL 2: AI INCIDENT & EXCEPTION LOGS CRUD                   */}
       {/* ============================================================ */}
       <div className="records-panel">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <div className="support-fb-header">
           <div>
-            <h3 style={{ margin: 0, fontSize: '16px' }}>
+            <h3 className="support-fb-title">
               🤖 Nhật ký Phân tích Sự cố & Xử lý Lỗi bằng AI ({filteredIncidents.length})
             </h3>
-            <p className="staff-description" style={{ margin: '4px 0 0 0' }}>
+            <p className="staff-description support-fb-desc">
               Thay thế hoàn toàn xử lý lỗi thủ công cứng nhắc: Mô hình AI tự động phân loại nguyên nhân, đối chiếu vị trí cố định 1 Slot = 1 Xe và đề xuất phương án khắc phục.
             </p>
           </div>
@@ -503,64 +458,43 @@ export default function StaffExceptions() {
                 <tr key={inc.id} className="records-row">
                   <td className="records-cell">
                     <span className="plate">{inc.plate}</span>
-                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
+                    <div className="support-fb-email">
                       {inc.incident_type}
                     </div>
                   </td>
-                  <td className="records-cell" style={{ maxWidth: '240px' }}>
-                    <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '13px' }}>{inc.title}</div>
-                    <div style={{ fontSize: '12px', color: '#475569', marginTop: '2px' }}>{inc.description}</div>
+                  <td className="records-cell support-fb-msg-cell">
+                    <div className="support-fb-subject">{inc.title}</div>
+                    <div className="support-fb-message">{inc.description}</div>
                   </td>
-                  <td className="records-cell" style={{ maxWidth: '300px' }}>
-                    <div
-                      style={{
-                        background: '#f0fdf4',
-                        border: '1px solid #bbf7d0',
-                        borderRadius: '6px',
-                        padding: '8px',
-                        fontSize: '12px',
-                        color: '#065f46',
-                        lineHeight: 1.45
-                      }}
-                    >
+                  <td className="records-cell">
+                    <div className="exceptions-ai-box">
                       🤖 {inc.ai_diagnosis}
                     </div>
                   </td>
-                  <td className="records-cell" style={{ fontSize: '11.5px' }}>
+                  <td className="records-cell support-cycle-cell">
                     <div>Báo lúc: {new Date(inc.created_at).toLocaleString('vi-VN')}</div>
                     {inc.resolved_at && (
-                      <div style={{ color: '#059669', fontWeight: 600 }}>
+                      <div className="support-cycle-confirmed">
                         Xử lý: {new Date(inc.resolved_at).toLocaleTimeString('vi-VN')}
                       </div>
                     )}
                   </td>
                   <td className="records-cell">
-                    <span
-                      style={{
-                        padding: '4px 8px',
-                        borderRadius: '999px',
-                        fontSize: '11.5px',
-                        fontWeight: 700,
-                        background: inc.status === 'resolved' ? '#ecfdf5' : '#fef3c7',
-                        color: inc.status === 'resolved' ? '#047857' : '#b45309'
-                      }}
-                    >
+                    <span className={`exceptions-status-tag ${inc.status === 'resolved' ? 'resolved' : 'open'}`}>
                       {inc.status === 'resolved' ? '✓ Đã khắc phục' : '⏳ Chờ xử lý'}
                     </span>
                   </td>
                   <td className="records-cell">
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <div className="support-action-btns">
                       <button
                         onClick={() => handleToggleIncidentStatus(inc)}
-                        className="text-button"
-                        style={{ color: '#059669', fontWeight: 700 }}
+                        className="text-button exceptions-btn-toggle"
                       >
                         {inc.status === 'resolved' ? '↩ Mở lại' : '✓ Hoàn tất'}
                       </button>
                       <button
                         onClick={() => openEditIncident(inc)}
-                        className="text-button"
-                        style={{ color: '#2563eb', fontWeight: 600 }}
+                        className="text-button exceptions-btn-edit"
                       >
                         ✏️ Sửa
                       </button>
@@ -585,19 +519,18 @@ export default function StaffExceptions() {
       {showIncidentModal && (
         <div className="dialog-overlay" onClick={() => !saving && setShowIncidentModal(false)}>
           <div
-            className="dialog-content"
-            style={{ maxWidth: '580px', width: '95%' }}
+            className="dialog-content exceptions-dialog-incident"
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 className="users-dialog-title" style={{ margin: 0 }}>
+            <div className="users-dialog-header">
+              <h3 className="users-dialog-title">
                 {editingIncident ? '✏️ Cập nhật Bản ghi Sự cố' : '🤖 Ghi nhận Sự cố & Phân tích bằng AI'}
               </h3>
               <button className="slot-info-close" onClick={() => setShowIncidentModal(false)}>✕</button>
             </div>
 
             <form onSubmit={handleSaveIncident}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="users-form-grid-2col">
                 <label>
                   Biển số xe liên quan *
                   <input
@@ -654,7 +587,7 @@ export default function StaffExceptions() {
                 />
               </label>
 
-              <div className="users-dialog-actions" style={{ marginTop: '18px' }}>
+              <div className="users-dialog-actions users-dialog-actions-mt">
                 <button type="button" className="secondary" onClick={() => setShowIncidentModal(false)}>
                   Hủy
                 </button>
@@ -673,42 +606,31 @@ export default function StaffExceptions() {
       {gplxVerifySession && (
         <div className="dialog-overlay" onClick={() => setGplxVerifySession(null)}>
           <div
-            className="dialog-content"
-            style={{ maxWidth: '640px', width: '95%' }}
+            className="dialog-content exceptions-dialog-gplx"
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 className="users-dialog-title" style={{ margin: 0 }}>
+            <div className="users-dialog-header">
+              <h3 className="users-dialog-title">
                 🪪 Đối chiếu thủ công Giấy phép lái xe (GPLX)
               </h3>
               <button className="slot-info-close" onClick={() => setGplxVerifySession(null)}>✕</button>
             </div>
 
-            <div
-              style={{
-                background: '#fefce8',
-                border: '1px solid #fde047',
-                borderRadius: '10px',
-                padding: '12px',
-                marginBottom: '14px',
-                fontSize: '13px',
-                color: '#713f12'
-              }}
-            >
+            <div className="exceptions-gplx-banner">
               <div>
                 <strong>Chủ phương tiện:</strong>{' '}
                 {gplxVerifySession.vehicles?.profiles?.name || 'Khách hàng cố định'} •{' '}
                 <strong>Biển số:</strong> {gplxVerifySession.vehicles?.plate} •{' '}
                 <strong>Vị trí cố định:</strong> {gplxVerifySession.fixed_slot || 'Ô cố định'}
               </div>
-              <div style={{ marginTop: '4px', fontSize: '12px', color: '#854d0e' }}>
+              <div className="exceptions-gplx-banner-sub">
                 Kiểm tra hình chụp Giấy phép lái xe (Mặt trước & Mặt sau) khớp với chủ phương tiện trước khi mở Barie thủ công.
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+            <div className="exceptions-gplx-grid">
               <div>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                <div className="exceptions-gplx-title">
                   Mặt trước GPLX (PET)
                 </div>
                 <img
@@ -720,11 +642,11 @@ export default function StaffExceptions() {
                         : 'A1'
                   })}
                   alt="GPLX Mặt trước"
-                  style={{ width: '100%', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  className="exceptions-gplx-img"
                 />
               </div>
               <div>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                <div className="exceptions-gplx-title">
                   Mặt sau GPLX (Hạng xe được phép điều khiển)
                 </div>
                 <img
@@ -735,7 +657,7 @@ export default function StaffExceptions() {
                         : 'A1'
                   })}
                   alt="GPLX Mặt sau"
-                  style={{ width: '100%', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  className="exceptions-gplx-img"
                 />
               </div>
             </div>

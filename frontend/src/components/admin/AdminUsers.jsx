@@ -433,7 +433,7 @@ export default function AdminUsers({ session }) {
           <p className="eyebrow">ADMINISTRATION • ACCOUNT & KYC MANAGEMENT</p>
           <h1>Quản lý tài khoản & Định danh KYC<span>.</span></h1>
         </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div className="users-header-actions">
           <button className="secondary" onClick={fetchUsers} disabled={loading}>
             {loading ? 'Đang tải...' : '↻ Làm mới'}
           </button>
@@ -444,33 +444,26 @@ export default function AdminUsers({ session }) {
       </div>
 
       {/* KPI Summary Strip */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '14px',
-          marginBottom: '18px'
-        }}
-      >
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>TỔNG TÀI KHOẢN HỆ THỐNG</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>{total}</div>
-          <div style={{ fontSize: '12px', color: '#059669' }}>Quản lý 2 chiều Admin & Khách hàng</div>
+      <div className="users-kpi-grid">
+        <div className="panel users-kpi-card">
+          <div className="users-kpi-label">TỔNG TÀI KHOẢN HỆ THỐNG</div>
+          <div className="users-kpi-val">{total}</div>
+          <div className="users-kpi-desc is-success">Quản lý 2 chiều Admin & Khách hàng</div>
         </div>
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>ĐÃ XÁC THỰC KYC (CCCD 2 MẶT)</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#059669', marginTop: '4px' }}>{stats.verifiedKyc}</div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Email thật, SĐT & Địa chỉ hợp lệ</div>
+        <div className="panel users-kpi-card">
+          <div className="users-kpi-label">ĐÃ XÁC THỰC KYC (CCCD 2 MẶT)</div>
+          <div className="users-kpi-val is-success">{stats.verifiedKyc}</div>
+          <div className="users-kpi-desc">Email thật, SĐT & Địa chỉ hợp lệ</div>
         </div>
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>HỒ SƠ KYC CHỜ DUYỆT</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#d97706', marginTop: '4px' }}>{stats.pendingKyc}</div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Nhấn vào badge KYC để đối chiếu</div>
+        <div className="panel users-kpi-card">
+          <div className="users-kpi-label">HỒ SƠ KYC CHỜ DUYỆT</div>
+          <div className="users-kpi-val is-warning">{stats.pendingKyc}</div>
+          <div className="users-kpi-desc">Nhấn vào badge KYC để đối chiếu</div>
         </div>
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>NHÂN SỰ VẬN HÀNH (ADMIN / STAFF)</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#2563eb', marginTop: '4px' }}>{stats.staffAndAdmin}</div>
-          <div style={{ fontSize: '12px', color: stats.pendingStaffConfirm > 0 ? '#d97706' : '#059669', fontWeight: 600 }}>
+        <div className="panel users-kpi-card">
+          <div className="users-kpi-label">NHÂN SỰ VẬN HÀNH (ADMIN / STAFF)</div>
+          <div className="users-kpi-val is-info">{stats.staffAndAdmin}</div>
+          <div className={`users-kpi-desc ${stats.pendingStaffConfirm > 0 ? 'is-warning' : 'is-success'}`}>
             {stats.pendingStaffConfirm > 0
               ? `⏳ ${stats.pendingStaffConfirm} nhân viên đang chờ xác nhận Email`
               : '✓ 100% Nhân viên đã xác nhận Email sử dụng'}
@@ -482,53 +475,27 @@ export default function AdminUsers({ session }) {
       <div className="panel">
         {error && <p className="error" role="alert">{error}</p>}
         {successMsg && (
-          <div
-            style={{
-              background: '#ecfdf5',
-              border: '1px solid #a7f3d0',
-              color: '#065f46',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              marginBottom: '14px',
-              fontWeight: 600,
-              fontSize: '13px'
-            }}
-          >
+          <div className="users-toast">
             ✓ {successMsg}
           </div>
         )}
 
         {/* Search & Filter Bar */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '12px',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '16px',
-            padding: '12px',
-            background: '#f8fafc',
-            borderRadius: '8px',
-            border: '1px solid #e2e8f0'
-          }}
-        >
-          <div style={{ flex: '1 1 280px' }}>
+        <div className="users-filter-bar">
+          <div className="users-search-wrap">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="🔍 Tìm kiếm theo Họ tên, Email, Số điện thoại, Địa chỉ..."
               className="users-input"
-              style={{ margin: 0, width: '100%' }}
             />
           </div>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="users-filter-selects">
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
               className="users-role-select"
-              style={{ padding: '8px 12px' }}
             >
               <option value="all">Tất cả quyền (Roles)</option>
               <option value="user">Khách hàng (USER)</option>
@@ -540,7 +507,6 @@ export default function AdminUsers({ session }) {
               value={kycFilter}
               onChange={(e) => setKycFilter(e.target.value)}
               className="users-role-select"
-              style={{ padding: '8px 12px' }}
             >
               <option value="all">Tất cả trạng thái KYC</option>
               <option value="verified">✓ Đã duyệt KYC</option>
@@ -580,102 +546,66 @@ export default function AdminUsers({ session }) {
           <tbody>
             {filteredUsers.map((u, idx) => (
               <tr key={u.id}>
-                <td style={{ fontWeight: 600, color: '#64748b' }}>
+                <td className="users-col-stt">
                   {(page - 1) * pageSize + idx + 1}
                 </td>
                 <td>
-                  <div className="users-name" style={{ fontWeight: 700, color: '#0f172a' }}>
+                  <div className="users-name users-name-heading">
                     {u.name || 'Chưa cập nhật'}{' '}
                     {session?.user?.id === u.id && (
-                      <span style={{ color: '#059669', fontSize: '11px' }}>(Bạn)</span>
+                      <span className="users-self-tag">(Bạn)</span>
                     )}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#475569' }}>{u.email || '-'}</div>
-                  <div style={{ fontSize: '11px', marginTop: '4px' }}>
+                  <div className="users-sub-email">{u.email || '-'}</div>
+                  <div className="users-status-wrap">
                     {u.role === 'staff' ? (
                       u.staff_confirmation_status === 'pending' || u.email_verified === false ? (
-                        <div
-                          style={{
-                            background: '#fffbeb',
-                            border: '1px solid #fcd34d',
-                            borderRadius: '6px',
-                            padding: '5px 8px',
-                            marginTop: '3px'
-                          }}
-                        >
-                          <div style={{ color: '#b45309', fontWeight: 700 }}>
+                        <div className="users-staff-pending-box">
+                          <div className="users-staff-pending-title">
                             ⏳ Nhân viên chờ xác nhận Email (Chưa kích hoạt)
                           </div>
                           {u.dev_otp_preview && (
-                            <div style={{ fontSize: '10.5px', color: '#92400e', marginTop: '2px' }}>
+                            <div className="users-staff-pending-otp">
                               Mã OTP gửi vào mail: <b>{u.dev_otp_preview}</b>
                             </div>
                           )}
-                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                          <div className="users-staff-pending-actions">
                             <button
                               type="button"
                               onClick={() => openStaffConfirmModal(u)}
-                              style={{
-                                background: '#059669',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '2px 7px',
-                                fontSize: '10.5px',
-                                fontWeight: 700,
-                                cursor: 'pointer'
-                              }}
+                              className="users-staff-btn-confirm"
                             >
                               ✓ Xác nhận mã Mail
                             </button>
                             <button
                               type="button"
                               onClick={() => handleResendStaffConfirm(u)}
-                              style={{
-                                background: '#fff',
-                                color: '#b45309',
-                                border: '1px solid #f59e0b',
-                                borderRadius: '4px',
-                                padding: '2px 7px',
-                                fontSize: '10.5px',
-                                fontWeight: 700,
-                                cursor: 'pointer'
-                              }}
+                              className="users-staff-btn-resend"
                             >
                               📩 Gửi lại mail
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <div
-                          style={{
-                            display: 'inline-block',
-                            background: '#ecfdf5',
-                            border: '1px solid #a7f3d0',
-                            color: '#047857',
-                            borderRadius: '6px',
-                            padding: '3px 8px',
-                            fontWeight: 700
-                          }}
-                        >
+                        <div className="users-staff-confirmed-badge">
                           ✅ Nhân viên đã xác nhận Email (Đang sử dụng)
                           {u.staff_confirmed_at && (
-                            <span style={{ fontWeight: 500, fontSize: '10.5px', marginLeft: '4px' }}>
+                            <span className="users-staff-confirmed-time">
                               • {new Date(u.staff_confirmed_at).toLocaleTimeString('vi-VN')}
                             </span>
                           )}
                         </div>
                       )
                     ) : u.email_verified !== false ? (
-                      <span style={{ color: '#059669', fontWeight: 600 }}>✓ Email thật đã xác thực</span>
+                      <span className="users-email-verified-badge">✓ Email thật đã xác thực</span>
                     ) : (
-                      <span style={{ color: '#d97706' }}>⚠ Chưa xác thực email</span>
+                      <span className="users-email-unverified-badge">⚠ Chưa xác thực email</span>
                     )}
                   </div>
                 </td>
-                <td style={{ fontSize: '12px', lineHeight: 1.5 }}>
+                <td className="users-contact-cell">
                   <div>📞 <b>{u.phone || 'Chưa cập nhật'}</b></div>
-                  <div style={{ color: '#475569' }}>🏠 {u.address || 'Chưa cập nhật'}</div>
+                  <div className="users-contact-address">🏠 {u.address || 'Chưa cập nhật'}</div>
                 </td>
                 <td>
                   <select
@@ -692,32 +622,10 @@ export default function AdminUsers({ session }) {
                   </select>
                 </td>
                 <td>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                  <div className="users-kyc-wrap">
                     <span
                       onClick={() => setViewKycUser(u)}
-                      style={{
-                        cursor: 'pointer',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        background:
-                          u.kyc_status === 'verified'
-                            ? '#e8f5e9'
-                            : u.kyc_status === 'pending'
-                            ? '#fff3e0'
-                            : u.kyc_status === 'rejected'
-                            ? '#ffebee'
-                            : '#f5f5f5',
-                        color:
-                          u.kyc_status === 'verified'
-                            ? '#2e7d32'
-                            : u.kyc_status === 'pending'
-                            ? '#ef6c00'
-                            : u.kyc_status === 'rejected'
-                            ? '#c62828'
-                            : '#666'
-                      }}
+                      className={`users-kyc-badge ${u.kyc_status || 'unverified'}`}
                       title="Nhấn để xem và duyệt ảnh CCCD 2 mặt"
                     >
                       {u.kyc_status === 'verified'
@@ -728,7 +636,7 @@ export default function AdminUsers({ session }) {
                         ? '✕ Từ chối KYC'
                         : 'Chưa nộp KYC'}
                     </span>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>
+                    <span className="users-kyc-cccd-sub">
                       🪪 CCCD:{' '}
                       {u.id_card_front && u.id_card_back
                         ? 'Đủ 2 mặt'
@@ -738,11 +646,11 @@ export default function AdminUsers({ session }) {
                     </span>
                   </div>
                 </td>
-                <td style={{ fontSize: '12px' }}>
+                <td className="users-col-date">
                   {u.created_at ? new Date(u.created_at).toLocaleDateString('vi-VN') : '-'}
                 </td>
                 <td>
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <div className="users-actions-wrap">
                     <button
                       onClick={() => openDetailModal(u)}
                       className="text-button users-action-button"
@@ -759,8 +667,7 @@ export default function AdminUsers({ session }) {
                     </button>
                     <button
                       onClick={() => openDeleteModal(u, 'zero')}
-                      className="text-button users-action-button"
-                      style={{ color: '#d97706' }}
+                      className="text-button users-action-button users-action-btn-zero"
                       disabled={session?.user?.id === u.id}
                       title="Xóa sạch SĐT, Địa chỉ, CCCD về trạng thái Zero (Giữ tài khoản)"
                     >
@@ -801,21 +708,20 @@ export default function AdminUsers({ session }) {
       {editingUser && (
         <div className="dialog-overlay" onClick={() => !editLoading && setEditingUser(null)}>
           <div
-            className="dialog-content"
-            style={{ maxWidth: '680px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}
+            className="dialog-content users-dialog-edit"
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 className="users-dialog-title" style={{ margin: 0 }}>
+            <div className="users-dialog-header">
+              <h3 className="users-dialog-title">
                 ✏️ Cập nhật toàn diện tài khoản: {editingUser.name || editingUser.email}
               </h3>
               <button className="slot-info-close" onClick={() => setEditingUser(null)}>✕</button>
             </div>
 
-            {editError && <p className="error" role="alert" style={{ marginBottom: '12px' }}>{editError}</p>}
+            {editError && <p className="error" role="alert">{editError}</p>}
 
             <form onSubmit={handleSaveEdit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="users-form-grid-2col">
                 <label className="users-name-field">
                   Họ và tên <span className="users-required">*</span>
                   <input
@@ -862,9 +768,8 @@ export default function AdminUsers({ session }) {
                   <select
                     value={editForm.role}
                     onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
-                    className="users-role-select"
+                    className="users-role-select users-w-full"
                     disabled={session?.user?.id === editingUser.id}
-                    style={{ width: '100%' }}
                   >
                     <option value="user">USER – Khách hàng gửi xe</option>
                     <option value="staff">STAFF – Nhân viên vận hành</option>
@@ -877,8 +782,7 @@ export default function AdminUsers({ session }) {
                   <select
                     value={editForm.kyc_status}
                     onChange={(e) => setEditForm((f) => ({ ...f, kyc_status: e.target.value }))}
-                    className="users-role-select"
-                    style={{ width: '100%' }}
+                    className="users-role-select users-w-full"
                   >
                     <option value="verified">✓ Đã duyệt hợp lệ (verified)</option>
                     <option value="pending">🔍 Đang chờ duyệt (pending)</option>
@@ -889,19 +793,8 @@ export default function AdminUsers({ session }) {
               </div>
 
               {/* Email Verified Checkbox & Optional Password Reset */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '12px',
-                  marginTop: '12px',
-                  padding: '12px',
-                  background: '#f8fafc',
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0'
-                }}
-              >
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600 }}>
+              <div className="users-dialog-meta-box">
+                <label className="users-checkbox-label">
                   <input
                     type="checkbox"
                     checked={editForm.email_verified}
@@ -911,7 +804,7 @@ export default function AdminUsers({ session }) {
                 </label>
 
                 <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                  <label className="users-password-label">
                     Đặt lại mật khẩu mới (Để trống nếu giữ nguyên)
                   </label>
                   <div className="users-password-wrap">
@@ -935,25 +828,15 @@ export default function AdminUsers({ session }) {
               </div>
 
               {/* 2-Sided CCCD Management inside Edit Dialog */}
-              <div style={{ marginTop: '14px' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '8px',
-                    flexWrap: 'wrap',
-                    gap: '8px'
-                  }}
-                >
-                  <div style={{ fontSize: '13px', fontWeight: 700 }}>
+              <div className="users-cccd-section">
+                <div className="users-cccd-header">
+                  <div className="users-cccd-header-title">
                     🪪 Hồ sơ ảnh Giấy phép lái xe (GPLX) / CCCD 2 mặt (Đối chiếu thủ công)
                   </div>
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <div className="users-cccd-btn-wrap">
                     <button
                       type="button"
-                      className="secondary"
-                      style={{ fontSize: '11.5px', padding: '4px 10px', background: '#fffbeb', color: '#b45309', borderColor: '#fcd34d', fontWeight: 700 }}
+                      className="secondary users-sample-btn-gplx"
                       onClick={() => {
                         const s = SAMPLE_KYC_PROFILES[0];
                         const targetName = editForm.name.trim() || s.name;
@@ -982,8 +865,7 @@ export default function AdminUsers({ session }) {
                     </button>
                     <button
                       type="button"
-                      className="secondary"
-                      style={{ fontSize: '11.5px', padding: '4px 10px', background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}
+                      className="secondary users-sample-btn-cccd"
                       onClick={() => {
                         const s = SAMPLE_KYC_PROFILES[0];
                         const targetName = editForm.name.trim() || s.name;
@@ -1015,32 +897,31 @@ export default function AdminUsers({ session }) {
                     </button>
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>CCCD Mặt trước</div>
+                <div className="users-cccd-grid">
+                  <div className="users-cccd-box">
+                    <div className="users-cccd-title">CCCD Mặt trước</div>
                     {editForm.id_card_front ? (
-                      <div style={{ marginBottom: '8px' }}>
+                      <div className="users-cccd-preview-wrap">
                         <img
                           src={editForm.id_card_front}
                           alt="CCCD Mặt trước"
-                          style={{ width: '100%', maxHeight: '120px', objectFit: 'contain', borderRadius: '4px' }}
+                          className="users-cccd-img"
                         />
                         <button
                           type="button"
-                          className="text-button error"
-                          style={{ fontSize: '11px', marginTop: '4px' }}
+                          className="text-button error users-cccd-del-btn"
                           onClick={() => setEditForm((f) => ({ ...f, id_card_front: '' }))}
                         >
                           Xóa ảnh mặt trước
                         </button>
                       </div>
                     ) : (
-                      <div style={{ padding: '20px', color: '#94a3b8', fontSize: '12px' }}>Chưa có ảnh</div>
+                      <div className="users-cccd-empty">Chưa có ảnh</div>
                     )}
                     <input
                       type="file"
                       accept="image/*"
-                      style={{ fontSize: '11px', width: '100%' }}
+                      className="users-cccd-file-input"
                       onChange={(e) =>
                         handleImageFile(e.target.files?.[0], (base64) =>
                           setEditForm((f) => ({ ...f, id_card_front: base64 }))
@@ -1049,31 +930,30 @@ export default function AdminUsers({ session }) {
                     />
                   </div>
 
-                  <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>CCCD Mặt sau</div>
+                  <div className="users-cccd-box">
+                    <div className="users-cccd-title">CCCD Mặt sau</div>
                     {editForm.id_card_back ? (
-                      <div style={{ marginBottom: '8px' }}>
+                      <div className="users-cccd-preview-wrap">
                         <img
                           src={editForm.id_card_back}
                           alt="CCCD Mặt sau"
-                          style={{ width: '100%', maxHeight: '120px', objectFit: 'contain', borderRadius: '4px' }}
+                          className="users-cccd-img"
                         />
                         <button
                           type="button"
-                          className="text-button error"
-                          style={{ fontSize: '11px', marginTop: '4px' }}
+                          className="text-button error users-cccd-del-btn"
                           onClick={() => setEditForm((f) => ({ ...f, id_card_back: '' }))}
                         >
                           Xóa ảnh mặt sau
                         </button>
                       </div>
                     ) : (
-                      <div style={{ padding: '20px', color: '#94a3b8', fontSize: '12px' }}>Chưa có ảnh</div>
+                      <div className="users-cccd-empty">Chưa có ảnh</div>
                     )}
                     <input
                       type="file"
                       accept="image/*"
-                      style={{ fontSize: '11px', width: '100%' }}
+                      className="users-cccd-file-input"
                       onChange={(e) =>
                         handleImageFile(e.target.files?.[0], (base64) =>
                           setEditForm((f) => ({ ...f, id_card_back: base64 }))
@@ -1084,7 +964,7 @@ export default function AdminUsers({ session }) {
                 </div>
               </div>
 
-              <div className="users-dialog-actions" style={{ marginTop: '18px' }}>
+              <div className="users-dialog-actions users-dialog-actions-mt">
                 <button
                   type="button"
                   className="secondary"
@@ -1108,38 +988,23 @@ export default function AdminUsers({ session }) {
       {showAddDialog && (
         <div className="dialog-overlay" onClick={() => !addLoading && setShowAddDialog(false)}>
           <div
-            className="dialog-content"
-            style={{ maxWidth: '640px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}
+            className="dialog-content users-dialog-add"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="users-dialog-title">＋ Thêm tài khoản người dùng mới</h3>
             <p className="users-dialog-desc">
               Tạo nhanh tài khoản Khách hàng, Nhân viên hoặc Quản trị viên với đầy đủ thông tin liên hệ và KYC.
             </p>
-            <div
-              style={{
-                background: '#ecfdf5',
-                border: '1px solid #a7f3d0',
-                borderRadius: '8px',
-                padding: '8px 12px',
-                marginBottom: '12px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '8px'
-              }}
-            >
-              <span style={{ fontSize: '12px', color: '#065f46', fontWeight: 600 }}>
+            <div className="users-sample-bar">
+              <span className="users-sample-bar-label">
                 🪪 Điền nhanh dữ liệu & ảnh CCCD 2 mặt mẫu:
               </span>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <div className="users-sample-bar-buttons">
                 {SAMPLE_KYC_PROFILES.map((s, idx) => (
                   <button
                     key={idx}
                     type="button"
-                    className="secondary"
-                    style={{ fontSize: '11px', padding: '4px 8px', background: '#fff', color: '#047857', borderColor: '#6ee7b7' }}
+                    className="secondary users-sample-btn-pill"
                     onClick={() =>
                       setAddForm((f) => ({
                         ...f,
@@ -1170,9 +1035,9 @@ export default function AdminUsers({ session }) {
                 ))}
               </div>
             </div>
-            {addError && <p className="error" role="alert" style={{ marginBottom: '12px' }}>{addError}</p>}
+            {addError && <p className="error" role="alert">{addError}</p>}
             <form onSubmit={handleAddUser}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="users-form-grid-2col">
                 <label className="users-name-field">
                   Họ và tên <span className="users-required">*</span>
                   <input
@@ -1249,10 +1114,9 @@ export default function AdminUsers({ session }) {
                     id="new-user-role"
                     value={addForm.role}
                     onChange={(e) => setAddForm((f) => ({ ...f, role: e.target.value }))}
-                    className={`users-role-select ${
+                    className={`users-role-select users-w-full ${
                       addForm.role === 'admin' ? 'is-admin' : addForm.role === 'staff' ? 'is-staff' : 'is-user'
                     }`}
-                    style={{ width: '100%' }}
                   >
                     <option value="user">USER – Khách hàng thông thường</option>
                     <option value="staff">STAFF – Nhân viên bãi xe (Cần xác nhận qua Email)</option>
@@ -1262,33 +1126,22 @@ export default function AdminUsers({ session }) {
               </div>
 
               {addForm.role === 'staff' && (
-                <div
-                  style={{
-                    marginTop: '12px',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    background: '#fffbeb',
-                    border: '1px solid #fde68a',
-                    color: '#92400e',
-                    fontSize: '12.5px',
-                    lineHeight: 1.5
-                  }}
-                >
+                <div className="users-staff-notice-box">
                   <strong>📧 Yêu cầu xác nhận Email thật đối với Nhân viên (STAFF):</strong>
-                  <div style={{ marginTop: '4px' }}>
+                  <div className="users-notice-body">
                     Khi Admin thêm tài khoản Nhân viên, hệ thống sẽ kiểm tra tính hợp lệ của <b>Email thật</b> và gửi thư xác nhận kích hoạt (kèm đường dẫn xác nhận & mã OTP 6 chữ số) tới hộp thư của nhân viên.
                     Tài khoản sẽ hiển thị trạng thái <b>“⏳ Nhân viên chờ xác nhận Email”</b> cho tới khi nhân viên xác nhận sử dụng tài khoản.
                   </div>
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '10px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>
+              <div className="users-add-cccd-grid">
+                <label className="users-add-cccd-label">
                   Ảnh CCCD Mặt trước (Tùy chọn)
                   <input
                     type="file"
                     accept="image/*"
-                    style={{ fontSize: '11px', marginTop: '4px', width: '100%' }}
+                    className="users-add-cccd-input"
                     onChange={(e) =>
                       handleImageFile(e.target.files?.[0], (base64) =>
                         setAddForm((f) => ({ ...f, id_card_front: base64 }))
@@ -1296,12 +1149,12 @@ export default function AdminUsers({ session }) {
                     }
                   />
                 </label>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>
+                <label className="users-add-cccd-label">
                   Ảnh CCCD Mặt sau (Tùy chọn)
                   <input
                     type="file"
                     accept="image/*"
-                    style={{ fontSize: '11px', marginTop: '4px', width: '100%' }}
+                    className="users-add-cccd-input"
                     onChange={(e) =>
                       handleImageFile(e.target.files?.[0], (base64) =>
                         setAddForm((f) => ({ ...f, id_card_back: base64 }))
@@ -1311,7 +1164,7 @@ export default function AdminUsers({ session }) {
                 </label>
               </div>
 
-              <div className="users-dialog-actions" style={{ marginTop: '18px' }}>
+              <div className="users-dialog-actions users-dialog-actions-mt">
                 <button
                   type="button"
                   className="secondary"
@@ -1335,36 +1188,24 @@ export default function AdminUsers({ session }) {
       {detailUser && (
         <div className="dialog-overlay" onClick={() => setDetailUser(null)}>
           <div
-            className="dialog-content"
-            style={{ maxWidth: '760px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}
+            className="dialog-content users-dialog-detail"
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 className="users-dialog-title" style={{ margin: 0 }}>
+            <div className="users-dialog-header">
+              <h3 className="users-dialog-title">
                 👁️ Hồ sơ 360° Tài khoản: {detailUser.name || detailUser.email}
               </h3>
               <button className="slot-info-close" onClick={() => setDetailUser(null)}>✕</button>
             </div>
 
             {detailLoading ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+              <div className="users-detail-loading">
                 Đang tải dữ liệu phương tiện, vị trí đỗ cố định và lịch sử gói thuê...
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="users-detail-body">
                 {/* Profile Summary */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: '10px',
-                    background: '#f8fafc',
-                    padding: '14px',
-                    borderRadius: '8px',
-                    border: '1px solid #e2e8f0',
-                    fontSize: '13px'
-                  }}
-                >
+                <div className="users-detail-profile-grid">
                   <div><b>Họ và tên:</b> {detailData?.profile?.name || detailUser.name || '-'}</div>
                   <div><b>Email:</b> {detailData?.profile?.email || detailUser.email || '-'}</div>
                   <div><b>Số điện thoại:</b> {detailData?.profile?.phone || detailUser.phone || 'Chưa cập nhật'}</div>
@@ -1374,13 +1215,13 @@ export default function AdminUsers({ session }) {
                 </div>
 
                 {/* Vehicles & Fixed Parking Slots (1 Slot = 1 Xe) */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
-                    <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '8px' }}>
+                <div className="users-detail-split-grid">
+                  <div className="users-detail-card">
+                    <div className="users-detail-card-title">
                       🚗 Phương tiện đã đăng ký ({detailData?.vehicles?.length || 0})
                     </div>
                     {detailData?.vehicles?.length ? (
-                      <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px', lineHeight: 1.6 }}>
+                      <ul className="users-detail-list">
                         {detailData.vehicles.map((v) => (
                           <li key={v.id}>
                             <b>{v.license_plate}</b> ({v.type === 'car' ? 'Ô tô' : 'Xe máy'})
@@ -1388,35 +1229,35 @@ export default function AdminUsers({ session }) {
                         ))}
                       </ul>
                     ) : (
-                      <div style={{ fontSize: '12px', color: '#94a3b8' }}>Chưa đăng ký phương tiện nào.</div>
+                      <div className="users-detail-empty">Chưa đăng ký phương tiện nào.</div>
                     )}
                   </div>
 
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
-                    <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '8px' }}>
+                  <div className="users-detail-card">
+                    <div className="users-detail-card-title">
                       🅿️ Ô đỗ cố định đang giữ (1 Slot = 1 Xe) ({detailData?.slots?.length || 0})
                     </div>
                     {detailData?.slots?.length ? (
-                      <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px', lineHeight: 1.6 }}>
+                      <ul className="users-detail-list">
                         {detailData.slots.map((s) => (
                           <li key={s.id}>
-                            Ô <b>{s.id}</b> • Trạng thái: <b style={{ color: '#059669' }}>{s.status}</b>
+                            Ô <b>{s.id}</b> • Trạng thái: <b className="users-detail-active">{s.status}</b>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <div style={{ fontSize: '12px', color: '#94a3b8' }}>Chưa giữ ô đỗ cố định nào.</div>
+                      <div className="users-detail-empty">Chưa giữ ô đỗ cố định nào.</div>
                     )}
                   </div>
                 </div>
 
                 {/* Recent Transactions & Subscription Cycle */}
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
-                  <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '8px' }}>
+                <div className="users-detail-card">
+                  <div className="users-detail-card-title">
                     💳 Lịch sử Thanh toán & Chu kỳ Gói thuê gần nhất
                   </div>
                   {detailData?.transactions?.length ? (
-                    <table className="data-table" style={{ fontSize: '12px' }}>
+                    <table className="data-table users-tx-table">
                       <thead>
                         <tr>
                           <th>Mã GD</th>
@@ -1430,7 +1271,7 @@ export default function AdminUsers({ session }) {
                         {detailData.transactions.map((tx) => (
                           <tr key={tx.id}>
                             <td>#{String(tx.id).slice(0, 8)}</td>
-                            <td style={{ fontWeight: 700 }}>{Number(tx.amount || 0).toLocaleString('vi-VN')}đ</td>
+                            <td className="users-tx-amount">{Number(tx.amount || 0).toLocaleString('vi-VN')}đ</td>
                             <td>
                               {tx.cycle_start
                                 ? `${new Date(tx.cycle_start).toLocaleDateString('vi-VN')} → ${
@@ -1442,12 +1283,7 @@ export default function AdminUsers({ session }) {
                               {tx.confirmed_at ? new Date(tx.confirmed_at).toLocaleString('vi-VN') : 'Chờ duyệt'}
                             </td>
                             <td>
-                              <span
-                                style={{
-                                  fontWeight: 700,
-                                  color: tx.status === 'completed' ? '#059669' : '#d97706'
-                                }}
-                              >
+                              <span className={`users-tx-status ${tx.status === 'completed' ? 'is-completed' : 'is-pending'}`}>
                                 {tx.status === 'completed' ? '✓ Đã kích hoạt' : tx.status}
                               </span>
                             </td>
@@ -1456,7 +1292,7 @@ export default function AdminUsers({ session }) {
                       </tbody>
                     </table>
                   ) : (
-                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>Chưa phát sinh giao dịch thanh toán nào.</div>
+                    <div className="users-detail-empty">Chưa phát sinh giao dịch thanh toán nào.</div>
                   )}
                 </div>
 
@@ -1489,8 +1325,7 @@ export default function AdminUsers({ session }) {
         <div className="dialog-overlay" onClick={() => !deleteLoading && setUserToDelete(null)}>
           <div className="dialog-content sm" onClick={(e) => e.stopPropagation()}>
             <h3
-              className="users-dialog-title"
-              style={{ color: deleteMode === 'zero' ? '#d97706' : '#dc2626' }}
+              className={`users-dialog-title ${deleteMode === 'zero' ? 'users-delete-title-zero' : 'users-delete-title-hard'}`}
             >
               {deleteMode === 'zero'
                 ? '🧹 Xác nhận Xóa dữ liệu nhạy cảm về Zero (Zero-Data Retention)'
@@ -1499,17 +1334,7 @@ export default function AdminUsers({ session }) {
             <p className="users-dialog-desc">
               Tài khoản mục tiêu: <b>{userToDelete.name || userToDelete.email}</b> ({userToDelete.email})
             </p>
-            <div
-              style={{
-                background: deleteMode === 'zero' ? '#fffbeb' : '#fef2f2',
-                border: `1px solid ${deleteMode === 'zero' ? '#fde68a' : '#fecaca'}`,
-                borderRadius: '8px',
-                padding: '10px 12px',
-                fontSize: '0.85rem',
-                color: deleteMode === 'zero' ? '#92400e' : '#991b1b',
-                marginBottom: '16px'
-              }}
-            >
+            <div className={`users-delete-alert ${deleteMode}`}>
               {deleteMode === 'zero' ? (
                 <>
                   🔒 <b>Chế độ Zero-Data Retention:</b> Hệ thống sẽ xóa trắng Số điện thoại, Địa chỉ, ảnh CCCD 2 mặt về trạng thái <b>Zero (Null)</b> và giải phóng ô đỗ cố định, nhưng vẫn giữ lại tài khoản cơ bản để đối soát lịch sử.
@@ -1521,7 +1346,7 @@ export default function AdminUsers({ session }) {
               )}
             </div>
 
-            {deleteError && <p className="error" role="alert" style={{ marginBottom: '12px' }}>{deleteError}</p>}
+            {deleteError && <p className="error" role="alert">{deleteError}</p>}
 
             <div className="users-dialog-actions">
               <button
@@ -1534,11 +1359,7 @@ export default function AdminUsers({ session }) {
               </button>
               <button
                 type="button"
-                className="primary"
-                style={{
-                  background: deleteMode === 'zero' ? '#d97706' : '#dc2626',
-                  borderColor: deleteMode === 'zero' ? '#d97706' : '#dc2626'
-                }}
+                className={`primary users-delete-confirm-btn ${deleteMode}`}
                 onClick={confirmDeleteOrPurge}
                 disabled={deleteLoading}
                 id="confirm-delete-user-btn"
@@ -1558,46 +1379,46 @@ export default function AdminUsers({ session }) {
       {/* 5. KYC QUICK INSPECTION MODAL                                */}
       {/* ============================================================ */}
       {viewKycUser && (
-        <div className="slot-picker-overlay" style={{ zIndex: 1200 }}>
-          <div className="slot-picker-dialog" style={{ maxWidth: '650px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="slot-picker-overlay users-kyc-overlay">
+          <div className="slot-picker-dialog users-kyc-dialog">
+            <div className="users-dialog-header">
               <h3>Đối chiếu Thủ công Giấy phép lái xe (GPLX) / KYC: {viewKycUser.name}</h3>
               <button className="slot-info-close" onClick={() => setViewKycUser(null)}>✕</button>
             </div>
-            <div style={{ margin: '12px 0', fontSize: '14px', lineHeight: 1.6 }}>
+            <div className="users-kyc-dialog-info">
               <div><strong>Email:</strong> {viewKycUser.email}</div>
               <div><strong>Số điện thoại:</strong> {viewKycUser.phone || '(Chưa cung cấp)'}</div>
               <div><strong>Địa chỉ cư trú:</strong> {viewKycUser.address || '(Chưa cung cấp)'}</div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', margin: '16px 0' }}>
-              <div style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>Giấy phép lái xe (GPLX) / CCCD Mặt trước</div>
+            <div className="users-kyc-dialog-grid">
+              <div className="users-kyc-img-box">
+                <div className="users-kyc-img-title">Giấy phép lái xe (GPLX) / CCCD Mặt trước</div>
                 {viewKycUser.id_card_front ? (
                   <img
                     src={viewKycUser.id_card_front}
                     alt="GPLX trước"
-                    style={{ width: '100%', maxHeight: '180px', objectFit: 'contain' }}
+                    className="users-kyc-img"
                   />
                 ) : (
-                  <div style={{ padding: '40px', color: '#999' }}>Chưa tải lên</div>
+                  <div className="users-kyc-empty">Chưa tải lên</div>
                 )}
               </div>
-              <div style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>Giấy phép lái xe (GPLX) / CCCD Mặt sau</div>
+              <div className="users-kyc-img-box">
+                <div className="users-kyc-img-title">Giấy phép lái xe (GPLX) / CCCD Mặt sau</div>
                 {viewKycUser.id_card_back ? (
                   <img
                     src={viewKycUser.id_card_back}
                     alt="CCCD sau"
-                    style={{ width: '100%', maxHeight: '180px', objectFit: 'contain' }}
+                    className="users-kyc-img"
                   />
                 ) : (
-                  <div style={{ padding: '40px', color: '#999' }}>Chưa tải lên</div>
+                  <div className="users-kyc-empty">Chưa tải lên</div>
                 )}
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '16px' }}>
+            <div className="users-kyc-actions">
               <button
                 className="secondary"
                 onClick={() => {
@@ -1608,18 +1429,16 @@ export default function AdminUsers({ session }) {
               >
                 ✏️ Sửa thông tin / Tải hộ ảnh CCCD
               </button>
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div className="users-kyc-action-group">
                 <button
-                  className="secondary"
+                  className="secondary users-kyc-btn-reject"
                   onClick={() => handleKycStatusChange(viewKycUser.id, 'rejected')}
-                  style={{ color: '#c62828' }}
                 >
                   ✕ Từ chối KYC
                 </button>
                 <button
-                  className="primary"
+                  className="primary users-kyc-btn-approve"
                   onClick={() => handleKycStatusChange(viewKycUser.id, 'verified')}
-                  style={{ background: '#2e7d32' }}
                 >
                   ✓ Duyệt Hợp Lệ
                 </button>
@@ -1635,63 +1454,42 @@ export default function AdminUsers({ session }) {
       {staffConfirmModalUser && (
         <div className="dialog-overlay" onClick={() => !staffConfirmLoading && setStaffConfirmModalUser(null)}>
           <div
-            className="dialog-content"
-            style={{ maxWidth: '520px', width: '95%' }}
+            className="dialog-content users-staff-dialog"
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 className="users-dialog-title" style={{ margin: 0 }}>
+            <div className="users-dialog-header">
+              <h3 className="users-dialog-title">
                 📧 Xác nhận Email Kích hoạt Tài khoản Nhân viên
               </h3>
               <button className="slot-info-close" onClick={() => setStaffConfirmModalUser(null)}>✕</button>
             </div>
 
-            <div
-              style={{
-                background: '#f0fdf4',
-                border: '1px solid #a7f3d0',
-                borderRadius: '10px',
-                padding: '12px',
-                fontSize: '13px',
-                color: '#065f46',
-                lineHeight: 1.55,
-                marginBottom: '14px'
-              }}
-            >
+            <div className="users-staff-confirm-card">
               <div>
                 <strong>Nhân viên:</strong> {staffConfirmModalUser.name || 'Nhân viên mới'} ({staffConfirmModalUser.email})
               </div>
-              <div style={{ marginTop: '4px' }}>
+              <div className="users-notice-body">
                 Hệ thống đã gửi thư xác nhận kích hoạt tới hộp thư thật <b>{staffConfirmModalUser.email}</b>. Nhân viên có thể:
               </div>
-              <ol style={{ margin: '6px 0 0 18px', padding: 0 }}>
+              <ol className="users-staff-confirm-list">
                 <li>Nhấn trực tiếp vào đường dẫn xác nhận trong Email, <b>HOẶC</b></li>
                 <li>Nhập mã OTP 6 chữ số trong Email vào ô dưới đây (hoặc khi nhân viên đăng nhập vào Cổng Nhân viên).</li>
               </ol>
               {staffConfirmModalUser.dev_otp_preview && (
-                <div
-                  style={{
-                    marginTop: '10px',
-                    padding: '8px 10px',
-                    background: '#ffffff',
-                    border: '1px dashed #10b981',
-                    borderRadius: '8px',
-                    textAlign: 'center'
-                  }}
-                >
-                  <div style={{ fontSize: '11px', color: '#047857', fontWeight: 700 }}>
+                <div className="users-staff-otp-box">
+                  <div className="users-staff-otp-label">
                     MÃ OTP TRONG EMAIL GỬI TỚI NHÂN VIÊN:
                   </div>
-                  <div style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '4px', color: '#065f46' }}>
+                  <div className="users-staff-otp-code">
                     {staffConfirmModalUser.dev_otp_preview}
                   </div>
                   {staffConfirmModalUser.confirm_url && (
-                    <div style={{ marginTop: '4px' }}>
+                    <div className="users-staff-otp-link-wrap">
                       <a
                         href={staffConfirmModalUser.confirm_url}
                         target="_blank"
                         rel="noreferrer"
-                        style={{ fontSize: '11.5px', color: '#059669', fontWeight: 700, textDecoration: 'underline' }}
+                        className="users-staff-otp-link"
                       >
                         🔗 Mở Link xác nhận trong Email của Nhân viên (Tab mới)
                       </a>
@@ -1702,13 +1500,13 @@ export default function AdminUsers({ session }) {
             </div>
 
             {staffConfirmError && (
-              <p className="error" role="alert" style={{ marginBottom: '10px' }}>
+              <p className="error" role="alert">
                 {staffConfirmError}
               </p>
             )}
 
             <form onSubmit={handleConfirmStaffOtpSubmit}>
-              <label style={{ fontSize: '13px', fontWeight: 700 }}>
+              <label className="users-staff-otp-input-label">
                 Nhập mã OTP 6 chữ số từ Email của Nhân viên *
                 <input
                   type="text"
@@ -1717,17 +1515,11 @@ export default function AdminUsers({ session }) {
                   placeholder="Nhập 6 chữ số (VD: 123456)"
                   maxLength={8}
                   required
-                  style={{
-                    marginTop: '6px',
-                    fontSize: '18px',
-                    fontWeight: 800,
-                    letterSpacing: '4px',
-                    textAlign: 'center'
-                  }}
+                  className="users-staff-otp-input users-input"
                 />
               </label>
 
-              <div className="users-dialog-actions" style={{ marginTop: '16px' }}>
+              <div className="users-dialog-actions users-dialog-actions-mt16">
                 <button
                   type="button"
                   className="secondary"

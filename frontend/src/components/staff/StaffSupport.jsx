@@ -341,7 +341,7 @@ export default function StaffSupport() {
           <p className="eyebrow">CUSTOMER SUPPORT • AI OCR PAYMENT PROOF & MULTI-CHANNEL ALERTS</p>
           <h1>Hỗ trợ Thanh toán & Ý kiến Phản hồi<span>.</span></h1>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="support-header-actions">
           <button className="secondary" onClick={fetchAll} disabled={loading}>
             {loading ? 'Đang tải...' : '↻ Làm mới'}
           </button>
@@ -352,129 +352,83 @@ export default function StaffSupport() {
       </div>
 
       {/* Multi-Channel Staff Alert Status Banner */}
-      <div
-        style={{
-          background: 'linear-gradient(90deg, #ecfdf5 0%, #eff6ff 100%)',
-          border: '1px solid #a7f3d0',
-          borderRadius: '10px',
-          padding: '12px 16px',
-          marginBottom: '18px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '10px',
-          fontSize: '12.5px'
-        }}
-      >
+      <div className="staff-alert-banner">
         <div>
-          <strong style={{ color: '#065f46' }}>📡 Kênh nhận thông báo & phản hồi của Nhân viên:</strong>{' '}
+          <strong className="staff-alert-banner-title">📡 Kênh nhận thông báo & phản hồi của Nhân viên:</strong>{' '}
           Khi khách hàng gửi biên lai thanh toán hoặc ý kiến phản hồi, nhân viên nhận thông báo tức thì qua 4 kênh:
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ background: '#fff', padding: '4px 10px', borderRadius: '999px', border: '1px solid #6ee7b7', fontWeight: 700, color: '#047857' }}>
+        <div className="staff-alert-channels">
+          <span className="staff-channel-pill is-bell">
             🔔 Chuông Dashboard Realtime
           </span>
-          <span style={{ background: '#fff', padding: '4px 10px', borderRadius: '999px', border: '1px solid #93c5fd', fontWeight: 700, color: '#1d4ed8' }}>
+          <span className="staff-channel-pill is-mail">
             📧 Email Trực ban
           </span>
-          <span style={{ background: '#fff', padding: '4px 10px', borderRadius: '999px', border: '1px solid #93c5fd', fontWeight: 700, color: '#1d4ed8' }}>
+          <span className="staff-channel-pill is-chat">
             💬 Telegram / Zalo Bot
           </span>
-          <span style={{ background: '#fff', padding: '4px 10px', borderRadius: '999px', border: '1px solid #fde68a', fontWeight: 700, color: '#b45309' }}>
+          <span className="staff-channel-pill is-sms">
             📱 SMS Tổng đài
           </span>
         </div>
       </div>
 
       {/* KPI Summary Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '14px',
-          marginBottom: '18px'
-        }}
-      >
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>TỔNG GIAO DỊCH GÓI THUÊ</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
+      <div className="users-kpi-grid">
+        <div className="panel users-kpi-card">
+          <div className="users-kpi-label">TỔNG GIAO DỊCH GÓI THUÊ</div>
+          <div className="users-kpi-val">
             {total}
           </div>
-          <div style={{ fontSize: '12px', color: '#059669' }}>Có đầy đủ STT, giờ đặt, chu kỳ & ảnh</div>
+          <div className="users-kpi-desc is-success">Có đầy đủ STT, giờ đặt, chu kỳ & ảnh</div>
         </div>
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>ĐÃ DUYỆT TỰ ĐỘNG BẰNG AI OCR</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#059669', marginTop: '4px' }}>
+        <div className="panel users-kpi-card">
+          <div className="users-kpi-label">ĐÃ DUYỆT TỰ ĐỘNG BẰNG AI OCR</div>
+          <div className="users-kpi-val is-success">
             {summary.aiVerified}
           </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Tự động khớp số tiền & nội dung</div>
+          <div className="users-kpi-desc">Tự động khớp số tiền & nội dung</div>
         </div>
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>GIAO DỊCH CHỜ NHÂN VIÊN DUYỆT</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#d97706', marginTop: '4px' }}>
+        <div className="panel users-kpi-card">
+          <div className="users-kpi-label">GIAO DỊCH CHỜ NHÂN VIÊN DUYỆT</div>
+          <div className="users-kpi-val is-warning">
             {summary.pending}
           </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Hỗ trợ duyệt bằng AI hoặc thủ công</div>
+          <div className="users-kpi-desc">Hỗ trợ duyệt bằng AI hoặc thủ công</div>
         </div>
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Ý KIẾN PHẢN HỒI KHÁCH HÀNG</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#2563eb', marginTop: '4px' }}>
+        <div className="panel users-kpi-card">
+          <div className="users-kpi-label">Ý KIẾN PHẢN HỒI KHÁCH HÀNG</div>
+          <div className="users-kpi-val is-info">
             {feedbacks.length}
           </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Tiếp nhận đa kênh 24/7</div>
+          <div className="users-kpi-desc">Tiếp nhận đa kênh 24/7</div>
         </div>
       </div>
 
       {/* ============================================================ */}
       {/* PANEL 1: TRANSACTIONS & AI OCR PAYMENT PROOF SUPPORT         */}
       {/* ============================================================ */}
-      <div className="records-panel" style={{ marginBottom: '22px' }}>
+      <div className="records-panel support-records-panel">
         {error && <p className="error" role="alert">{error}</p>}
         {toastMsg && (
-          <div
-            style={{
-              background: '#ecfdf5',
-              border: '1px solid #a7f3d0',
-              color: '#065f46',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              marginBottom: '14px',
-              fontWeight: 600,
-              fontSize: '13px'
-            }}
-          >
+          <div className="users-toast">
             ✓ {toastMsg}
           </div>
         )}
 
         {/* Search & Filter Toolbar */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '12px',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '14px',
-            padding: '12px',
-            background: '#f8fafc',
-            borderRadius: '8px',
-            border: '1px solid #e2e8f0'
-          }}
-        >
+        <div className="support-filter-bar">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="🔍 Tìm kiếm theo Tên khách hàng, Email, Mã giao dịch, Gói cước..."
-            style={{ flex: '1 1 260px', margin: 0 }}
+            className="support-filter-input"
           />
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div className="support-filter-selects">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ margin: 0, padding: '8px 12px' }}
             >
               <option value="all">Tất cả trạng thái</option>
               <option value="pending">⏳ Đang xử lý (Pending)</option>
@@ -486,7 +440,6 @@ export default function StaffSupport() {
             <select
               value={verifyFilter}
               onChange={(e) => setVerifyFilter(e.target.value)}
-              style={{ margin: 0, padding: '8px 12px' }}
             >
               <option value="all">Tất cả hình thức duyệt</option>
               <option value="ai">🤖 Duyệt tự động AI OCR</option>
@@ -495,7 +448,7 @@ export default function StaffSupport() {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
+        <div className="support-table-scroll">
           <table className="records-table">
             <thead>
               <tr className="records-heading">
@@ -522,11 +475,11 @@ export default function StaffSupport() {
               ) : (
                 filteredTransactions.map((t, index) => (
                   <tr key={t.id} className="records-row">
-                    <td className="records-cell" style={{ fontWeight: 700, color: '#64748b' }}>
+                    <td className="records-cell support-col-stt">
                       {(page - 1) * pageSize + index + 1}
                     </td>
                     <td className="records-cell">
-                      <code style={{ fontSize: '11.5px', fontWeight: 700 }}>
+                      <code className="support-tx-code">
                         #{String(t.id).slice(0, 8)}
                       </code>
                     </td>
@@ -534,16 +487,16 @@ export default function StaffSupport() {
                       <div className="support-customer-name">{t.profiles?.name || 'Khách hàng'}</div>
                       <div className="support-customer-email">{t.profiles?.email}</div>
                     </td>
-                    <td className="records-cell" style={{ fontWeight: 600 }}>
+                    <td className="records-cell support-plan-cell">
                       {t.plan_name}
                     </td>
-                    <td className="support-amount" style={{ fontWeight: 800, color: '#059669' }}>
+                    <td className="support-amount support-amount-highlight">
                       {Number(t.amount || 0).toLocaleString('vi-VN')} đ
                     </td>
-                    <td className="records-cell" style={{ fontSize: '12px' }}>
+                    <td className="records-cell support-date-cell">
                       {t.created_at ? new Date(t.created_at).toLocaleString('vi-VN') : '-'}
                     </td>
-                    <td className="records-cell" style={{ fontSize: '11.5px', lineHeight: 1.45 }}>
+                    <td className="records-cell support-cycle-cell">
                       {t.cycle_start ? (
                         <div>
                           <div>
@@ -554,39 +507,32 @@ export default function StaffSupport() {
                             {t.cycle_end ? new Date(t.cycle_end).toLocaleDateString('vi-VN') : '-'}
                           </div>
                           {t.confirmed_at && (
-                            <div style={{ color: '#059669', marginTop: '2px', fontWeight: 700 }}>
+                            <div className="support-cycle-confirmed">
                               ✓ Hệ thống duyệt: {new Date(t.confirmed_at).toLocaleString('vi-VN')}
                             </div>
                           )}
                         </div>
                       ) : (
-                        <span style={{ color: '#94a3b8' }}>Chưa kích hoạt chu kỳ</span>
+                        <span className="support-cycle-empty">Chưa kích hoạt chu kỳ</span>
                       )}
                     </td>
                     <td className="records-cell">
                       {t.payment_proof ? (
                         <button
                           onClick={() => setPreviewProof(t.payment_proof)}
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
+                          className="support-proof-btn"
                           title="Nhấn để phóng to ảnh biên lai xác thực"
                         >
                           <img
                             src={t.payment_proof}
                             alt="Proof"
-                            style={{
-                              width: '42px',
-                              height: '42px',
-                              objectFit: 'cover',
-                              borderRadius: '6px',
-                              border: '1.5px solid #10b981'
-                            }}
+                            className="support-proof-thumb"
                           />
                         </button>
                       ) : (
                         <button
                           type="button"
-                          className="text-button"
-                          style={{ fontSize: '11px', color: '#2563eb' }}
+                          className="text-button support-proof-attach-btn"
                           onClick={() => openEditTxModal(t)}
                         >
                           ＋ Đính kèm ảnh
@@ -595,21 +541,11 @@ export default function StaffSupport() {
                     </td>
                     <td className="records-cell">
                       {t.auto_verified ? (
-                        <span
-                          style={{
-                            background: '#ecfdf5',
-                            color: '#047857',
-                            border: '1px solid #a7f3d0',
-                            padding: '3px 8px',
-                            borderRadius: '999px',
-                            fontWeight: 700,
-                            fontSize: '11px'
-                          }}
-                        >
+                        <span className="support-ai-badge">
                           🤖 AI Tự động
                         </span>
                       ) : (
-                        <span style={{ color: '#64748b', fontSize: '11.5px', fontWeight: 600 }}>
+                        <span className="support-manual-badge">
                           👤 Thủ công
                         </span>
                       )}
@@ -619,15 +555,12 @@ export default function StaffSupport() {
                         className={`support-status ${
                           t.status === 'completed'
                             ? 'is-completed'
-                            : t.status === 'refunded' || t.status === 'rejected'
+                            : t.status === 'refunded'
                             ? 'is-refunded'
+                            : t.status === 'rejected'
+                            ? 'is-rejected'
                             : 'is-pending'
                         }`}
-                        style={
-                          t.status === 'rejected'
-                            ? { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }
-                            : undefined
-                        }
                       >
                         {t.status === 'completed'
                           ? 'Thành công'
@@ -639,7 +572,7 @@ export default function StaffSupport() {
                       </span>
                     </td>
                     <td className="support-actions">
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <div className="support-action-btns">
                         {t.status === 'pending' && (
                           <>
                             <button
@@ -649,23 +582,14 @@ export default function StaffSupport() {
                               ✓ Duyệt gói
                             </button>
                             <button
-                              className="secondary"
-                              style={{ fontSize: '11.5px', padding: '5px 8px', color: '#059669', borderColor: '#a7f3d0' }}
+                              className="secondary support-btn-ai"
                               onClick={() => handleRunAiOcr(t)}
                               title="Chạy AI OCR tự động kiểm tra biên lai và kích hoạt"
                             >
                               🤖 AI Duyệt
                             </button>
                             <button
-                              className="secondary"
-                              style={{
-                                fontSize: '11.5px',
-                                padding: '5px 8px',
-                                color: '#dc2626',
-                                borderColor: '#fecaca',
-                                background: '#fef2f2',
-                                fontWeight: 700
-                              }}
+                              className="secondary support-btn-reject"
                               onClick={() => handleUpdateStatus(t.id, 'rejected')}
                               title="Từ chối giao dịch thanh toán không hợp lệ"
                             >
@@ -674,8 +598,7 @@ export default function StaffSupport() {
                           </>
                         )}
                         <button
-                          className="secondary"
-                          style={{ fontSize: '11.5px', padding: '5px 8px' }}
+                          className="secondary support-btn-cycle"
                           onClick={() => openEditTxModal(t)}
                           title="Chỉnh sửa ngày bắt đầu/kết thúc gói hoặc đính kèm ảnh biên lai"
                         >
@@ -704,12 +627,12 @@ export default function StaffSupport() {
   {/* PANEL 2: CUSTOMER FEEDBACK & MULTI-CHANNEL ALERT HISTORY     */ }
   {/* ============================================================ */ }
   <div className="records-panel">
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+    <div className="support-fb-header">
       <div>
-        <h3 style={{ margin: 0, fontSize: '16px' }}>
+        <h3 className="support-fb-title">
           💬 Ý kiến Phản hồi Khách hàng & Kênh Tiếp nhận ({feedbacks.length})
         </h3>
-        <p className="staff-description" style={{ margin: '4px 0 0 0' }}>
+        <p className="staff-description support-fb-desc">
           Theo dõi toàn bộ phản hồi từ khách hàng, kênh thông báo đã gửi tới nhân viên trực ban và nội dung giải đáp.
         </p>
       </div>
@@ -741,87 +664,54 @@ export default function StaffSupport() {
           feedbacks.map((fb) => (
               <tr key={fb.id} className="records-row">
                 <td className="records-cell">
-                  <div style={{ fontWeight: 700 }}>{fb.customer_name}</div>
-                  <div style={{ fontSize: '11.5px', color: '#64748b' }}>{fb.customer_email}</div>
+                  <div className="support-fb-name">{fb.customer_name}</div>
+                  <div className="support-fb-email">{fb.customer_email}</div>
                   {fb.plate && (
-                    <span className="plate" style={{ marginTop: '4px', display: 'inline-block' }}>
+                    <span className="plate support-fb-plate">
                       {fb.plate}
                     </span>
                   )}
                 </td>
                 <td className="records-cell">
-                  <div style={{ fontWeight: 700, color: '#0369a1', fontSize: '12.5px' }}>
+                  <div className="support-fb-zone">
                     📍 {fb.zone_name || 'Khu A (Hầm B1)'}
                   </div>
-                  <div
-                    style={{
-                      display: 'inline-block',
-                      marginTop: '3px',
-                      background: '#ecfdf5',
-                      color: '#047857',
-                      border: '1px solid #a7f3d0',
-                      padding: '2px 8px',
-                      borderRadius: '6px',
-                      fontSize: '11.5px',
-                      fontWeight: 800
-                    }}
-                  >
+                  <div className="support-fb-slot">
                     Chỗ đỗ: Ô {fb.slot_name || 'A-05'}
                   </div>
                 </td>
-                <td className="records-cell" style={{ maxWidth: '250px' }}>
-                  <div style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>{fb.subject}</div>
-                  <div style={{ fontSize: '12px', color: '#475569', marginTop: '3px' }}>{fb.message}</div>
+                <td className="records-cell support-fb-msg-cell">
+                  <div className="support-fb-subject">{fb.subject}</div>
+                  <div className="support-fb-message">{fb.message}</div>
                 </td>
               <td className="records-cell">
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxWidth: '200px' }}>
+                <div className="support-fb-channels-wrap">
                   {(fb.notified_channels || ['Dashboard Bell', 'Email']).map((ch, idx) => (
-                    <span
-                      key={idx}
-                      style={{
-                        fontSize: '10.5px',
-                        background: '#eff6ff',
-                        color: '#1d4ed8',
-                        border: '1px solid #bfdbfe',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        fontWeight: 600
-                      }}
-                    >
+                    <span key={idx} className="support-fb-channel-tag">
                       ✓ {ch}
                     </span>
                   ))}
                 </div>
               </td>
-              <td className="records-cell" style={{ maxWidth: '240px', fontSize: '12px' }}>
+              <td className="records-cell support-fb-reply-cell">
                 {fb.staff_reply ? (
-                  <div style={{ color: '#065f46', background: '#ecfdf5', padding: '6px 8px', borderRadius: '6px' }}>
+                  <div className="support-fb-reply-box">
                     <b>Trực ban:</b> {fb.staff_reply}
                   </div>
                 ) : (
-                  <span style={{ color: '#94a3b8' }}>Chưa trả lời</span>
+                  <span className="support-fb-no-reply">Chưa trả lời</span>
                 )}
               </td>
               <td className="records-cell">
-                <span
-                  style={{
-                    padding: '3px 8px',
-                    borderRadius: '999px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    background: fb.status === 'resolved' ? '#ecfdf5' : '#fef3c7',
-                    color: fb.status === 'resolved' ? '#047857' : '#b45309'
-                  }}
-                >
+                <span className={`support-fb-status-pill ${fb.status === 'resolved' ? 'resolved' : 'new'}`}>
                   {fb.status === 'resolved' ? '✓ Đã phản hồi' : '⏳ Mới tiếp nhận'}
                 </span>
               </td>
               <td className="records-cell">
-                <div style={{ display: 'flex', gap: '6px' }}>
+                <div className="support-fb-actions">
                   <button
                     onClick={() => openReplyFeedback(fb)}
-                    className="text-button"
-                    style={{ color: '#059669', fontWeight: 700 }}
+                    className="text-button support-fb-reply-btn"
                   >
                     💬 Trả lời
                   </button>
@@ -847,19 +737,18 @@ export default function StaffSupport() {
     editingTx && (
       <div className="dialog-overlay" onClick={() => !savingTx && setEditingTx(null)}>
         <div
-          className="dialog-content"
-          style={{ maxWidth: '600px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}
+          className="dialog-content support-dialog-tx"
           onClick={(e) => e.stopPropagation()}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h3 className="users-dialog-title" style={{ margin: 0 }}>
+          <div className="users-dialog-header">
+            <h3 className="users-dialog-title">
               ✏️ Chu kỳ Gói thuê & Ảnh Xác thực (#{String(editingTx.id).slice(0, 8)})
             </h3>
             <button className="slot-info-close" onClick={() => setEditingTx(null)}>✕</button>
           </div>
 
           <form onSubmit={handleSaveTxDetails}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="users-form-grid-2col">
               <label>
                 Thời gian bắt đầu thuê (Cycle Start)
                 <input
@@ -898,15 +787,14 @@ export default function StaffSupport() {
               </label>
             </div>
 
-            <div style={{ marginTop: '14px', border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700 }}>
+            <div className="support-proof-box">
+              <div className="support-proof-header">
+                <span className="support-proof-header-title">
                   🧾 Ảnh biên lai xác thực chuyển khoản
                 </span>
                 <button
                   type="button"
-                  className="secondary"
-                  style={{ fontSize: '11.5px', padding: '4px 10px', background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}
+                  className="secondary support-sample-receipt-btn"
                   onClick={() =>
                     setEditTxForm((f) => ({
                       ...f,
@@ -924,15 +812,15 @@ export default function StaffSupport() {
               </div>
 
               {editTxForm.payment_proof ? (
-                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                <div className="support-proof-img-wrap">
                   <img
                     src={editTxForm.payment_proof}
                     alt="Biên lai"
-                    style={{ maxHeight: '220px', objectFit: 'contain', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                    className="support-proof-img"
                   />
                 </div>
               ) : (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                <div className="support-proof-empty">
                   Chưa có ảnh xác thực giao dịch
                 </div>
               )}
@@ -940,7 +828,7 @@ export default function StaffSupport() {
               <input
                 type="file"
                 accept="image/*"
-                style={{ fontSize: '12px', width: '100%' }}
+                className="support-proof-file-input"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
@@ -955,7 +843,7 @@ export default function StaffSupport() {
               />
             </div>
 
-            <div className="users-dialog-actions" style={{ marginTop: '18px' }}>
+            <div className="users-dialog-actions users-dialog-actions-mt">
               <button type="button" className="secondary" onClick={() => setEditingTx(null)}>
                 Hủy
               </button>
@@ -976,8 +864,7 @@ export default function StaffSupport() {
     showFbModal && (
       <div className="dialog-overlay" onClick={() => setShowFbModal(false)}>
         <div
-          className="dialog-content"
-          style={{ maxWidth: '540px', width: '95%' }}
+          className="dialog-content support-dialog-fb"
           onClick={(e) => e.stopPropagation()}
         >
           <h3 className="users-dialog-title">
@@ -986,7 +873,7 @@ export default function StaffSupport() {
           <form onSubmit={handleSaveFeedback}>
             {!replyingFb ? (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="users-form-grid-2col">
                   <label>
                     Họ tên khách hàng *
                     <input
@@ -1026,9 +913,9 @@ export default function StaffSupport() {
               </>
             ) : (
               <>
-                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', marginBottom: '12px', fontSize: '13px' }}>
+                <div className="support-reply-quote-box">
                   <div><b>Ý kiến của khách:</b> {replyingFb.subject}</div>
-                  <div style={{ color: '#475569', marginTop: '4px' }}>“{replyingFb.message}”</div>
+                  <div className="support-reply-quote-text">“{replyingFb.message}”</div>
                 </div>
                 <label>
                   Nội dung phản hồi của Nhân viên *
@@ -1043,7 +930,7 @@ export default function StaffSupport() {
               </>
             )}
 
-            <div className="users-dialog-actions" style={{ marginTop: '16px' }}>
+            <div className="users-dialog-actions users-dialog-actions-mt16">
               <button type="button" className="secondary" onClick={() => setShowFbModal(false)}>
                 Hủy
               </button>
@@ -1060,13 +947,13 @@ export default function StaffSupport() {
   {/* Proof Preview Modal */ }
   {
     previewProof && (
-      <div className="slot-picker-overlay" onClick={() => setPreviewProof(null)} style={{ zIndex: 1200 }}>
-        <div className="slot-picker-dialog" style={{ maxWidth: '500px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+      <div className="slot-picker-overlay users-kyc-overlay" onClick={() => setPreviewProof(null)}>
+        <div className="slot-picker-dialog support-dialog-preview" onClick={(e) => e.stopPropagation()}>
           <h3>Ảnh Bằng chứng Chuyển khoản</h3>
           <img
             src={previewProof}
             alt="Proof Preview"
-            style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px', margin: '12px 0' }}
+            className="support-preview-img"
           />
           <div>
             <button className="secondary" onClick={() => setPreviewProof(null)}>

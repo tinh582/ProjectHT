@@ -114,80 +114,42 @@ export default function UserSupportCenter({ session, vehicles = [] }) {
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-          gap: '20px',
-          alignItems: 'start'
-        }}
-      >
+      <div className="user-support-grid">
         {/* Left: Form */}
-        <div className="panel" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <div className="panel user-support-panel">
+          <div className="user-support-tabs">
             <button
               type="button"
               onClick={() => setMode('GENERAL_FEEDBACK')}
-              style={{
-                flex: 1,
-                padding: '10px',
-                borderRadius: '8px',
-                fontWeight: 700,
-                fontSize: '0.86rem',
-                cursor: 'pointer',
-                border: mode === 'GENERAL_FEEDBACK' ? '2px solid #059669' : '1px solid #e2e8f0',
-                background: mode === 'GENERAL_FEEDBACK' ? '#ecfdf5' : '#f8fafc',
-                color: mode === 'GENERAL_FEEDBACK' ? '#047857' : '#475569'
-              }}
+              className={`user-support-tab-btn ${mode === 'GENERAL_FEEDBACK' ? 'active-feedback' : ''}`}
             >
               💬 Ý kiến phản hồi & Góp ý
             </button>
             <button
               type="button"
               onClick={() => setMode('SPOT_INTRUSION')}
-              style={{
-                flex: 1,
-                padding: '10px',
-                borderRadius: '8px',
-                fontWeight: 700,
-                fontSize: '0.86rem',
-                cursor: 'pointer',
-                border: mode === 'SPOT_INTRUSION' ? '2px solid #dc2626' : '1px solid #e2e8f0',
-                background: mode === 'SPOT_INTRUSION' ? '#fef2f2' : '#f8fafc',
-                color: mode === 'SPOT_INTRUSION' ? '#dc2626' : '#475569'
-              }}
+              className={`user-support-tab-btn ${mode === 'SPOT_INTRUSION' ? 'active-intrusion' : ''}`}
             >
               🚨 Báo sự cố tại vị trí đỗ
             </button>
           </div>
 
           {successMsg && (
-            <div
-              style={{
-                padding: '10px 12px',
-                marginBottom: '12px',
-                borderRadius: '8px',
-                background: '#ecfdf5',
-                color: '#047857',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                border: '1px solid #a7f3d0'
-              }}
-            >
+            <div className="users-toast">
               {successMsg}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '12px' }}>
+          <form onSubmit={handleSubmit} className="user-support-form">
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>
+              <label className="user-support-label">
                 1. Phương tiện của bạn
               </label>
               {vehicles.length > 0 ? (
                 <select
                   value={selectedPlate}
                   onChange={(e) => handleVehicleChange(e.target.value)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 600 }}
+                  className="user-support-select"
                 >
                   {vehicles.map((v) => {
                     const sName = v.parking_slots?.[0]?.slot_name;
@@ -205,15 +167,15 @@ export default function UserSupportCenter({ session, vehicles = [] }) {
                   placeholder="Biển số xe của bạn"
                   value={selectedPlate}
                   onChange={(e) => setSelectedPlate(e.target.value)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  className="user-support-input"
                 />
               )}
             </div>
 
             {/* Khu vực / Vị trí & Chỗ đỗ nào */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div className="user-support-row2">
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>
+                <label className="user-support-label">
                   2. Vị trí khu vực bãi đỗ
                 </label>
                 <input
@@ -221,11 +183,11 @@ export default function UserSupportCenter({ session, vehicles = [] }) {
                   placeholder="VD: Khu A (Hầm B1)"
                   value={zoneName}
                   onChange={(e) => setZoneName(e.target.value)}
-                  style={{ width: '100%', padding: '9px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 600 }}
+                  className="user-support-input-ro"
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>
+                <label className="user-support-label">
                   3. Chỗ đỗ cố định (Ô số mấy)
                 </label>
                 <input
@@ -233,14 +195,14 @@ export default function UserSupportCenter({ session, vehicles = [] }) {
                   placeholder="VD: A1-6"
                   value={slotName}
                   onChange={(e) => setSlotName(e.target.value)}
-                  style={{ width: '100%', padding: '9px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, color: '#047857' }}
+                  className="user-support-input-slot"
                 />
               </div>
             </div>
 
             {mode === 'SPOT_INTRUSION' && (
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>
+                <label className="user-support-label">
                   Biển số xe lạ đỗ vào chỗ của bạn (Không bắt buộc)
                 </label>
                 <input
@@ -248,13 +210,13 @@ export default function UserSupportCenter({ session, vehicles = [] }) {
                   placeholder="VD: 99K-123.32"
                   value={intruderPlate}
                   onChange={(e) => setIntruderPlate(e.target.value)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  className="user-support-input"
                 />
               </div>
             )}
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>
+              <label className="user-support-label">
                 4. Nội dung Ý kiến phản hồi & Góp ý (tại {zoneName || 'Khu vực'} - Ô {slotName || 'Cố định'})
               </label>
               <textarea
@@ -262,19 +224,14 @@ export default function UserSupportCenter({ session, vehicles = [] }) {
                 placeholder="Nhập ý kiến góp ý về vị trí đỗ, thoát nước, vệ sinh hoặc dịch vụ bãi xe..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                className="user-support-textarea"
               />
             </div>
 
             <button
               type="submit"
-              className="primary"
+              className={`primary user-support-submit-btn ${mode === 'SPOT_INTRUSION' ? 'intrusion' : 'feedback'}`}
               disabled={submitting}
-              style={{
-                padding: '11px 16px',
-                background: mode === 'SPOT_INTRUSION' ? '#dc2626' : '#059669',
-                fontWeight: 700
-              }}
             >
               {submitting
                 ? 'Đang gửi...'
@@ -286,19 +243,19 @@ export default function UserSupportCenter({ session, vehicles = [] }) {
         </div>
 
         {/* Right: Clean Feedback & Reply List */}
-        <div className="panel" style={{ padding: '20px' }}>
-          <h3 style={{ margin: '0 0 12px 0', color: '#0f172a', fontSize: '1rem' }}>
+        <div className="panel user-support-panel">
+          <h3 className="user-support-history-title">
             Lịch sử Ý kiến Phản hồi & Góp ý của bạn ({tickets.length})
           </h3>
 
           {loading ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Đang tải...</div>
+            <div className="users-detail-loading">Đang tải...</div>
           ) : tickets.length === 0 ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '0.88rem' }}>
+            <div className="users-detail-empty user-support-panel">
               Bạn chưa gửi ý kiến phản hồi hay góp ý nào.
             </div>
           ) : (
-            <div style={{ display: 'grid', gap: '12px' }}>
+            <div className="user-support-form">
               {tickets.map((t) => {
                 const isResolved = t.status === 'resolved';
                 const thread =
@@ -309,60 +266,29 @@ export default function UserSupportCenter({ session, vehicles = [] }) {
                 return (
                   <div
                     key={t.id}
-                    style={{
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '10px',
-                      padding: '14px',
-                      background: '#fff'
-                    }}
+                    className="user-support-ticket-card"
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', gap: '8px' }}>
-                      <strong style={{ fontSize: '0.9rem', color: '#0f172a' }}>{t.subject}</strong>
+                    <div className="user-support-ticket-header">
+                      <strong className="user-support-ticket-subj">{t.subject}</strong>
                       <span
-                        style={{
-                          padding: '2px 8px',
-                          borderRadius: '999px',
-                          fontSize: '0.72rem',
-                          fontWeight: 700,
-                          background: isResolved ? '#dcfce7' : '#fef3c7',
-                          color: isResolved ? '#15803d' : '#b45309',
-                          whiteSpace: 'nowrap'
-                        }}
+                        className={`user-support-ticket-status ${isResolved ? 'resolved' : 'pending'}`}
                       >
                         {isResolved ? '✓ Đã tiếp nhận & Phản hồi' : '⏳ Đang xử lý'}
                       </span>
                     </div>
 
                     {/* Location & Slot Badge */}
-                    <div
-                      style={{
-                        display: 'inline-block',
-                        background: '#eff6ff',
-                        color: '#1d4ed8',
-                        border: '1px solid #bfdbfe',
-                        padding: '3px 9px',
-                        borderRadius: '6px',
-                        fontSize: '0.76rem',
-                        fontWeight: 700,
-                        marginBottom: '8px'
-                      }}
-                    >
+                    <div className="user-support-loc-badge">
                       📍 Vị trí: {t.zone_name || 'Khu A (Hầm B1)'} — Chỗ đỗ: Ô {t.slot_name || 'Cố định'} (Xe {t.plate})
                     </div>
 
-                    <div style={{ display: 'grid', gap: '6px', marginBottom: '10px' }}>
+                    <div className="user-support-thread">
                       {thread.map((msg, idx) => (
                         <div
                           key={idx}
-                          style={{
-                            padding: '8px 10px',
-                            borderRadius: '8px',
-                            background: msg.sender === 'staff' ? '#ecfdf5' : '#f8fafc',
-                            fontSize: '0.83rem',
-                            color: '#1e293b'
-                          }}
+                          className={`user-support-msg-bubble ${msg.sender === 'staff' ? 'staff' : 'customer'}`}
                         >
-                          <strong style={{ color: msg.sender === 'staff' ? '#047857' : '#475569' }}>
+                          <strong className={msg.sender === 'staff' ? 'users-email-verified-badge' : 'users-sub-email'}>
                             {msg.sender === 'staff' ? 'Ban quản lý phản hồi: ' : 'Ý kiến của bạn: '}
                           </strong>
                           {msg.text}
@@ -371,35 +297,27 @@ export default function UserSupportCenter({ session, vehicles = [] }) {
                     </div>
 
                     {!isResolved && (
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div className="user-support-reply-wrap">
                         <input
                           type="text"
                           placeholder="Góp ý bổ sung..."
                           value={replyDrafts[t.id] || ''}
                           onChange={(e) => setReplyDrafts((prev) => ({ ...prev, [t.id]: e.target.value }))}
-                          style={{
-                            flex: 1,
-                            padding: '7px 10px',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '0.8rem'
-                          }}
+                          className="user-support-reply-input"
                         />
                         <button
                           type="button"
-                          className="secondary"
+                          className="secondary user-support-reply-btn"
                           disabled={sendingReplyId === t.id}
                           onClick={() => handleSendFollowUp(t.id, false)}
-                          style={{ padding: '6px 10px', fontSize: '0.78rem' }}
                         >
                           Gửi
                         </button>
                         <button
                           type="button"
-                          className="secondary"
+                          className="secondary user-support-done-btn"
                           disabled={sendingReplyId === t.id}
                           onClick={() => handleSendFollowUp(t.id, true)}
-                          style={{ padding: '6px 10px', fontSize: '0.78rem', color: '#15803d' }}
                         >
                           ✓ Xong
                         </button>
