@@ -90,7 +90,8 @@ router.post('/', async (req, res) => {
       driver_license_back
     });
 
-    const kyc_status = (id_card_front && id_card_back) || (driver_license_front && driver_license_back) ? 'pending' : 'unverified';
+    const hasAnyKyc = Boolean(id_card_front || id_card_back || driver_license_front || driver_license_back);
+    const kyc_status = hasAnyKyc ? 'pending' : 'unverified';
     const profileRow = {
       id: data.user.id,
       name,
