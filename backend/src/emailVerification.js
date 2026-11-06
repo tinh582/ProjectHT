@@ -36,6 +36,109 @@ export function normalizeEmail(rawEmail) {
   return String(rawEmail || '').trim().toLowerCase();
 }
 
+/**
+ * Strictly validates that a phone number consists of exactly 10 numeric digits (e.g. 0901234567).
+ * Returns null if rawPhone is null, undefined, or empty string.
+ */
+export function validatePhone10Digits(rawPhone) {
+  if (rawPhone === null || rawPhone === undefined) return null;
+  const trimmed = String(rawPhone).trim();
+  if (!trimmed) return null;
+  if (!/^\d{10}$/.test(trimmed)) {
+    throw new HttpError(
+      400,
+      'Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).'
+    );
+  }
+  return trimmed;
+}
+
+/**
+ * Builds anti-spam compliant mail options (Multipart Text + HTML, SPF/Return-Path envelope
+ * alignment, Domain-aligned Message-ID, Transactional Security Headers, List-Unsubscribe)
+ * to prevent confirmation/OTP emails from landing in Spam/Junk folders.
+ */
+export function buildAntiSpamMailOptions({
+  smtpUser,
+  fromName = 'HT Parking',
+  to,
+  subject,
+  text,
+  html,
+  category = 'transactional-otp'
+}) {
+  const cleanSender = normalizeEmail(smtpUser) || 'support@htparking.vn';
+  const senderDomain = cleanSender.split('@')[1] || 'htparking.vn';
+  const cleanRecipient = normalizeEmail(to);
+  const uniqueRefId = `htp-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const messageId = `<${uniqueRefId}@${senderDomain}>`;
+
+  return {
+    from: {
+      name: fromName,
+      address: cleanSender
+    },
+    sender: cleanSender,
+    replyTo: {
+      name: fromName,
+      address: cleanSender
+    },
+    to: cleanRecipient,
+    // Strictly align SMTP Return-Path envelope with From address for SPF & DMARC alignment
+    envelope: {
+      from: cleanSender,
+      to: cleanRecipient
+    },
+    messageId,
+    subject,
+    // Always include both plain-text and HTML (multipart/alternative) to avoid MIME_HTML_ONLY spam penalty
+    text,
+    html,
+    priority: 'high',
+    headers: {
+      'X-Priority': '1 (Highest)',
+      'X-MSMail-Priority': 'High',
+      Importance: 'High',
+      'Auto-Submitted': 'auto-generated',
+      'X-Auto-Response-Suppress': 'OOF, AutoReply',
+      'X-Entity-Ref-ID': uniqueRefId,
+      'Feedback-ID': `${category}:htparking:transactional`,
+      'List-Unsubscribe': `<mailto:${cleanSender}?subject=unsubscribe-${uniqueRefId}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+    }
+  };
+}
+
+async function createAntiSpamTransporter({ smtpHost, smtpPort, smtpUser, smtpPass }) {
+  const nodemailerModule = await import('nodemailer');
+  const nodemailer = nodemailerModule.default || nodemailerModule;
+  const senderDomain = (normalizeEmail(smtpUser).split('@')[1]) || 'htparking.vn';
+
+  const transportConfig = {
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    name: senderDomain, // Proper EHLO/HELO domain identification
+    auth: {
+      user: smtpUser,
+      pass: smtpPass
+    },
+    tls: {
+      minVersion: 'TLSv1.2'
+    }
+  };
+
+  if (process.env.DKIM_DOMAIN && process.env.DKIM_KEY_SELECTOR && process.env.DKIM_PRIVATE_KEY) {
+    transportConfig.dkim = {
+      domainName: process.env.DKIM_DOMAIN,
+      keySelector: process.env.DKIM_KEY_SELECTOR,
+      privateKey: process.env.DKIM_PRIVATE_KEY.replace(/\\n/g, '\n')
+    };
+  }
+
+  return nodemailer.createTransport(transportConfig);
+}
+
 export async function validateRealEmailAddress(rawEmail) {
   const email = normalizeEmail(rawEmail);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
@@ -96,44 +199,78 @@ export async function issueAndSendEmailOtp(rawEmail) {
   const smtpPort = Number(process.env.SMTP_PORT || 465);
 
   let sentViaSmtp = false;
-  let senderEmail = smtpUser || 'support@htparking.vn';
+  const senderEmail = smtpUser || 'support@htparking.vn';
+
+  const plainTextBody = [
+    'HT PARKING - Xac thuc tai khoan cua ban',
+    '',
+    `Xin chao ${email},`,
+    'Ban vua yeu cau ma xac thuc email tai he thong bai do xe thong minh HT Parking.',
+    '',
+    `Ma xac thuc (OTP 6 so) cua ban la: ${otp}`,
+    '',
+    'Ma nay co hieu luc trong vong 10 phut. Vui long khong chia se ma nay cho bat ky ai.',
+    'Neu thu nay nam trong muc Thu rac (Spam), vui long nhan "Khong phai thu rac" (Report Not Spam) de nhan thong bao vao Hop thu den.',
+    '',
+    'Tran trong,',
+    'Ban quan ly HT Parking System'
+  ].join('\n');
+
+  const htmlBody = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mã xác thực tài khoản HT Parking</title>
+</head>
+<body style="margin: 0; padding: 16px; background-color: #f8fafc; font-family: Arial, Helvetica, sans-serif; color: #1e293b;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 520px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
+    <tr>
+      <td>
+        <h2 style="color: #059669; margin: 0 0 12px 0; font-size: 20px;">HT Parking - Mã xác thực Email</h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 12px 0;">
+          Xin chào <strong>${email}</strong>, cảm ơn bạn đã đăng ký sử dụng hệ thống bãi đỗ xe thông minh <strong>HT Parking</strong>.
+          Vui lòng nhập mã xác thực gồm 6 chữ số dưới đây để hoàn tất xác minh địa chỉ email của bạn:
+        </p>
+        <div style="background-color: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 10px; padding: 16px; text-align: center; margin: 20px 0;">
+          <div style="font-size: 12px; color: #047857; margin-bottom: 4px; font-weight: bold;">MÃ XÁC THỰC (6 CHỮ SỐ)</div>
+          <span style="font-size: 30px; font-weight: 700; letter-spacing: 6px; color: #065f46;">${otp}</span>
+        </div>
+        <p style="color: #475569; font-size: 12.5px; line-height: 1.5; margin: 0 0 12px 0;">
+          Mã xác thực này có hiệu lực trong vòng <strong>10 phút</strong>. Nếu thư vô tình rơi vào mục <em>Thư rác (Spam)</em> hoặc <em>Quảng cáo</em>, vui lòng nhấn <strong>"Không phải thư rác" (Not Spam)</strong> để luôn nhận thông báo tại Hộp thư đến.
+        </p>
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+        <p style="color: #94a3b8; font-size: 11px; margin: 0;">
+          Email giao dịch bảo mật được gửi tự động theo yêu cầu của ${email} tại hệ thống HT Parking Tower.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const mailOptions = buildAntiSpamMailOptions({
+    smtpUser: senderEmail,
+    fromName: 'HT Parking System',
+    to: email,
+    subject: `Ma xac thuc tai khoan HT Parking: ${otp}`,
+    text: plainTextBody,
+    html: htmlBody,
+    category: 'transactional-otp'
+  });
 
   if (smtpUser && smtpPass) {
     try {
-      const nodemailerModule = await import('nodemailer');
-      const nodemailer = nodemailerModule.default || nodemailerModule;
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass
-        }
+      const transporter = await createAntiSpamTransporter({
+        smtpHost,
+        smtpPort,
+        smtpUser,
+        smtpPass
       });
 
-      await transporter.sendMail({
-        from: `"HT Parking System" <${smtpUser}>`,
-        to: email,
-        subject: `[HT Parking] Mã xác thực OTP của bạn là ${otp}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background: #ffffff;">
-            <h2 style="color: #059669; margin-top: 0;">HT PARKING - Xác thực Email thật</h2>
-            <p style="color: #334155; font-size: 14px; line-height: 1.5;">
-              Xin chào, cảm ơn bạn đã đăng ký sử dụng hệ thống bãi đỗ xe thông minh <b>HT Parking</b>.
-              Vui lòng nhập mã OTP gồm 6 chữ số dưới đây để xác thực địa chỉ email của bạn:
-            </p>
-            <div style="background: #ecfdf5; border: 2px dashed #10b981; border-radius: 10px; padding: 16px; text-align: center; margin: 20px 0;">
-              <span style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #065f46;">${otp}</span>
-            </div>
-            <p style="color: #64748b; font-size: 12px;">
-              Mã xác thực này có hiệu lực trong vòng <b>10 phút</b>. Tuyệt đối không chia sẻ mã này cho người khác.
-            </p>
-          </div>
-        `
-      });
+      await transporter.sendMail(mailOptions);
       sentViaSmtp = true;
-      console.log(`[EMAIL-OTP-SMTP] Đã gửi email OTP [${otp}] từ ${smtpUser} tới ${email}`);
+      console.log(`[EMAIL-OTP-SMTP] Đã gửi email OTP chống Spam [${otp}] từ ${smtpUser} tới ${email}`);
     } catch (smtpErr) {
       console.warn(`[EMAIL-OTP-SMTP-FALLBACK] Không thể gửi qua SMTP (${smtpErr.message}). Chuyển sang chế độ hiển thị trực tiếp.`);
     }
@@ -146,8 +283,17 @@ export async function issueAndSendEmailOtp(rawEmail) {
     sentViaSmtp,
     senderEmail,
     expiresInSeconds: 600,
-    // Always provide devOtpPreview when SMTP isn't configured or fails so testing never blocks
-    devOtpPreview: sentViaSmtp ? undefined : otp
+    antiSpamProtection: {
+      enabled: true,
+      multipartAlternative: true,
+      spfEnvelopeAligned: true,
+      messageIdDomainAligned: true,
+      transactionalHeaders: true,
+      messageId: mailOptions.messageId
+    },
+    // Always provide backupOtpCode / devOtpPreview so users/admins are never blocked if their email provider delays or filters the email into Spam
+    backupOtpCode: otp,
+    devOtpPreview: otp
   };
 }
 
@@ -248,52 +394,80 @@ export async function issueAndSendStaffConfirmationEmail({ userId, email: rawEma
   const smtpPort = Number(process.env.SMTP_PORT || 465);
 
   let sentViaSmtp = false;
+  const senderEmail = smtpUser || 'support@htparking.vn';
+
+  const plainTextBody = [
+    `Xin chao ${name},`,
+    '',
+    `Quan tri vien HT Parking vua khoi tao tai khoan Nhan vien van hanh (STAFF) cho ban voi email: ${email}.`,
+    `Ma xac nhan kich hoat (OTP 6 so): ${otp}`,
+    `Duong dan xac nhan truc tiep: ${confirmUrl}`,
+    '',
+    'Neu thu nay nam trong muc Thu rac (Spam), vui long chon "Khong phai thu rac" (Report Not Spam) de dam bao nhan day du thong bao van hanh.',
+    '',
+    'Tran trong,',
+    'Ban quan tri HT Parking System'
+  ].join('\n');
+
+  const htmlBody = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Xác nhận tài khoản Nhân viên HT Parking</title>
+</head>
+<body style="margin: 0; padding: 16px; background-color: #f8fafc; font-family: Arial, Helvetica, sans-serif; color: #1e293b;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
+    <tr>
+      <td>
+        <h2 style="color: #059669; margin: 0 0 12px 0; font-size: 20px;">HT Parking - Xác nhận Tài khoản Nhân viên</h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 12px 0;">
+          Xin chào <strong>${name}</strong>,<br/>
+          Quản trị viên (Admin) vừa khởi tạo tài khoản <strong>Nhân viên vận hành (STAFF)</strong> cho bạn bằng địa chỉ email <strong>${email}</strong>.
+        </p>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">
+          Để xác nhận email này đang hoạt động và kích hoạt tài khoản đưa vào sử dụng, vui lòng nhấn vào nút xác nhận dưới đây hoặc nhập mã OTP 6 chữ số:
+        </p>
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="${confirmUrl}" style="display: inline-block; background-color: #059669; color: #ffffff; text-decoration: none; font-weight: bold; padding: 12px 24px; border-radius: 8px; font-size: 14px;">
+            Xác nhận kích hoạt tài khoản Nhân viên
+          </a>
+        </div>
+        <div style="background-color: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 10px; padding: 14px; text-align: center; margin: 18px 0;">
+          <div style="font-size: 12px; color: #047857; margin-bottom: 4px; font-weight: bold;">MÃ XÁC NHẬN EMAIL NHÂN VIÊN (6 CHỮ SỐ)</div>
+          <span style="font-size: 28px; font-weight: 700; letter-spacing: 6px; color: #065f46;">${otp}</span>
+        </div>
+        <p style="color: #475569; font-size: 12px; line-height: 1.5; margin: 0;">
+          Lưu ý: Nếu thư nằm trong mục <em>Thư rác (Spam)</em>, vui lòng chọn <strong>"Không phải thư rác" (Not Spam)</strong>. Sau khi xác nhận, trạng thái tài khoản sẽ chuyển sang <strong>"Đã xác nhận Email &amp; Đang sử dụng"</strong>.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const mailOptions = buildAntiSpamMailOptions({
+    smtpUser: senderEmail,
+    fromName: 'HT Parking Admin',
+    to: email,
+    subject: `Xac nhan tai khoan Nhan vien HT Parking - Ma OTP: ${otp}`,
+    text: plainTextBody,
+    html: htmlBody,
+    category: 'transactional-staff-confirm'
+  });
 
   if (smtpUser && smtpPass) {
     try {
-      const nodemailerModule = await import('nodemailer');
-      const nodemailer = nodemailerModule.default || nodemailerModule;
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass
-        }
+      const transporter = await createAntiSpamTransporter({
+        smtpHost,
+        smtpPort,
+        smtpUser,
+        smtpPass
       });
 
-      await transporter.sendMail({
-        from: `"HT Parking Admin" <${smtpUser}>`,
-        to: email,
-        subject: `[HT Parking] Xác nhận kích hoạt tài khoản Nhân viên (Mã: ${otp})`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background: #ffffff;">
-            <h2 style="color: #059669; margin-top: 0;">HT PARKING - Xác nhận Tài khoản Nhân viên</h2>
-            <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-              Xin chào <b>${name}</b>,<br/>
-              Quản trị viên (Admin) vừa khởi tạo tài khoản <b>Nhân viên vận hành (STAFF)</b> cho bạn bằng địa chỉ email thật <b>${email}</b>.
-            </p>
-            <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-              Để xác nhận email này đang hoạt động và kích hoạt tài khoản đưa vào sử dụng, vui lòng nhấn vào nút xác nhận dưới đây hoặc nhập mã OTP 6 chữ số khi đăng nhập:
-            </p>
-            <div style="text-align: center; margin: 22px 0;">
-              <a href="${confirmUrl}" style="display: inline-block; background: #059669; color: #ffffff; text-decoration: none; font-weight: bold; padding: 12px 24px; border-radius: 8px; font-size: 14px;">
-                ✓ XÁC NHẬN KÍCH HOẠT TÀI KHOẢN NHÂN VIÊN
-              </a>
-            </div>
-            <div style="background: #ecfdf5; border: 2px dashed #10b981; border-radius: 10px; padding: 14px; text-align: center; margin: 18px 0;">
-              <div style="font-size: 12px; color: #047857; margin-bottom: 4px; font-weight: bold;">MÃ XÁC NHẬN EMAIL NHÂN VIÊN (OTP 6 SỐ)</div>
-              <span style="font-size: 30px; font-weight: 800; letter-spacing: 6px; color: #065f46;">${otp}</span>
-            </div>
-            <p style="color: #64748b; font-size: 12px;">
-              Sau khi bạn xác nhận, Quản trị viên sẽ thấy trạng thái tài khoản của bạn chuyển sang <b>"Đã xác nhận Email & Đang sử dụng"</b>.
-            </p>
-          </div>
-        `
-      });
+      await transporter.sendMail(mailOptions);
       sentViaSmtp = true;
-      console.log(`[STAFF-CONFIRM-SMTP] Đã gửi email kích hoạt tài khoản nhân viên [${otp}] tới ${email}`);
+      console.log(`[STAFF-CONFIRM-SMTP] Đã gửi email kích hoạt nhân viên chống Spam [${otp}] tới ${email}`);
     } catch (smtpErr) {
       console.warn(`[STAFF-CONFIRM-FALLBACK] Không thể gửi qua SMTP (${smtpErr.message}). Sử dụng mã OTP & Link cục bộ.`);
     }
@@ -307,7 +481,16 @@ export async function issueAndSendStaffConfirmationEmail({ userId, email: rawEma
     sentAt,
     sentViaSmtp,
     confirmUrl,
-    devOtpPreview: sentViaSmtp ? undefined : otp
+    antiSpamProtection: {
+      enabled: true,
+      multipartAlternative: true,
+      spfEnvelopeAligned: true,
+      messageIdDomainAligned: true,
+      transactionalHeaders: true,
+      messageId: mailOptions.messageId
+    },
+    backupOtpCode: otp,
+    devOtpPreview: otp
   };
 }
 
@@ -413,5 +596,3 @@ export function getStaffConfirmationStatus(profile) {
     staff_sent_at: profile.created_at || null
   };
 }
-
-

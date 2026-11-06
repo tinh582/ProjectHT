@@ -42,7 +42,14 @@ export default function NotificationMenu({ notifications = [], onReplyNotificati
             ) : (
               notifications.map((n) => (
                 <div key={n.id} className={`notification-item ${n.is_read ? 'is-read' : 'is-unread'}`}>
-                  <b className="notification-title">{n.title}</b>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                    <b className="notification-title">{n.title}</b>
+                    {n.created_at && (
+                      <span style={{ fontSize: '0.68rem', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        🕒 {new Date(n.created_at).toLocaleString('vi-VN')}
+                      </span>
+                    )}
+                  </div>
                   <p className="notification-message">{n.message}</p>
                   {onReplyNotification && (
                     <button

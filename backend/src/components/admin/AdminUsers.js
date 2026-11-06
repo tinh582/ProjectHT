@@ -1,9 +1,11 @@
 import express from 'express';
-import { HttpError, pageRange, requireId, requireText } from '../../http.js';
+import { HttpError, pageRange, requireId, requireText, withSupabaseRetry } from '../../http.js';
 import { purgeSensitiveUserData } from '../../privacyEngine.js';
 import { userDocumentsStore } from '../../supportStore.js';
+import { runSql, sqlVal, sqlSet, sqlValues } from '../../nativeSql.js';
 import {
   validateRealEmailAddress,
+  validatePhone10Digits,
   issueAndSendStaffConfirmationEmail,
   confirmStaffAccountByTokenOrOtp,
   markStaffConfirmedByAdmin,
@@ -13,34 +15,46 @@ import {
 const router = express.Router();
 
 // 1. READ ALL ACCOUNTS (Paginated + Staff Email Confirmation Status)
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT id, name, email, role, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back, kyc_status, email_verified, created_at FROM public.profiles ORDER BY created_at DESC, id ASC LIMIT 25 OFFSET 0;
 router.get('/', async (req, res) => {
-  const { page, pageSize, from, to } = pageRange(req.query);
+  const { page, pageSize, from } = pageRange(req.query);
   let data = null;
   let count = null;
+
   try {
-    const resDb = await req.db.from('profiles')
-      .select('id, name, email, role, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back, kyc_status, email_verified, created_at', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .order('id')
-      .range(from, to);
+    const resDb = await runSql(
+      req.db,
+      `SELECT id, name, email, role, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back, kyc_status, email_verified, created_at
+       FROM public.profiles
+       ORDER BY created_at DESC, id
+       LIMIT ${pageSize} OFFSET ${from};`,
+      { countExact: true }
+    );
+    if (resDb.error) throw resDb.error;
     data = resDb.data;
     count = resDb.count;
-    if (resDb.error) throw resDb.error;
   } catch {
     try {
-      const resFallback = await req.db.from('profiles')
-        .select('id, name, email, role, phone, address, id_card_front, id_card_back, kyc_status, email_verified, created_at', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .order('id')
-        .range(from, to);
+      const resFallback = await runSql(
+        req.db,
+        `SELECT id, name, email, role, phone, address, id_card_front, id_card_back, kyc_status, email_verified, created_at
+         FROM public.profiles
+         ORDER BY created_at DESC, id
+         LIMIT ${pageSize} OFFSET ${from};`,
+        { countExact: true }
+      );
       data = resFallback.data;
       count = resFallback.count;
     } catch {
-      const fallback = await req.db.from('profiles')
-        .select('id, name, email, role, created_at', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .order('id')
-        .range(from, to);
+      const fallback = await runSql(
+        req.db,
+        `SELECT id, name, email, role, created_at
+         FROM public.profiles
+         ORDER BY created_at DESC, id
+         LIMIT ${pageSize} OFFSET ${from};`,
+        { countExact: true }
+      );
       data = fallback.data;
       count = fallback.count;
     }
@@ -61,32 +75,43 @@ router.get('/', async (req, res) => {
 });
 
 // 2. READ SINGLE ACCOUNT 360° DETAILS (Profile + Vehicles + Fixed Slots + Transactions)
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT id, name, email, role, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back, kyc_status, email_verified, created_at FROM public.profiles WHERE id = '<USER_UUID>' LIMIT 1;
 router.get('/:id/details', async (req, res) => {
   const id = requireId(req.params.id);
 
   let profile = null;
   try {
-    const { data, error } = await req.db
-      .from('profiles')
-      .select('id, name, email, role, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back, kyc_status, email_verified, created_at')
-      .eq('id', id)
-      .maybeSingle();
+    const { data, error } = await runSql(
+      req.db,
+      `SELECT id, name, email, role, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back, kyc_status, email_verified, created_at
+       FROM public.profiles
+       WHERE id = ${sqlVal(id)}
+       LIMIT 1;`,
+      { maybeSingle: true }
+    );
     if (error) throw error;
     profile = data;
   } catch {
     try {
-      const { data } = await req.db
-        .from('profiles')
-        .select('id, name, email, role, phone, address, id_card_front, id_card_back, kyc_status, email_verified, created_at')
-        .eq('id', id)
-        .maybeSingle();
+      const { data } = await runSql(
+        req.db,
+        `SELECT id, name, email, role, phone, address, id_card_front, id_card_back, kyc_status, email_verified, created_at
+         FROM public.profiles
+         WHERE id = ${sqlVal(id)}
+         LIMIT 1;`,
+        { maybeSingle: true }
+      );
       profile = data;
     } catch {
-      const { data } = await req.db
-        .from('profiles')
-        .select('id, name, email, role, created_at')
-        .eq('id', id)
-        .maybeSingle();
+      const { data } = await runSql(
+        req.db,
+        `SELECT id, name, email, role, created_at
+         FROM public.profiles
+         WHERE id = ${sqlVal(id)}
+         LIMIT 1;`,
+        { maybeSingle: true }
+      );
       profile = data;
     }
   }
@@ -103,11 +128,13 @@ router.get('/:id/details', async (req, res) => {
 
   let vehicles = [];
   try {
-    const { data } = await req.db
-      .from('vehicles')
-      .select('id, license_plate, type, created_at')
-      .eq('user_id', id)
-      .order('created_at', { ascending: false });
+    const { data } = await runSql(
+      req.db,
+      `SELECT id, license_plate, type, created_at
+       FROM public.vehicles
+       WHERE user_id = ${sqlVal(id)}
+       ORDER BY created_at DESC;`
+    );
     vehicles = data || [];
   } catch {
     vehicles = [];
@@ -115,9 +142,11 @@ router.get('/:id/details', async (req, res) => {
 
   let slots = [];
   try {
-    const { data } = await req.db
-      .from('parking_slots')
-      .select('id, status, vehicle_type, vehicle_id, assigned_user_id, reserved_until');
+    const { data } = await runSql(
+      req.db,
+      `SELECT id, status, vehicle_type, vehicle_id, assigned_user_id, reserved_until
+       FROM public.parking_slots;`
+    );
     const vehicleIds = new Set(vehicles.map((v) => v.id));
     slots = (data || []).filter(
       (s) => s.assigned_user_id === id || (s.vehicle_id && vehicleIds.has(s.vehicle_id))
@@ -128,21 +157,25 @@ router.get('/:id/details', async (req, res) => {
 
   let transactions = [];
   try {
-    const { data } = await req.db
-      .from('transactions')
-      .select('id, amount, status, created_at, confirmed_at, cycle_start, cycle_end, verified_by, proof_image, pricing_id')
-      .eq('user_id', id)
-      .order('created_at', { ascending: false })
-      .limit(10);
+    const { data } = await runSql(
+      req.db,
+      `SELECT id, amount, status, created_at, confirmed_at, cycle_start, cycle_end, verified_by, proof_image, pricing_id
+       FROM public.transactions
+       WHERE user_id = ${sqlVal(id)}
+       ORDER BY created_at DESC
+       LIMIT 10;`
+    );
     transactions = data || [];
   } catch {
     try {
-      const { data } = await req.db
-        .from('transactions')
-        .select('id, amount, status, created_at, confirmed_at, pricing_id')
-        .eq('user_id', id)
-        .order('created_at', { ascending: false })
-        .limit(10);
+      const { data } = await runSql(
+        req.db,
+        `SELECT id, amount, status, created_at, confirmed_at, pricing_id
+         FROM public.transactions
+         WHERE user_id = ${sqlVal(id)}
+         ORDER BY created_at DESC
+         LIMIT 10;`
+      );
       transactions = data || [];
     } catch {
       transactions = [];
@@ -164,7 +197,7 @@ router.post('/', async (req, res) => {
   const email = await validateRealEmailAddress(rawEmail);
   const password = requireText(req.body.password, 'Password', 1024);
   const role = req.body.role || 'user';
-  const phone = req.body.phone ? String(req.body.phone).trim() : null;
+  const phone = validatePhone10Digits(req.body.phone);
   const address = req.body.address ? String(req.body.address).trim() : null;
   const kyc_status = req.body.kyc_status || 'verified';
   const id_card_front = req.body.id_card_front || null;
@@ -172,14 +205,12 @@ router.post('/', async (req, res) => {
   const driver_license_front = req.body.driver_license_front || null;
   const driver_license_back = req.body.driver_license_back || null;
 
-  // When Admin creates a Staff account, the Staff member must confirm in their real email
-  // before the account is marked as confirmed/in-use.
   const isStaff = role === 'staff';
   const email_verified = isStaff
     ? false
     : req.body.email_verified !== undefined
-    ? Boolean(req.body.email_verified)
-    : true;
+      ? Boolean(req.body.email_verified)
+      : true;
 
   if (password.length < 8) throw new HttpError(400, 'Mật khẩu phải có ít nhất 8 ký tự.');
   if (!['user', 'staff', 'admin'].includes(role)) throw new HttpError(400, 'Quyền (Role) không hợp lệ.');
@@ -187,13 +218,14 @@ router.post('/', async (req, res) => {
     throw new HttpError(400, 'Trạng thái KYC không hợp lệ.');
   }
 
-  const { data: authData, error: authError } = await req.db.auth.admin.createUser({
-    email,
-    password,
-    // Keep Supabase Auth login enabled so Staff can sign in and enter their email OTP / click email link
-    email_confirm: true,
-    user_metadata: { full_name: name, phone, address, staff_confirmed: !isStaff }
-  });
+  const { data: authData, error: authError } = await withSupabaseRetry(() =>
+    req.db.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: name, phone, address, staff_confirmed: !isStaff }
+    })
+  );
   if (authError) throw new HttpError(400, authError.message);
 
   const userId = authData.user.id;
@@ -219,15 +251,19 @@ router.post('/', async (req, res) => {
     driver_license_back
   };
 
-  const { error: profileError } = await req.db
-    .from('profiles')
-    .upsert(fullProfilePayload, { onConflict: 'id', ignoreDuplicates: false });
+  const { error: profileError } = await runSql(
+    req.db,
+    `INSERT INTO public.profiles ${sqlValues(fullProfilePayload)}
+     ON CONFLICT (id) DO UPDATE SET ${sqlSet(fullProfilePayload)};`
+  );
 
   if (profileError) {
-    // Fallback if optional KYC columns do not exist in DB yet
-    const { error: fallbackError } = await req.db
-      .from('profiles')
-      .upsert({ id: userId, name, email, role }, { onConflict: 'id', ignoreDuplicates: false });
+    const fallbackCore = { id: userId, name, email, role };
+    const { error: fallbackError } = await runSql(
+      req.db,
+      `INSERT INTO public.profiles ${sqlValues(fallbackCore)}
+       ON CONFLICT (id) DO UPDATE SET ${sqlSet(fallbackCore)};`
+    );
     if (fallbackError) throw fallbackError;
   }
 
@@ -251,18 +287,26 @@ router.post('/', async (req, res) => {
 // 3b. RESEND STAFF EMAIL CONFIRMATION (Admin action)
 router.post('/:id/resend-staff-confirm', async (req, res) => {
   const id = requireId(req.params.id);
-  const { data: profile } = await req.db
-    .from('profiles')
-    .select('id, name, email, role')
-    .eq('id', id)
-    .maybeSingle();
+  const { data: profile } = await runSql(
+    req.db,
+    `SELECT id, name, email, role
+     FROM public.profiles
+     WHERE id = ${sqlVal(id)}
+     LIMIT 1;`,
+    { maybeSingle: true }
+  );
 
   const email = req.body.email || profile?.email;
   const name = req.body.name || profile?.name || 'Nhân viên';
   if (!email) throw new HttpError(400, 'Không tìm thấy địa chỉ email của tài khoản.');
 
   try {
-    await req.db.from('profiles').update({ email_verified: false }).eq('id', id);
+    await runSql(
+      req.db,
+      `UPDATE public.profiles
+       SET email_verified = FALSE
+       WHERE id = ${sqlVal(id)};`
+    );
   } catch {
     // Ignore if optional column missing
   }
@@ -286,7 +330,12 @@ router.post('/:id/confirm-staff-otp', async (req, res) => {
   const record = confirmStaffAccountByTokenOrOtp({ email, userId: id, otp });
 
   try {
-    await req.db.from('profiles').update({ email_verified: true }).eq('id', id);
+    await runSql(
+      req.db,
+      `UPDATE public.profiles
+       SET email_verified = TRUE
+       WHERE id = ${sqlVal(id)};`
+    );
   } catch {
     // Ignore if optional column missing
   }
@@ -300,31 +349,49 @@ router.post('/:id/confirm-staff-otp', async (req, res) => {
 });
 
 // 4. UPDATE ROLE QUICK ACTION
+// Copy-pasteable Supabase SQL Editor query:
+// UPDATE public.profiles SET role = 'staff' WHERE id = '<USER_UUID>' RETURNING id;
 router.put('/:id/role', async (req, res) => {
   const id = requireId(req.params.id);
   const role = req.body.role;
   if (!['user', 'staff', 'admin'].includes(role)) throw new HttpError(400, 'Invalid role.');
   if (id === req.user.id) throw new HttpError(409, 'You cannot change your own role.');
-  const { data, error } = await req.db.from('profiles').update({ role }).eq('id', id).select('id').maybeSingle();
+  const { data, error } = await runSql(
+    req.db,
+    `UPDATE public.profiles
+     SET role = ${sqlVal(role)}
+     WHERE id = ${sqlVal(id)}
+     RETURNING id;`,
+    { maybeSingle: true }
+  );
   if (error) throw error;
   if (!data) throw new HttpError(404, 'Account not found.');
   res.json({ success: true });
 });
 
 // 5. UPDATE KYC STATUS QUICK ACTION
+// Copy-pasteable Supabase SQL Editor query:
+// UPDATE public.profiles SET kyc_status = 'verified' WHERE id = '<USER_UUID>' RETURNING id;
 router.put('/:id/kyc', async (req, res) => {
   const id = requireId(req.params.id);
   const kyc_status = req.body.kyc_status || req.body.status;
   if (!['unverified', 'pending', 'verified', 'rejected'].includes(kyc_status)) {
     throw new HttpError(400, 'Trạng thái KYC không hợp lệ.');
   }
-  const { data, error } = await req.db.from('profiles').update({ kyc_status }).eq('id', id).select('id').maybeSingle();
+  const { data, error } = await runSql(
+    req.db,
+    `UPDATE public.profiles
+     SET kyc_status = ${sqlVal(kyc_status)}
+     WHERE id = ${sqlVal(id)}
+     RETURNING id;`,
+    { maybeSingle: true }
+  );
   if (error) throw error;
   if (!data) throw new HttpError(404, 'Account not found.');
   res.json({ success: true });
 });
 
-// 6. UPDATE FULL ACCOUNT DETAILS (Name, Email, Phone, Address, Role, KYC, Email Verified, CCCD, Optional Password)
+// 6. UPDATE FULL ACCOUNT DETAILS
 router.put('/:id', async (req, res) => {
   const id = requireId(req.params.id);
   const name = requireText(req.body.name, 'Name');
@@ -334,7 +401,7 @@ router.put('/:id', async (req, res) => {
   const updatePayload = { name, email };
 
   if (req.body.phone !== undefined) {
-    updatePayload.phone = req.body.phone ? String(req.body.phone).trim() : null;
+    updatePayload.phone = validatePhone10Digits(req.body.phone);
   }
   if (req.body.address !== undefined) {
     updatePayload.address = req.body.address ? String(req.body.address).trim() : null;
@@ -391,7 +458,6 @@ router.put('/:id', async (req, res) => {
     });
   }
 
-  // Optional password reset / auth email sync via Supabase Auth Admin API
   if (req.body.password && String(req.body.password).trim().length > 0) {
     const newPassword = String(req.body.password);
     if (newPassword.length < 8) {
@@ -413,16 +479,27 @@ router.put('/:id', async (req, res) => {
   }
 
   let data = null;
-  let error = null;
-  const resUpdate = await req.db.from('profiles').update(updatePayload).eq('id', id).select('id').maybeSingle();
+  const resUpdate = await runSql(
+    req.db,
+    `UPDATE public.profiles
+     SET ${sqlSet(updatePayload)}
+     WHERE id = ${sqlVal(id)}
+     RETURNING id;`,
+    { maybeSingle: true }
+  );
   data = resUpdate.data;
-  error = resUpdate.error;
 
-  if (error) {
-    // Fallback to core columns if extended columns are not in DB schema
+  if (resUpdate.error) {
     const corePayload = { name, email };
     if (updatePayload.role) corePayload.role = updatePayload.role;
-    const fallbackUpdate = await req.db.from('profiles').update(corePayload).eq('id', id).select('id').maybeSingle();
+    const fallbackUpdate = await runSql(
+      req.db,
+      `UPDATE public.profiles
+       SET ${sqlSet(corePayload)}
+       WHERE id = ${sqlVal(id)}
+       RETURNING id;`,
+      { maybeSingle: true }
+    );
     if (fallbackUpdate.error) throw fallbackUpdate.error;
     data = fallbackUpdate.data;
   }
@@ -431,7 +508,7 @@ router.put('/:id', async (req, res) => {
   res.json({ success: true });
 });
 
-// 7. ZERO-DATA RETENTION PURGE (Reset sensitive PII & KYC to Zero without deleting account row)
+// 7. ZERO-DATA RETENTION PURGE
 router.post('/:id/purge-zero', async (req, res) => {
   const id = requireId(req.params.id);
   if (id === req.user.id) throw new HttpError(409, 'Không thể xóa trắng dữ liệu tài khoản đang đăng nhập.');
@@ -445,12 +522,18 @@ router.post('/:id/purge-zero', async (req, res) => {
 });
 
 // 8. HARD DELETE ACCOUNT + ZERO-DATA PURGE
+// Copy-pasteable Supabase SQL Editor query:
+// DELETE FROM public.profiles WHERE id = '<USER_UUID>';
 router.delete('/:id', async (req, res) => {
   const id = requireId(req.params.id);
   if (id === req.user.id) throw new HttpError(409, 'You cannot delete your own account.');
 
   await purgeSensitiveUserData(req.db, id, 'ADMIN_DELETE');
-  await req.db.from('profiles').delete().eq('id', id);
+  await runSql(
+    req.db,
+    `DELETE FROM public.profiles
+     WHERE id = ${sqlVal(id)};`
+  );
 
   try {
     if (req.db.auth?.admin?.deleteUser) {

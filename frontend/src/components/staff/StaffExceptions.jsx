@@ -537,10 +537,15 @@ export default function StaffExceptions() {
             <form onSubmit={handleSaveIncident}>
               <div className="users-form-grid-2col">
                 <label>
-                  Biển số xe liên quan *
+                  {editingIncident || incidentForm.plate ? '🔒 Biển số xe liên quan (Cố định) *' : 'Biển số xe liên quan *'}
                   <input
                     value={incidentForm.plate}
-                    onChange={(e) => setIncidentForm((f) => ({ ...f, plate: e.target.value }))}
+                    onChange={(e) => {
+                      if (!editingIncident) setIncidentForm((f) => ({ ...f, plate: e.target.value }));
+                    }}
+                    readOnly={Boolean(editingIncident)}
+                    disabled={Boolean(editingIncident)}
+                    className={editingIncident ? 'user-support-input-ro' : ''}
                     placeholder="VD: 30G-688.86"
                     required
                   />
@@ -558,6 +563,31 @@ export default function StaffExceptions() {
                   </select>
                 </label>
               </div>
+
+              {editingIncident && (
+                <div className="users-form-grid-2col" style={{ marginTop: '8px' }}>
+                  <label>
+                    🔒 Vị trí khu vực & Ô đỗ cố định (Không sửa)
+                    <input
+                      value={`${editingIncident.zone_name || 'Khu A (Ô tô)'} — Ô ${editingIncident.slot_name || 'A-05'}`}
+                      readOnly
+                      disabled
+                      tabIndex={-1}
+                      className="user-support-input-ro"
+                    />
+                  </label>
+                  <label>
+                    🕒 Thời gian ghi nhận sự cố (Cố định)
+                    <input
+                      value={editingIncident.created_at ? new Date(editingIncident.created_at).toLocaleString('vi-VN') : '-'}
+                      readOnly
+                      disabled
+                      tabIndex={-1}
+                      className="user-support-input-ro"
+                    />
+                  </label>
+                </div>
+              )}
 
               <label>
                 Phân loại sự cố (AI sẽ tự động đưa ra phác đồ xử lý)

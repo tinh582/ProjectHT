@@ -236,6 +236,10 @@ export default function UserProfileDialog({ session, onClose }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (phone.trim() && !/^\d{10}$/.test(phone.trim())) {
+      setMessage({ type: 'error', text: 'Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).' });
+      return;
+    }
     setSaving(true);
     setMessage(null);
     try {
@@ -480,12 +484,16 @@ export default function UserProfileDialog({ session, onClose }) {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
               <label>
-                Số điện thoại liên hệ
+                Số điện thoại liên hệ (10 chữ số)
                 <input
                   type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  minLength={10}
+                  pattern="[0-9]{10}"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="0901234567"
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="0901234567 (Đúng 10 số)"
                 />
               </label>
               <label>

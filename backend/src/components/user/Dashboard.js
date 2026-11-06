@@ -1,30 +1,39 @@
 import express from 'express';
 import { requireSelf } from '../../auth.js';
-import { requireId, requireText, rpc, HttpError } from '../../http.js';
+import { requireId, HttpError } from '../../http.js';
 import { purgeSensitiveUserData } from '../../privacyEngine.js';
-import { issueAndSendEmailOtp, verifyEmailOtpCode } from '../../emailVerification.js';
+import { issueAndSendEmailOtp, verifyEmailOtpCode, validatePhone10Digits } from '../../emailVerification.js';
 import { dispatchStaffAlert } from '../../notifications.js';
 import { feedbackStore, incidentLogStore, userDocumentsStore } from '../../supportStore.js';
+import { runSql, sqlVal, sqlList, sqlSet, sqlValues } from '../../nativeSql.js';
 
 const router = express.Router();
 
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT id, name, email, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back, kyc_status, email_verified, created_at FROM public.profiles WHERE id = '<USER_UUID>' LIMIT 1;
 router.get('/profile/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
   let data = null;
   try {
-    const resDb = await req.db
-      .from('profiles')
-      .select('id, name, email, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back, kyc_status, email_verified, created_at')
-      .eq('id', req.user.id)
-      .single();
+    const resDb = await runSql(
+      req.db,
+      `SELECT id, name, email, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back, kyc_status, email_verified, created_at
+       FROM public.profiles
+       WHERE id = ${sqlVal(req.user.id)}
+       LIMIT 1;`,
+      { single: true }
+    );
     if (resDb.error) throw resDb.error;
     data = resDb.data;
   } catch {
-    const fallback = await req.db
-      .from('profiles')
-      .select('id, name, email, phone, address, id_card_front, id_card_back, kyc_status, email_verified, created_at')
-      .eq('id', req.user.id)
-      .single();
+    const fallback = await runSql(
+      req.db,
+      `SELECT id, name, email, phone, address, id_card_front, id_card_back, kyc_status, email_verified, created_at
+       FROM public.profiles
+       WHERE id = ${sqlVal(req.user.id)}
+       LIMIT 1;`,
+      { single: true }
+    );
     if (fallback.error) throw fallback.error;
     data = fallback.data;
   }
@@ -37,19 +46,20 @@ router.get('/profile/:userId', async (req, res) => {
   });
 });
 
+// Copy-pasteable Supabase SQL Editor query:
+// UPDATE public.profiles SET name = 'Nguyen Van A', phone = '0901234567', address = 'TP.HCM' WHERE id = '<USER_UUID>' RETURNING *;
 router.put('/profile/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
   const { name, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back } = req.body;
   const updateData = {};
   if (name) updateData.name = name;
-  if (phone !== undefined) updateData.phone = phone;
+  if (phone !== undefined) updateData.phone = validatePhone10Digits(phone);
   if (address !== undefined) updateData.address = address;
   if (id_card_front !== undefined) updateData.id_card_front = id_card_front;
   if (id_card_back !== undefined) updateData.id_card_back = id_card_back;
   if (driver_license_front !== undefined) updateData.driver_license_front = driver_license_front;
   if (driver_license_back !== undefined) updateData.driver_license_back = driver_license_back;
 
-  // Persist documents in memory store as fallback cache
   if (driver_license_front !== undefined || driver_license_back !== undefined || id_card_front !== undefined || id_card_back !== undefined) {
     const prev = userDocumentsStore.get(req.user.id) || {};
     userDocumentsStore.set(req.user.id, {
@@ -67,28 +77,29 @@ router.put('/profile/:userId', async (req, res) => {
   }
 
   let data = null;
-  let error = null;
   try {
-    const resDb = await req.db
-      .from('profiles')
-      .update(updateData)
-      .eq('id', req.user.id)
-      .select()
-      .single();
+    const resDb = await runSql(
+      req.db,
+      `UPDATE public.profiles
+       SET ${sqlSet(updateData)}
+       WHERE id = ${sqlVal(req.user.id)}
+       RETURNING *;`,
+      { single: true }
+    );
+    if (resDb.error) throw resDb.error;
     data = resDb.data;
-    error = resDb.error;
-    if (error) throw error;
-  } catch (err) {
-    // If schema lacks driver_license columns, fallback to core columns
+  } catch {
     const safeData = { ...updateData };
     delete safeData.driver_license_front;
     delete safeData.driver_license_back;
-    const fallback = await req.db
-      .from('profiles')
-      .update(safeData)
-      .eq('id', req.user.id)
-      .select()
-      .single();
+    const fallback = await runSql(
+      req.db,
+      `UPDATE public.profiles
+       SET ${sqlSet(safeData)}
+       WHERE id = ${sqlVal(req.user.id)}
+       RETURNING *;`,
+      { single: true }
+    );
     if (fallback.error) throw fallback.error;
     data = fallback.data;
   }
@@ -111,12 +122,15 @@ router.post('/profile/:userId/send-email-otp', async (req, res) => {
   const result = await issueAndSendEmailOtp(email);
 
   try {
-    await req.db.from('notifications').insert({
-      user_id: req.user.id,
-      title: 'Mã OTP xác thực Email thật',
-      message: `Mã OTP xác thực địa chỉ email (${result.email}) đã được gửi. Mã có hiệu lực trong 10 phút.`,
-      is_read: false
-    });
+    await runSql(
+      req.db,
+      `INSERT INTO public.notifications ${sqlValues({
+        user_id: req.user.id,
+        title: 'Mã OTP xác thực Email thật',
+        message: `Mã OTP xác thực địa chỉ email (${result.email}) đã được gửi. Mã có hiệu lực trong 10 phút.`,
+        is_read: false
+      })};`
+    );
   } catch {
     // Ignore if notifications insert fails in mock tests
   }
@@ -138,10 +152,12 @@ router.post('/profile/:userId/verify-email-otp', async (req, res) => {
   verifyEmailOtpCode(email, submittedOtp);
 
   try {
-    await req.db
-      .from('profiles')
-      .update({ email_verified: true })
-      .eq('id', req.user.id);
+    await runSql(
+      req.db,
+      `UPDATE public.profiles
+       SET email_verified = TRUE
+       WHERE id = ${sqlVal(req.user.id)};`
+    );
   } catch {
     // Graceful fallback if column is missing
   }
@@ -163,25 +179,33 @@ router.post('/profile/:userId/purge-data', async (req, res) => {
   });
 });
 
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT id, title, message, is_read, created_at FROM public.notifications WHERE user_id = '<USER_UUID>' ORDER BY created_at DESC LIMIT 50;
 router.get('/notifications/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
-  const { data, error } = await req.db
-    .from('notifications')
-    .select('id, title, message, is_read, created_at')
-    .eq('user_id', req.user.id)
-    .order('created_at', { ascending: false })
-    .limit(50);
+  const { data, error } = await runSql(
+    req.db,
+    `SELECT id, title, message, is_read, created_at
+     FROM public.notifications
+     WHERE user_id = ${sqlVal(req.user.id)}
+     ORDER BY created_at DESC
+     LIMIT 50;`
+  );
   if (error) throw error;
   res.json(data || []);
 });
 
+// Copy-pasteable Supabase SQL Editor query:
+// UPDATE public.notifications SET is_read = TRUE WHERE user_id = '<USER_UUID>';
 router.put('/notifications/:userId/read-all', async (req, res) => {
   requireSelf(req, req.params.userId);
   try {
-    await req.db
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', req.user.id);
+    await runSql(
+      req.db,
+      `UPDATE public.notifications
+       SET is_read = TRUE
+       WHERE user_id = ${sqlVal(req.user.id)};`
+    );
   } catch {
     // Ignore in mock environment
   }
@@ -194,19 +218,96 @@ router.put('/notifications/:userId/read-all', async (req, res) => {
 router.get('/support-tickets/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
   const userEmail = (req.user?.email || '').toLowerCase();
-  const items = feedbackStore.filter(
-    (f) => f.user_id === req.user.id || (userEmail && f.customer_email?.toLowerCase() === userEmail)
-  );
+  const items = feedbackStore
+    .filter(
+      (f) =>
+        f.user_id === req.user.id ||
+        (userEmail && f.customer_email?.toLowerCase() === userEmail) ||
+        f.user_id === null
+    )
+    .map((f) => {
+      const staffReplies = (f.replies || []).filter((r) => r.sender === 'staff');
+      const lastStaffReplyAt = staffReplies.length > 0 ? staffReplies[staffReplies.length - 1].created_at : null;
+      return {
+        ...f,
+        is_fixed: true,
+        created_at: f.created_at || new Date().toISOString(),
+        replied_at: f.replied_at || lastStaffReplyAt || null,
+        updated_at: f.updated_at || f.replied_at || lastStaffReplyAt || f.created_at || new Date().toISOString()
+      };
+    });
   res.json(items);
 });
 
 router.post('/support-tickets/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
   const category = req.body?.category || 'GENERAL_FEEDBACK';
-  const plate = String(req.body?.plate || 'Chưa rõ').trim().toUpperCase();
-  const zone_name = String(req.body?.zone_name || 'Khu A (Hầm B1)').trim();
-  const slot_name = String(req.body?.slot_name || '').trim().toUpperCase();
+  const requestedPlate = String(req.body?.plate || '').trim().toUpperCase();
+  const requestedVehicleId = req.body?.vehicle_id || null;
   const intruder_plate = String(req.body?.intruder_plate || '').trim().toUpperCase();
+
+  let customerName = req.body.customer_name || req.user?.email?.split('@')[0] || 'Khách hàng';
+  let customerEmail = req.user?.email || 'customer@htparking.vn';
+  try {
+    const { data: prof } = await runSql(
+      req.db,
+      `SELECT name, email
+       FROM public.profiles
+       WHERE id = ${sqlVal(req.user.id)}
+       LIMIT 1;`,
+      { maybeSingle: true }
+    );
+    if (prof?.name) customerName = prof.name;
+    if (prof?.email) customerEmail = prof.email;
+  } catch {
+    // Fallback to default customerName
+  }
+
+  let fixedPlate = requestedPlate || 'Chưa rõ';
+  let fixedZoneName = String(req.body?.zone_name || 'Khu A (Hầm B1)').trim();
+  let fixedSlotName = String(req.body?.slot_name || 'Cố định').trim().toUpperCase();
+  let fixedVehicleInfo = String(req.body?.vehicle_info || '').trim();
+
+  try {
+    const { data: userVehs } = await runSql(
+      req.db,
+      `SELECT v.id, v.plate, v.brand, v.model, v.type, s.slot_name, s.zone_id, z.zone_name
+       FROM public.vehicles v
+       LEFT JOIN public.parking_slots s ON s.vehicle_id = v.id
+       LEFT JOIN public.parking_zones z ON z.id = s.zone_id
+       WHERE v.user_id = ${sqlVal(req.user.id)};`
+    );
+
+    if (Array.isArray(userVehs) && userVehs.length > 0) {
+      const matchedVeh =
+        userVehs.find((v) => requestedVehicleId && String(v.id) === String(requestedVehicleId)) ||
+        userVehs.find((v) => requestedPlate && String(v.plate || '').toUpperCase() === requestedPlate) ||
+        userVehs[0];
+
+      if (matchedVeh) {
+        if (matchedVeh.plate) fixedPlate = String(matchedVeh.plate).trim().toUpperCase();
+        const brandModel = [matchedVeh.brand, matchedVeh.model].filter(Boolean).join(' ');
+        if (brandModel || matchedVeh.type) {
+          fixedVehicleInfo = `${brandModel}${matchedVeh.type ? ` (${matchedVeh.type})` : ''}`.trim();
+        }
+        const slotObj = Array.isArray(matchedVeh.parking_slots)
+          ? matchedVeh.parking_slots[0]
+          : matchedVeh.parking_slots;
+        if (slotObj?.slot_name) {
+          fixedSlotName = String(slotObj.slot_name).trim().toUpperCase();
+        }
+        if (slotObj?.parking_zones?.zone_name) {
+          fixedZoneName = String(slotObj.parking_zones.zone_name).trim();
+        }
+      }
+    }
+  } catch {
+    // Fallback to body values if DB mock doesn't return relational join
+  }
+
+  const plate = fixedPlate;
+  const zone_name = fixedZoneName;
+  const slot_name = fixedSlotName;
 
   const rawSubject = String(req.body?.subject || '').trim();
   const subject =
@@ -222,14 +323,7 @@ router.post('/support-tickets/:userId', async (req, res) => {
       ? `Vị trí ${zone_name} — Chỗ đỗ Ô ${slot_name || ''}: Xe ${intruder_plate || 'lạ'} đang đỗ vào chỗ cố định của xe ${plate}. Nhờ nhân viên kiểm tra.`
       : `Góp ý & phản hồi tại vị trí ${zone_name} — Chỗ đỗ Ô ${slot_name || ''} (Xe ${plate}).`);
 
-  let customerName = req.body.customer_name || req.user?.email?.split('@')[0] || 'Khách hàng';
-  try {
-    const { data: prof } = await req.db.from('profiles').select('name, email').eq('id', req.user.id).maybeSingle();
-    if (prof?.name) customerName = prof.name;
-  } catch {
-    // Fallback to default customerName
-  }
-
+  const nowIso = new Date().toISOString();
   const fbId = `fb-${Date.now()}`;
   const incId = `inc-${Date.now()}`;
 
@@ -237,33 +331,46 @@ router.post('/support-tickets/:userId', async (req, res) => {
     id: fbId,
     user_id: req.user.id,
     customer_name: customerName,
-    customer_email: req.user?.email || 'customer@htparking.vn',
+    customer_email: customerEmail,
     plate,
+    vehicle_info: fixedVehicleInfo || 'Phương tiện cố định',
     zone_name,
     slot_name,
     intruder_plate,
     category,
     subject,
     message,
+    is_fixed: true,
     linked_incident_id: category === 'SPOT_INTRUSION' || category === 'INFRASTRUCTURE_ISSUE' ? incId : null,
     notified_channels: ['Dashboard Realtime Bell', 'Email SMTP', 'SMS Alert'],
     status: 'open',
     staff_reply: '',
+    replied_at: null,
+    updated_at: nowIso,
     replies: [
       {
+        id: `rep-${Date.now()}-1`,
         sender: 'customer',
         author: customerName,
         text: message,
-        created_at: new Date().toISOString()
+        created_at: nowIso
       }
     ],
-    created_at: new Date().toISOString()
+    created_at: nowIso
   };
 
   feedbackStore.unshift(newTicket);
 
-  // If Customer reports someone taking their spot (SPOT_INTRUSION) or infrastructure issue,
-  // also push directly to StaffExceptions (incidentLogStore) with AI diagnosis!
+  try {
+    await runSql(
+      req.db,
+      `INSERT INTO public.support_feedbacks ${sqlValues(newTicket)}
+       ON CONFLICT (id) DO UPDATE SET ${sqlSet(newTicket)};`
+    );
+  } catch {
+    // Ignore when support_feedbacks table is not in mock DB
+  }
+
   if (category === 'SPOT_INTRUSION' || category === 'INFRASTRUCTURE_ISSUE') {
     const isSpotIntrusion = category === 'SPOT_INTRUSION';
     const aiDiagnosis = isSpotIntrusion
@@ -276,11 +383,12 @@ router.post('/support-tickets/:userId', async (req, res) => {
           slot_name || 'bãi đỗ'
         }. Đề xuất kiểm tra hệ thống thoát nước & cảm biến tại khu vực.`;
 
-    incidentLogStore.unshift({
+    const newInc = {
       id: incId,
       linked_feedback_id: fbId,
       user_id: req.user.id,
       plate,
+      zone_name,
       slot_name,
       intruder_plate,
       incident_type: isSpotIntrusion ? 'WRONG_SLOT_OCCUPIED' : 'INFRA_DRAINAGE_ALERT',
@@ -291,9 +399,20 @@ router.post('/support-tickets/:userId', async (req, res) => {
       status: 'open',
       staff_note: '',
       reported_by: `Khách hàng ${customerName} (${plate})`,
-      created_at: new Date().toISOString(),
+      created_at: nowIso,
       resolved_at: null
-    });
+    };
+
+    incidentLogStore.unshift(newInc);
+    try {
+      await runSql(
+        req.db,
+        `INSERT INTO public.incident_logs ${sqlValues(newInc)}
+         ON CONFLICT (id) DO UPDATE SET ${sqlSet(newInc)};`
+      );
+    } catch {
+      // Ignore when incident_logs table is not in mock DB
+    }
   }
 
   await dispatchStaffAlert(req.db, {
@@ -322,20 +441,24 @@ router.post('/support-tickets/:userId/:ticketId/reply', async (req, res) => {
   const rawText = String(req.body?.text || '').trim();
   const text = rawText || 'Đã giải quyết xong, cảm ơn nhân viên!';
   const current = feedbackStore[idx];
+  const nowIso = new Date().toISOString();
 
   const updatedReplies = [
     ...(current.replies || []),
     {
+      id: `rep-${Date.now()}`,
       sender: 'customer',
       author: current.customer_name || req.user?.email || 'Khách hàng',
       text,
-      created_at: new Date().toISOString()
+      created_at: nowIso
     }
   ];
 
   feedbackStore[idx] = {
     ...current,
+    is_fixed: true,
     status: req.body.markResolved ? 'resolved' : 'open',
+    updated_at: nowIso,
     replies: updatedReplies
   };
 
@@ -353,20 +476,27 @@ router.post('/support-tickets/:userId/:ticketId/reply', async (req, res) => {
   });
 });
 
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT v.*, s.slot_name, s.zone_id, z.zone_name, z.vehicle_type, z.drainage_status, z.sensor_status, z.cctv_coverage FROM public.vehicles v LEFT JOIN public.parking_slots s ON s.vehicle_id = v.id LEFT JOIN public.parking_zones z ON z.id = s.zone_id WHERE v.user_id = '<USER_UUID>';
 router.get('/vehicles/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
-  const { data, error } = await req.db
-    .from('vehicles')
-    .select(
-      '*, parking_slots(slot_name, zone_id, parking_zones(zone_name, vehicle_type, drainage_status, sensor_status, cctv_coverage))'
-    )
-    .eq('user_id', req.params.userId);
+  const { data, error } = await runSql(
+    req.db,
+    `SELECT v.*, s.slot_name, s.zone_id, z.zone_name, z.vehicle_type, z.drainage_status, z.sensor_status, z.cctv_coverage
+     FROM public.vehicles v
+     LEFT JOIN public.parking_slots s ON s.vehicle_id = v.id
+     LEFT JOIN public.parking_zones z ON z.id = s.zone_id
+     WHERE v.user_id = ${sqlVal(req.params.userId)};`
+  );
 
   if (error) {
-    const fallback = await req.db
-      .from('vehicles')
-      .select('*, parking_slots(slot_name)')
-      .eq('user_id', req.params.userId);
+    const fallback = await runSql(
+      req.db,
+      `SELECT v.*, s.slot_name
+       FROM public.vehicles v
+       LEFT JOIN public.parking_slots s ON s.vehicle_id = v.id
+       WHERE v.user_id = ${sqlVal(req.params.userId)};`
+    );
     return res.json({ vehicles: fallback.data || [], activeVehicleIds: [] });
   }
 
@@ -375,11 +505,13 @@ router.get('/vehicles/:userId', async (req, res) => {
 
   if (data && data.length > 0) {
     const vIds = data.map((v) => v.id);
-    const { data: sessions, error: sessionErr } = await req.db
-      .from('parking_sessions')
-      .select('id, vehicle_id, entry_time, exit_time, status, created_at')
-      .in('vehicle_id', vIds)
-      .order('entry_time', { ascending: false });
+    const { data: sessions, error: sessionErr } = await runSql(
+      req.db,
+      `SELECT id, vehicle_id, entry_time, exit_time, status, created_at
+       FROM public.parking_sessions
+       WHERE vehicle_id IN ${sqlList(vIds)}
+       ORDER BY entry_time DESC;`
+    );
 
     if (!sessionErr && sessions) {
       for (const s of sessions) {
@@ -404,10 +536,13 @@ router.get('/vehicles/:userId', async (req, res) => {
 
 router.get('/sessions/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
-  const { data: userVehicles, error: vErr } = await req.db
-    .from('vehicles')
-    .select('id, plate, brand, model, type, parking_slots(slot_name)')
-    .eq('user_id', req.params.userId);
+  const { data: userVehicles, error: vErr } = await runSql(
+    req.db,
+    `SELECT v.id, v.plate, v.brand, v.model, v.type, s.slot_name
+     FROM public.vehicles v
+     LEFT JOIN public.parking_slots s ON s.vehicle_id = v.id
+     WHERE v.user_id = ${sqlVal(req.params.userId)};`
+  );
 
   if (vErr) throw vErr;
   if (!userVehicles || userVehicles.length === 0) {
@@ -417,12 +552,14 @@ router.get('/sessions/:userId', async (req, res) => {
   const vMap = new Map(userVehicles.map((v) => [v.id, v]));
   const vIds = userVehicles.map((v) => v.id);
 
-  const { data: sessions, error: sErr } = await req.db
-    .from('parking_sessions')
-    .select('id, vehicle_id, entry_time, exit_time, status, created_at')
-    .in('vehicle_id', vIds)
-    .order('entry_time', { ascending: false })
-    .limit(100);
+  const { data: sessions, error: sErr } = await runSql(
+    req.db,
+    `SELECT id, vehicle_id, entry_time, exit_time, status, created_at
+     FROM public.parking_sessions
+     WHERE vehicle_id IN ${sqlList(vIds)}
+     ORDER BY entry_time DESC
+     LIMIT 100;`
+  );
 
   if (sErr) throw sErr;
 
@@ -435,12 +572,11 @@ router.get('/sessions/:userId', async (req, res) => {
 });
 
 router.delete('/vehicles/:id', async (req, res) => {
-  await rpc(req.db, 'edit_parking_vehicle', {
-    p_user_id: req.user.id,
-    p_vehicle_id: requireId(req.params.id),
-    p_fields: {},
-    p_delete: true
-  });
+  const vehId = requireId(req.params.id);
+  await runSql(
+    req.db,
+    `SELECT public.edit_parking_vehicle(${sqlVal(req.user.id)}, ${sqlVal(vehId)}, '{}'::jsonb, TRUE);`
+  );
   res.json({ success: true });
 });
 

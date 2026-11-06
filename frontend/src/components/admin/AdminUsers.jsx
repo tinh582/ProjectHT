@@ -172,6 +172,10 @@ export default function AdminUsers({ session }) {
   const handleAddUser = async (e) => {
     e.preventDefault();
     setAddError('');
+    if (addForm.phone.trim() && !/^\d{10}$/.test(addForm.phone.trim())) {
+      setAddError('Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).');
+      return;
+    }
     setAddLoading(true);
     try {
       const response = await apiFetch('/api/components/admin/AdminUsers', {
@@ -321,6 +325,10 @@ export default function AdminUsers({ session }) {
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
+    if (editForm.phone.trim() && !/^\d{10}$/.test(editForm.phone.trim())) {
+      setEditError('Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).');
+      return;
+    }
     setEditLoading(true);
     setEditError('');
     try {
@@ -760,12 +768,17 @@ export default function AdminUsers({ session }) {
                 </label>
 
                 <label className="users-name-field">
-                  Số điện thoại
+                  Số điện thoại (10 chữ số)
                   <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    minLength={10}
+                    pattern="[0-9]{10}"
                     value={editForm.phone}
-                    onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                    onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
                     className="users-input"
-                    placeholder="0901234567"
+                    placeholder="0901234567 (Đúng 10 số)"
                   />
                 </label>
 
@@ -1213,12 +1226,17 @@ export default function AdminUsers({ session }) {
                 </label>
 
                 <label className="users-name-field">
-                  Số điện thoại
+                  Số điện thoại (10 chữ số)
                   <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    minLength={10}
+                    pattern="[0-9]{10}"
                     value={addForm.phone}
-                    onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))}
+                    onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
                     className="users-input"
-                    placeholder="0901234567"
+                    placeholder="0901234567 (Đúng 10 số)"
                   />
                 </label>
 
@@ -1696,7 +1714,7 @@ export default function AdminUsers({ session }) {
                 <strong>Nhân viên:</strong> {staffConfirmModalUser.name || 'Nhân viên mới'} ({staffConfirmModalUser.email})
               </div>
               <div className="users-notice-body">
-                Hệ thống đã gửi thư xác nhận kích hoạt tới hộp thư thật <b>{staffConfirmModalUser.email}</b>. Nhân viên có thể:
+                Hệ thống đã gửi thư xác nhận kích hoạt (tích hợp chuẩn <b>Anti-Spam Multipart/SPF/DMARC</b> ưu tiên vào Hộp thư đến) tới <b>{staffConfirmModalUser.email}</b>. Nếu trình duyệt mail mới lọc nhầm vào mục Thư rác (Spam), nhân viên chỉ cần chọn <b>"Không phải thư rác" (Not Spam)</b> hoặc xác nhận ngay theo 2 cách:
               </div>
               <ol className="users-staff-confirm-list">
                 <li>Nhấn trực tiếp vào đường dẫn xác nhận trong Email, <b>HOẶC</b></li>

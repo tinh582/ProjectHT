@@ -1,6 +1,7 @@
 import express from 'express';
-import { HttpError, requireText, rpc } from '../../http.js';
+import { HttpError, requireText } from '../../http.js';
 import { extractLicensePlate } from '../../roboflow.js';
+import { runSql, sqlVal } from '../../nativeSql.js';
 const router = express.Router();
 
 router.post('/extract-plate', async (req, res) => {
@@ -15,10 +16,11 @@ router.post('/extract-plate', async (req, res) => {
   res.json({ success: true, plate: result.plate });
 });
 
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT public.transition_parking_session('30G-688.86', NULL);
 router.post('/', async (req, res) => {
   let plate = req.body.plateInput;
 
-  // If image is supplied directly, extract license plate from it
   if (!plate && req.body.image) {
     const scanResult = await extractLicensePlate(req.body.image);
     if (!scanResult.success || !scanResult.plate) {
@@ -28,7 +30,10 @@ router.post('/', async (req, res) => {
   }
 
   const cleanPlate = requireText(plate, 'License plate', 30).toUpperCase();
-  const result = await rpc(req.db, 'transition_parking_session', { p_plate: cleanPlate, p_session_id: null });
+  const { data: result } = await runSql(
+    req.db,
+    `SELECT public.transition_parking_session(${sqlVal(cleanPlate)}, NULL);`
+  );
   res.json({ logMessage: result.message, plate: cleanPlate });
 });
 export default router;

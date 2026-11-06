@@ -1,4 +1,5 @@
 import { userDocumentsStore } from './supportStore.js';
+import { NATIVE_SQL, runSql, sqlVal, sqlList, sqlSet } from './nativeSql.js';
 
 export async function purgeSensitiveUserData(db, userId, reason = 'USER_TERMINATION') {
   if (!db || !userId) throw new Error('Invalid userId for zero-data purge.');
@@ -8,25 +9,47 @@ export async function purgeSensitiveUserData(db, userId, reason = 'USER_TERMINAT
 
   userDocumentsStore.delete(userId);
 
-  const { data: vehicles } = await db.from('vehicles').select('id').eq('user_id', userId);
-  const vehicleIds = (vehicles || []).map(v => v.id);
+  const { data: vehicles } = await runSql(
+    db,
+    `SELECT id
+     FROM public.vehicles
+     WHERE user_id = ${sqlVal(userId)};`
+  );
+  const vehicleIds = (vehicles || []).map((v) => v.id);
 
   if (vehicleIds.length > 0) {
-    await db.from('parking_slots').update({ vehicle_id: null, status: 'empty' }).in('vehicle_id', vehicleIds);
-    await db.from('parking_sessions').delete().in('vehicle_id', vehicleIds);
-    await db.from('vehicles').delete().eq('user_id', userId);
+    await runSql(
+      db,
+      `UPDATE public.parking_slots
+       SET vehicle_id = NULL, status = 'empty'
+       WHERE vehicle_id IN ${sqlList(vehicleIds)};`
+    );
+    await runSql(
+      db,
+      `DELETE FROM public.parking_sessions
+       WHERE vehicle_id IN ${sqlList(vehicleIds)};`
+    );
+    await runSql(
+      db,
+      `DELETE FROM public.vehicles
+       WHERE user_id = ${sqlVal(userId)};`
+    );
   }
 
-  await db.from('transactions')
-    .update({
-      payment_proof: null,
-      ai_ocr_result: null,
-    })
-    .eq('user_id', userId);
+  await runSql(
+    db,
+    `UPDATE public.transactions
+     SET payment_proof = NULL, ai_ocr_result = NULL
+     WHERE user_id = ${sqlVal(userId)};`
+  );
 
-  await db.from('notifications').delete().eq('user_id', userId);
+  await runSql(
+    db,
+    `DELETE FROM public.notifications
+     WHERE user_id = ${sqlVal(userId)};`
+  );
 
-  let { error: profileError } = await db.from('profiles').update({
+  const fullZeroProfile = {
     phone: null,
     address: null,
     id_card_front: null,
@@ -34,18 +57,31 @@ export async function purgeSensitiveUserData(db, userId, reason = 'USER_TERMINAT
     driver_license_front: null,
     driver_license_back: null,
     kyc_status: 'purged',
-    name: 'Anonymous User',
-  }).eq('id', userId);
+    name: 'Anonymous User'
+  };
+
+  let { error: profileError } = await runSql(
+    db,
+    `UPDATE public.profiles
+     SET ${sqlSet(fullZeroProfile)}
+     WHERE id = ${sqlVal(userId)};`
+  );
 
   if (profileError) {
-    const fallback = await db.from('profiles').update({
+    const fallbackZero = {
       phone: null,
       address: null,
       id_card_front: null,
       id_card_back: null,
       kyc_status: 'purged',
-      name: 'Anonymous User',
-    }).eq('id', userId);
+      name: 'Anonymous User'
+    };
+    const fallback = await runSql(
+      db,
+      `UPDATE public.profiles
+       SET ${sqlSet(fallbackZero)}
+       WHERE id = ${sqlVal(userId)};`
+    );
     profileError = fallback.error;
   }
 
@@ -55,5 +91,6 @@ export async function purgeSensitiveUserData(db, userId, reason = 'USER_TERMINAT
     success: true,
     purgedAt: timestamp,
     status: 'ZERO_DATA_APPLIED',
+    nativeSql: NATIVE_SQL.PURGE_USER_ZERO_DATA
   };
 }

@@ -204,6 +204,10 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding, onRegiste
         setError('Vui lòng đồng ý với Điều khoản Bảo mật Dữ liệu & Zero-Data Retention.');
         return;
       }
+      if (phone.trim() && !/^\d{10}$/.test(phone.trim())) {
+        setError('Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).');
+        return;
+      }
       if (!emailVerified && !otpCode.trim()) {
         setError('Bắt buộc xác thực Email thật: Vui lòng bấm "Gửi mã OTP" và nhập mã xác thực 6 số trước khi tạo tài khoản.');
         return;
@@ -356,9 +360,12 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding, onRegiste
                     >
                       <div style={{ fontSize: '12px', color: '#065f46', marginBottom: '6px' }}>
                         {otpNotice}
+                        <div style={{ fontSize: '11px', color: '#047857', marginTop: '4px', lineHeight: 1.4 }}>
+                          🛡️ <strong>Chuẩn chống Thư rác (Anti-Spam Multipart/SPF):</strong> Thư được định tuyến ưu tiên vào <em>Hộp thư đến</em>. Nếu dịch vụ mail lọc nhầm vào <em>Thư rác (Spam)</em>, vui lòng nhấn <strong>"Không phải thư rác" (Not Spam)</strong>.
+                        </div>
                         {devOtpHint && (
-                          <span style={{ display: 'block', marginTop: '2px', fontWeight: 700 }}>
-                            🔑 Mã OTP của bạn: <code style={{ fontSize: '14px' }}>{devOtpHint}</code>
+                          <span style={{ display: 'block', marginTop: '4px', fontWeight: 700 }}>
+                            🔑 Mã OTP xác thực: <code style={{ fontSize: '14px' }}>{devOtpHint}</code>
                           </span>
                         )}
                       </div>
@@ -424,12 +431,16 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding, onRegiste
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <label>
-                    Số điện thoại
+                    Số điện thoại (10 số)
                     <input
                       type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      minLength={10}
+                      pattern="[0-9]{10}"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="0901234567"
+                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="0901234567 (Đúng 10 số)"
                     />
                   </label>
                   <label>

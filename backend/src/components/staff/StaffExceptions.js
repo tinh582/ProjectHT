@@ -1,28 +1,37 @@
 import express from 'express';
-import { HttpError, requireId, requireText, rpc } from '../../http.js';
+import { HttpError, requireId, requireText } from '../../http.js';
 import { analyzeAndHandleError } from '../../aiErrorHandler.js';
 import { incidentLogStore, feedbackStore } from '../../supportStore.js';
+import { runSql, sqlVal, sqlValues } from '../../nativeSql.js';
 
 const router = express.Router();
 
 // 1. GET ACTIVE VEHICLE SESSIONS IN PARKING LOT
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT ps.id, ps.entry_time, ps.status, v.id, v.user_id, v.type, v.plate, v.brand, v.model, p.name, p.email, p.phone, s.slot_name FROM public.parking_sessions ps LEFT JOIN public.vehicles v ON v.id = ps.vehicle_id LEFT JOIN public.profiles p ON p.id = v.user_id LEFT JOIN public.parking_slots s ON s.vehicle_id = v.id WHERE ps.status = 'active' ORDER BY ps.entry_time DESC;
 router.get('/', async (req, res) => {
   let data = null;
   try {
-    const resDb = await req.db
-      .from('parking_sessions')
-      .select(
-        'id, entry_time, status, vehicles(id, user_id, type, plate, brand, model, profiles(name, email, phone), parking_slots(slot_name))'
-      )
-      .eq('status', 'active')
-      .order('entry_time', { ascending: false });
+    const resDb = await runSql(
+      req.db,
+      `SELECT ps.id, ps.entry_time, ps.status, v.id, v.user_id, v.type, v.plate, v.brand, v.model, p.name, p.email, p.phone, s.slot_name
+       FROM public.parking_sessions ps
+       LEFT JOIN public.vehicles v ON v.id = ps.vehicle_id
+       LEFT JOIN public.profiles p ON p.id = v.user_id
+       LEFT JOIN public.parking_slots s ON s.vehicle_id = v.id
+       WHERE ps.status = 'active'
+       ORDER BY ps.entry_time DESC;`
+    );
     if (resDb.error) throw resDb.error;
     data = resDb.data;
   } catch {
-    const { data: fallback, error } = await req.db
-      .from('parking_sessions')
-      .select('id, entry_time, vehicles(id, user_id, type, plate, brand, model)')
-      .eq('status', 'active');
+    const { data: fallback, error } = await runSql(
+      req.db,
+      `SELECT ps.id, ps.entry_time, v.id, v.user_id, v.type, v.plate, v.brand, v.model
+       FROM public.parking_sessions ps
+       LEFT JOIN public.vehicles v ON v.id = ps.vehicle_id
+       WHERE ps.status = 'active';`
+    );
     if (error) throw error;
     data = fallback;
   }
@@ -55,11 +64,30 @@ router.get('/', async (req, res) => {
 });
 
 // 2. GET AI INCIDENT & EXCEPTION LOGS
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT * FROM public.incident_logs ORDER BY created_at DESC;
 router.get('/incidents', async (req, res) => {
+  try {
+    const { data: dbRows, error } = await runSql(
+      req.db,
+      `SELECT *
+       FROM public.incident_logs
+       ORDER BY created_at DESC;`
+    );
+    if (!error && Array.isArray(dbRows) && dbRows.length > 0) {
+      for (const row of dbRows) {
+        if (!incidentLogStore.some((item) => item.id === row.id)) {
+          incidentLogStore.push(row);
+        }
+      }
+    }
+  } catch {
+    // Fallback to incidentLogStore when table is not migrated yet
+  }
   res.json(incidentLogStore);
 });
 
-// 3. CREATE NEW INCIDENT / EXCEPTION LOG (With AI Auto-Diagnosis)
+// 3. CREATE NEW INCIDENT / EXCEPTION LOG
 router.post('/incidents', async (req, res) => {
   const plate = requireText(req.body.plate || 'CHƯA RÕ', 'Biển số xe', 40);
   const incident_type = req.body.incident_type || 'MANUAL_BARRIER_OVERRIDE';
@@ -104,7 +132,7 @@ router.post('/incidents', async (req, res) => {
   res.status(201).json({ success: true, incident: newIncident });
 });
 
-// 4. UPDATE / RESOLVE INCIDENT LOG (Also syncs with Customer Ticket & notifies Customer)
+// 4. UPDATE / RESOLVE INCIDENT LOG
 router.put('/incidents/:incId', async (req, res) => {
   const { incId } = req.params;
   const idx = incidentLogStore.findIndex((item) => item.id === incId);
@@ -130,7 +158,6 @@ router.put('/incidents/:incId', async (req, res) => {
     resolved_at: nextStatus === 'resolved' ? new Date().toISOString() : null
   };
 
-  // Sync linked customer ticket in feedbackStore if present
   if (current.linked_feedback_id) {
     const fbIdx = feedbackStore.findIndex((f) => f.id === current.linked_feedback_id);
     if (fbIdx !== -1 && nextStatus === 'resolved') {
@@ -149,15 +176,17 @@ router.put('/incidents/:incId', async (req, res) => {
     }
   }
 
-  // Send notification to customer if incident belongs to a customer
   if (current.user_id && nextStatus === 'resolved') {
     try {
-      await req.db.from('notifications').insert({
-        user_id: current.user_id,
-        title: `✓ Đã xử lý sự cố ô đỗ (${current.plate})`,
-        message: staffNote || `Báo cáo "${current.title}" của bạn đã được nhân viên xử lý hoàn tất.`,
-        is_read: false
-      });
+      await runSql(
+        req.db,
+        `INSERT INTO public.notifications ${sqlValues({
+          user_id: current.user_id,
+          title: `✓ Đã xử lý sự cố ô đỗ (${current.plate})`,
+          message: staffNote || `Báo cáo "${current.title}" của bạn đã được nhân viên xử lý hoàn tất.`,
+          is_read: false
+        })};`
+      );
     } catch {
       // Ignore in mock environment
     }
@@ -176,16 +205,16 @@ router.delete('/incidents/:incId', async (req, res) => {
   res.json({ success: true });
 });
 
-// 6. MANUAL BARRIER OPEN & COMPLETE PARKING SESSION (Existing route preserved)
+// 6. MANUAL BARRIER OPEN & COMPLETE PARKING SESSION
 router.post('/:id/open', async (req, res) => {
   const sessionId = requireId(req.params.id);
   const reason = req.body?.reason || 'Nhân viên xác nhận mở barie thủ công (AI Fallback)';
   const plate = req.body?.session?.vehicles?.plate || 'XE-TRONG-BAI';
 
-  await rpc(req.db, 'transition_parking_session', {
-    p_plate: null,
-    p_session_id: sessionId
-  });
+  await runSql(
+    req.db,
+    `SELECT public.transition_parking_session(NULL, ${sqlVal(sessionId)});`
+  );
 
   incidentLogStore.unshift({
     id: `inc-${Date.now()}`,
@@ -205,7 +234,7 @@ router.post('/:id/open', async (req, res) => {
   res.json({ success: true });
 });
 
-// 7. SEND REMINDER NOTIFICATION TO VEHICLE OWNER (e.g., Wrong slot / Overstay)
+// 7. SEND REMINDER NOTIFICATION TO VEHICLE OWNER
 router.post('/:id/notify-owner', async (req, res) => {
   const userId = req.body.user_id;
   const plate = req.body.plate || '';
@@ -215,12 +244,15 @@ router.post('/:id/notify-owner', async (req, res) => {
 
   if (userId) {
     try {
-      await req.db.from('notifications').insert({
-        user_id: userId,
-        title: `🔔 Nhắc nhở phương tiện ${plate}`,
-        message,
-        is_read: false
-      });
+      await runSql(
+        req.db,
+        `INSERT INTO public.notifications ${sqlValues({
+          user_id: userId,
+          title: `🔔 Nhắc nhở phương tiện ${plate}`,
+          message,
+          is_read: false
+        })};`
+      );
     } catch {
       // Ignore if notifications table error in mock environment
     }

@@ -33,7 +33,11 @@ export default function SlotInfoDialog({ slot, onClose }) {
     if (!ts) return '-';
     try {
       const d = new Date(ts);
-      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return (
+        d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) +
+        ' ' +
+        d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      );
     } catch {
       return ts;
     }
@@ -42,13 +46,27 @@ export default function SlotInfoDialog({ slot, onClose }) {
   if (!slot) return null;
 
   return (
-    <div className="slot-info-overlay">
-      <div className="slot-info-dialog">
+    <div className="slot-info-overlay" onClick={onClose}>
+      <div className="slot-info-dialog" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="slot-info-close">✕</button>
 
-        <h2 className="slot-info-title">Vị trí: {slot.slot_name}</h2>
-        <span className={`slot-info-status ${slot.status === 'empty' ? 'is-empty' : slot.status === 'rented' ? 'is-rented' : 'is-occupied'}`}>
-          {slot.status === 'empty' ? 'TRỐNG' : (slot.status === 'rented' ? 'ĐÃ THUÊ (Khách chưa vào bãi)' : 'ĐANG ĐỖ (Xe đang trong bãi)')}
+        <h2 className="slot-info-title">Vị trí ô đỗ: {slot.slot_name}</h2>
+        <span
+          className={`slot-info-status ${
+            slot.status === 'empty'
+              ? 'is-empty'
+              : slot.status === 'rented'
+              ? 'is-rented'
+              : 'is-occupied'
+          }`}
+        >
+          {slot.status === 'empty'
+            ? '🟢 ĐANG TRỐNG (Chưa có xe thuê)'
+            : slot.status === 'rented'
+            ? '🔵 ĐÃ CHO THUÊ CỐ ĐỊNH (Khách tạm thời chưa vào bãi)'
+            : slot.status === 'maintenance'
+            ? '🟠 ĐANG BẢO TRÌ KỸ THUẬT'
+            : '🔴 ĐANG ĐỖ TRONG BÃI (Xe đã thuê & đang đỗ tại ô)'}
         </span>
 
         {loading ? (
@@ -57,7 +75,7 @@ export default function SlotInfoDialog({ slot, onClose }) {
           <div>
             {/* Real-time Entry/Exit Time Information for Staff/Admin */}
             <div className="slot-info-parking-time-box">
-              <h4 className="slot-info-time-title">⏱️ Trạng thái Đỗ xe</h4>
+              <h4 className="slot-info-time-title">⏱️ Trạng thái Đỗ xe Thực tế</h4>
               {activeSession ? (
                 <div className="slot-time-active">
                   <div className="slot-time-row">
@@ -83,28 +101,30 @@ export default function SlotInfoDialog({ slot, onClose }) {
                   </div>
                 </div>
               ) : (
-                <p className="slot-time-none">Chưa có phiên ra/vào nào được ghi nhận.</p>
+                <p className="slot-time-none">Đã giữ chỗ thuê cố định • Chưa có phiên ra/vào nào được ghi nhận.</p>
               )}
             </div>
 
-            <h3 className="slot-info-section-title">Thông tin Phương tiện</h3>
+            <h3 className="slot-info-section-title">🚗 Thông tin Phương tiện đăng ký</h3>
             <div className="slot-info-vehicle-details">
-              <b className="slot-info-label">Biển số:</b> <span className="slot-info-plate">{vehicle.plate}</span>
+              <b className="slot-info-label">Biển số cố định:</b> <span className="slot-info-plate">{vehicle.plate}</span>
               <b className="slot-info-label">Loại xe:</b> <span>{vehicle.type}</span>
-              <b className="slot-info-label">Hiệu xe:</b> <span>{vehicle.brand} {vehicle.model}</span>
-              <b className="slot-info-label">Màu sắc:</b> <span>{vehicle.color}</span>
+              <b className="slot-info-label">Hãng / Mẫu xe:</b> <span>{vehicle.brand} {vehicle.model}</span>
+              <b className="slot-info-label">Màu sắc:</b> <span>{vehicle.color || 'Tiêu chuẩn'}</span>
             </div>
 
             {vehicle.image && (
               <img src={vehicle.image} alt="Xe" className="slot-info-image" />
             )}
 
-            <h3 className="slot-info-section-title">Thông tin Chủ xe</h3>
+            <h3 className="slot-info-section-title">👤 Thông tin Chủ xe thuê vị trí</h3>
             {profile ? (
               <div className="slot-info-owner-details">
                 <b className="slot-info-label">Họ tên:</b> <span>{profile.name || 'Chưa cập nhật'}</span>
+                <b className="slot-info-label">Số điện thoại:</b> <span>{profile.phone || 'Chưa cập nhật'}</span>
                 <b className="slot-info-label">Email:</b> <span>{profile.email}</span>
-                <b className="slot-info-label">ID:</b> <span className="slot-info-owner-id">{profile.id}</span>
+                <b className="slot-info-label">Địa chỉ:</b> <span>{profile.address || 'Chưa cập nhật'}</span>
+                <b className="slot-info-label">Mã KH:</b> <span className="slot-info-owner-id">{profile.id}</span>
               </div>
             ) : (
               <p className="slot-info-unavailable">Không tải được thông tin chủ xe.</p>
@@ -112,7 +132,9 @@ export default function SlotInfoDialog({ slot, onClose }) {
           </div>
         ) : (
           <div className="slot-info-empty">
-            Vị trí này hiện đang trống, chưa có khách hàng nào thuê.
+            {slot.status === 'maintenance'
+              ? 'Vị trí này hiện đang tạm khóa để bảo trì kỹ thuật.'
+              : 'Vị trí này hiện đang trống hoàn toàn, chưa có khách hàng nào thuê cố định.'}
           </div>
         )}
       </div>

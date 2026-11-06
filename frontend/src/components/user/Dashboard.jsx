@@ -1,7 +1,7 @@
 import VehicleCard from './VehicleCard';
 import NotificationMenu from './NotificationMenu';
 import { apiFetch } from '../../lib/api';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import VehicleDialog from './VehicleDialog';
 import UserPayment from './UserPayment';
 import UserSlotPicker from './UserSlotPicker';
@@ -9,6 +9,7 @@ import ParkingHistoryDialog from './ParkingHistoryDialog';
 import UserProfileDialog from './UserProfileDialog';
 import ActivationPricing from './ActivationPricing';
 import UserSupportCenter from './UserSupportCenter';
+import { classifyUserNotificationTab, computeUserTabBadges } from '../../lib/tabNotifications';
 
 export default function Dashboard({ session, onBackToLanding }) {
   const [vehicles, setVehicles] = useState([]);
@@ -26,6 +27,9 @@ export default function Dashboard({ session, onBackToLanding }) {
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   const [notifications, setNotifications] = useState([]);
+  const [supportTickets, setSupportTickets] = useState([]);
+  const [seenNotifIds, setSeenNotifIds] = useState(() => new Set());
+  const [seenTicketReplies, setSeenTicketReplies] = useState(() => new Set());
   const [activeTab, setActiveTab] = useState('vehicles');
   const [hasActivePlan, setHasActivePlan] = useState(false);
   const [checkingSub, setCheckingSub] = useState(true);
@@ -36,7 +40,36 @@ export default function Dashboard({ session, onBackToLanding }) {
   useEffect(() => {
     checkSubscription();
     fetchNotifications();
+    fetchSupportTickets();
+    const timer = setInterval(() => {
+      fetchNotifications();
+      fetchSupportTickets();
+    }, 10000);
+    return () => clearInterval(timer);
   }, []);
+
+  const fetchSupportTickets = async () => {
+    try {
+      const res = await apiFetch(`/api/components/user/Dashboard/support-tickets/${session.user.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSupportTickets(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      // Optional support tickets check
+    }
+  };
+
+  const tabBadges = useMemo(
+    () =>
+      computeUserTabBadges({
+        notifications,
+        supportTickets,
+        seenNotifIds,
+        seenTicketReplies
+      }),
+    [notifications, supportTickets, seenNotifIds, seenTicketReplies]
+  );
 
   const checkSubscription = async () => {
     try {
@@ -153,6 +186,29 @@ export default function Dashboard({ session, onBackToLanding }) {
     }
     setLockNotice(null);
     setActiveTab(tab);
+
+    // Mark notifications routed to this tab as seen
+    setSeenNotifIds((prev) => {
+      const next = new Set(prev);
+      notifications.forEach((n) => {
+        if (classifyUserNotificationTab(n) === tab && n?.id) {
+          next.add(n.id);
+        }
+      });
+      return next;
+    });
+
+    if (tab === 'support') {
+      setSeenTicketReplies((prev) => {
+        const next = new Set(prev);
+        supportTickets.forEach((t) => {
+          const replyKey = `${t?.id}_${t?.replied_at || t?.replies?.length || 0}`;
+          next.add(replyKey);
+        });
+        return next;
+      });
+    }
+
     if (tab === 'history') {
       fetchAllSessions();
     }
@@ -224,7 +280,11 @@ export default function Dashboard({ session, onBackToLanding }) {
         >
           <span>{hasActivePlan ? '▣' : '🔒'}</span>
           <span>Phương tiện của tôi</span>
-          {!hasActivePlan && <span className="nav-lock-badge">Khóa</span>}
+          {!hasActivePlan ? (
+            <span className="nav-lock-badge">Khóa</span>
+          ) : (
+            tabBadges.vehicles > 0 && <span className="nav-tab-badge">{tabBadges.vehicles}</span>
+          )}
         </div>
         <div
           className={`nav-item ${activeTab === 'history' ? 'active' : ''} ${!hasActivePlan ? 'is-nav-locked' : ''}`}
@@ -233,19 +293,25 @@ export default function Dashboard({ session, onBackToLanding }) {
         >
           <span>{hasActivePlan ? '🕒' : '🔒'}</span>
           <span>Lịch sử ra / vào</span>
-          {!hasActivePlan && <span className="nav-lock-badge">Khóa</span>}
+          {!hasActivePlan ? (
+            <span className="nav-lock-badge">Khóa</span>
+          ) : (
+            tabBadges.history > 0 && <span className="nav-tab-badge">{tabBadges.history}</span>
+          )}
         </div>
         <div
           className={`nav-item ${activeTab === 'payment' ? 'active' : ''}`}
           onClick={() => handleTabClick('payment')}
         >
           <span>💳</span> <span>Gia hạn & Ưu đãi cố định</span>
+          {tabBadges.payment > 0 && <span className="nav-tab-badge">{tabBadges.payment}</span>}
         </div>
         <div
           className={`nav-item ${activeTab === 'support' ? 'active' : ''}`}
           onClick={() => handleTabClick('support')}
         >
           <span>💬</span> <span>Ý kiến phản hồi & Góp ý</span>
+          {tabBadges.support > 0 && <span className="nav-tab-badge">{tabBadges.support}</span>}
         </div>
 
         <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
@@ -504,6 +570,7 @@ export default function Dashboard({ session, onBackToLanding }) {
             <UserSupportCenter
               session={session}
               vehicles={vehicles}
+              prefill={supportPrefill}
             />
           )}
 

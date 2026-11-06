@@ -68,3 +68,8 @@ temp/
 
 # Documents
 ProjectHT Document/
+
+# SQL Scripts & Migrations (Supabase SQL Editor local files)
+*.sql
+backend/migrations/
+SUPABASE_SQL_EDITOR.sql

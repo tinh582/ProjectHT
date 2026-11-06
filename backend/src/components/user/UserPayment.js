@@ -1,14 +1,22 @@
 import express from 'express';
 import { requireSelf } from '../../auth.js';
-import { requireId, rpc, HttpError } from '../../http.js';
+import { requireId } from '../../http.js';
 import { getSubscriptionStatus } from '../../subscription.js';
 import { verifyPaymentReceipt } from '../../paymentAi.js';
 import { dispatchStaffAlert } from '../../notifications.js';
+import { runSql, sqlVal, sqlSet, sqlValues } from '../../nativeSql.js';
 
 const router = express.Router();
 
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT id, plan_type, price FROM public.pricing_configs ORDER BY price;
 router.get('/pricing', async (req, res) => {
-  const { data, error } = await req.db.from('pricing_configs').select('id, plan_type, price').order('price');
+  const { data, error } = await runSql(
+    req.db,
+    `SELECT id, plan_type, price
+     FROM public.pricing_configs
+     ORDER BY price;`
+  );
   if (error) throw error;
   res.json(data || []);
 });
@@ -17,7 +25,6 @@ router.get('/subscription/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
   const status = await getSubscriptionStatus(req.db, req.user.id);
 
-  // Loyalty calculation for existing customers on fixed slots
   const isReturningCustomer = Boolean(status.latestTransaction);
   const loyaltyPolicy = {
     isEligible: isReturningCustomer,
@@ -48,6 +55,8 @@ router.get('/subscription/:userId', async (req, res) => {
   });
 });
 
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT public.request_parking_payment('<USER_UUID>', '<PLAN_UUID>');
 router.post('/pay', async (req, res) => {
   const planId = requireId(req.body.planId);
   const proofImage = req.body.proofImage || null;
@@ -56,18 +65,17 @@ router.post('/pay', async (req, res) => {
   const fixedMonths = Math.max(1, Math.min(12, Number(req.body.fixedMonths || 1)));
   const applyLoyalty = Boolean(req.body.applyLoyalty);
 
-  const result = await rpc(req.db, 'request_parking_payment', {
-    p_user_id: req.user.id,
-    p_plan_id: planId,
-  });
+  const { data: result } = await runSql(
+    req.db,
+    `SELECT public.request_parking_payment(${sqlVal(req.user.id)}, ${sqlVal(planId)});`
+  );
 
   if (selectedSlotId && vehicleId) {
     try {
-      await rpc(req.db, 'reserve_parking_slot', {
-        p_user_id: req.user.id,
-        p_vehicle_id: String(vehicleId),
-        p_slot_id: String(selectedSlotId),
-      });
+      await runSql(
+        req.db,
+        `SELECT public.reserve_parking_slot(${sqlVal(req.user.id)}, ${sqlVal(String(vehicleId))}, ${sqlVal(String(selectedSlotId))});`
+      );
     } catch (slotErr) {
       console.warn('Slot reservation fallback:', slotErr?.message);
     }
@@ -82,11 +90,17 @@ router.post('/pay', async (req, res) => {
     });
   }
 
-  const { data: plan } = await req.db.from('pricing_configs').select('*').eq('id', planId).maybeSingle();
+  const { data: plan } = await runSql(
+    req.db,
+    `SELECT *
+     FROM public.pricing_configs
+     WHERE id = ${sqlVal(planId)}
+     LIMIT 1;`,
+    { maybeSingle: true }
+  );
   const basePrice = plan?.price || result?.amount || 0;
   const planName = plan?.plan_type || 'Gói thuê';
 
-  // Calculate loyalty discount & bonus days for existing customers on fixed terms
   let discountPercent = 0;
   let bonusDays = 0;
   if (fixedMonths >= 6) {
@@ -103,7 +117,6 @@ router.post('/pay', async (req, res) => {
   const totalRaw = basePrice * fixedMonths;
   const discountedPrice = Math.round(totalRaw * (1 - discountPercent / 100));
 
-  // Verify against basePrice OR discountedPrice so both standard and loyalty receipts pass AI OCR
   let aiResult = verifyPaymentReceipt(proofImage, basePrice, req.user.id);
   if (!aiResult.autoApproved && discountedPrice !== basePrice) {
     const loyaltyAi = verifyPaymentReceipt(proofImage, discountedPrice, req.user.id);
@@ -120,30 +133,44 @@ router.post('/pay', async (req, res) => {
   if (isAutoCompleted) {
     let txData = { ...result, status: 'completed' };
     try {
-      const { data: updated } = await req.db.from('transactions').update({
-        status: 'completed',
-        confirmed_at: now.toISOString(),
-        cycle_start: now.toISOString(),
-        cycle_end: cycleEnd.toISOString(),
-        payment_proof: proofImage,
-        auto_verified: true,
-        verified_by: 'AI_OCR_ENGINE',
-        ai_ocr_result: aiResult,
-      }).eq('id', result.id).select().maybeSingle();
+      const { data: updated } = await runSql(
+        req.db,
+        `UPDATE public.transactions
+         SET ${sqlSet({
+           status: 'completed',
+           confirmed_at: now.toISOString(),
+           cycle_start: now.toISOString(),
+           cycle_end: cycleEnd.toISOString(),
+           payment_proof: proofImage,
+           auto_verified: true,
+           verified_by: 'AI_OCR_ENGINE',
+           ai_ocr_result: aiResult
+         })}
+         WHERE id = ${sqlVal(result.id)}
+         RETURNING *;`,
+        { maybeSingle: true }
+      );
       if (updated) txData = updated;
-    } catch (txErr) {
-      const { data: fallback } = await req.db.from('transactions').update({
-        status: 'completed',
-        confirmed_at: now.toISOString(),
-      }).eq('id', result.id).select().maybeSingle();
+    } catch {
+      const { data: fallback } = await runSql(
+        req.db,
+        `UPDATE public.transactions
+         SET ${sqlSet({ status: 'completed', confirmed_at: now.toISOString() })}
+         WHERE id = ${sqlVal(result.id)}
+         RETURNING *;`,
+        { maybeSingle: true }
+      );
       if (fallback) txData = fallback;
     }
 
-    await req.db.from('notifications').insert({
-      user_id: req.user.id,
-      title: 'Thanh toán thành công (Tự động)',
-      message: `Gói cước ${planName} (${totalDays} ngày${discountPercent > 0 ? `, ưu đãi khách hàng cũ -${discountPercent}%` : ''}) của bạn đã được kích hoạt tự động.`,
-    });
+    await runSql(
+      req.db,
+      `INSERT INTO public.notifications ${sqlValues({
+        user_id: req.user.id,
+        title: 'Thanh toán thành công (Tự động)',
+        message: `Gói cước ${planName} (${totalDays} ngày${discountPercent > 0 ? `, ưu đãi khách hàng cũ -${discountPercent}%` : ''}) của bạn đã được kích hoạt tự động.`
+      })};`
+    );
 
     await dispatchStaffAlert(req.db, {
       title: 'Giao dịch duyệt tự động qua AI',
@@ -161,12 +188,17 @@ router.post('/pay', async (req, res) => {
     });
   } else {
     try {
-      await req.db.from('transactions').update({
-        payment_proof: proofImage,
-        auto_verified: false,
-        ai_ocr_result: aiResult,
-      }).eq('id', result.id);
-    } catch (e) {
+      await runSql(
+        req.db,
+        `UPDATE public.transactions
+         SET ${sqlSet({
+           payment_proof: proofImage,
+           auto_verified: false,
+           ai_ocr_result: aiResult
+         })}
+         WHERE id = ${sqlVal(result.id)};`
+      );
+    } catch {
       // fallback
     }
 

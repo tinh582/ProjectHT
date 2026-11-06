@@ -259,22 +259,95 @@ export default function StaffSupport() {
     }
   };
 
+  const formatFbDateTime = (isoStr) => {
+    if (!isoStr) return '-';
+    try {
+      const d = new Date(isoStr);
+      return (
+        d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+        ' - ' +
+        d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      );
+    } catch {
+      return String(isoStr);
+    }
+  };
+
+  const registeredCustomerOptions = useMemo(() => {
+    const base = [
+      {
+        plate: '30G-688.86',
+        customer_name: 'Nguyễn Minh Tuấn',
+        customer_email: 'minhtuan.nguyen@htparking.vn',
+        vehicle_info: 'Mercedes C300 (Ô tô)',
+        zone_name: 'Khu A (Hầm B1)',
+        slot_name: 'A-05'
+      },
+      {
+        plate: '30E-456.78',
+        customer_name: 'Trần Thanh Hương',
+        customer_email: 'thanhhuong.tran@htparking.vn',
+        vehicle_info: 'Honda CR-V (Ô tô)',
+        zone_name: 'Khu B (Hầm B1)',
+        slot_name: 'B-08'
+      },
+      {
+        plate: '29A-999.99',
+        customer_name: 'Lê Hoàng Nam',
+        customer_email: 'hoangnam.le@htparking.vn',
+        vehicle_info: 'Toyota Camry (Ô tô)',
+        zone_name: 'Khu A (Hầm B1)',
+        slot_name: 'A-02'
+      }
+    ];
+    for (const fb of feedbacks) {
+      if (fb.plate && !base.some((b) => b.plate === fb.plate)) {
+        base.push({
+          plate: fb.plate,
+          customer_name: fb.customer_name || 'Khách hàng cố định',
+          customer_email: fb.customer_email || 'customer@htparking.vn',
+          vehicle_info: fb.vehicle_info || 'Phương tiện cố định',
+          zone_name: fb.zone_name || 'Khu A (Hầm B1)',
+          slot_name: fb.slot_name || 'A-05'
+        });
+      }
+    }
+    return base;
+  }, [feedbacks]);
+
   // ------------------------------------------------------------
   // FEEDBACK & MULTI-CHANNEL ALERT CRUD HANDLERS
   // ------------------------------------------------------------
   const openAddFeedback = () => {
     setReplyingFb(null);
+    const first = registeredCustomerOptions[0];
     setFbForm({
-      customer_name: '',
-      customer_email: '',
-      plate: '',
-      zone_name: 'Khu A (Hầm B1)',
-      slot_name: 'A-05',
-      subject: '',
+      customer_name: first.customer_name,
+      customer_email: first.customer_email,
+      plate: first.plate,
+      vehicle_info: first.vehicle_info,
+      zone_name: first.zone_name,
+      slot_name: first.slot_name,
+      subject: `Ý kiến phản hồi & Góp ý tại ${first.zone_name} - Ô ${first.slot_name} (${first.plate})`,
       message: '',
       staff_reply: ''
     });
     setShowFbModal(true);
+  };
+
+  const handleSelectRegisteredCustomer = (plateVal) => {
+    const found = registeredCustomerOptions.find((c) => c.plate === plateVal);
+    if (!found) return;
+    setFbForm((prev) => ({
+      ...prev,
+      customer_name: found.customer_name,
+      customer_email: found.customer_email,
+      plate: found.plate,
+      vehicle_info: found.vehicle_info,
+      zone_name: found.zone_name,
+      slot_name: found.slot_name,
+      subject: `Ý kiến phản hồi & Góp ý tại ${found.zone_name} - Ô ${found.slot_name} (${found.plate})`
+    }));
   };
 
   const openReplyFeedback = (fb) => {
@@ -283,6 +356,7 @@ export default function StaffSupport() {
       customer_name: fb.customer_name || '',
       customer_email: fb.customer_email || '',
       plate: fb.plate || '',
+      vehicle_info: fb.vehicle_info || 'Phương tiện cố định',
       zone_name: fb.zone_name || 'Khu A (Hầm B1)',
       slot_name: fb.slot_name || 'A-05',
       subject: fb.subject || '',
@@ -303,9 +377,13 @@ export default function StaffSupport() {
           status: 'resolved'
         })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setShowFbModal(false);
-        showToast(`Đã gửi phản hồi tới khách hàng ${replyingFb.customer_name}!`);
+        const repliedTime = formatFbDateTime(data.feedback?.replied_at || new Date().toISOString());
+        showToast(
+          `Đã gửi phản hồi tới khách hàng ${replyingFb.customer_name} (Ghi nhận thời gian phản hồi: ${repliedTime})!`
+        );
         fetchFeedbacks();
       }
     } else {
@@ -314,9 +392,13 @@ export default function StaffSupport() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fbForm)
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setShowFbModal(false);
-        showToast('🔔 Đã ghi nhận ý kiến phản hồi và phát thông báo đa kênh tới nhân viên trực ban!');
+        const createdTime = formatFbDateTime(data.feedback?.created_at || new Date().toISOString());
+        showToast(
+          `🔔 Đã ghi nhận ý kiến phản hồi lúc ${createdTime} và phát thông báo đa kênh tới nhân viên trực ban!`
+        );
         fetchFeedbacks();
       }
     }
@@ -623,347 +705,608 @@ export default function StaffSupport() {
       <Pagination page={page} pageSize={pageSize} total={total} onChange={setPage} />
     </div>
 
-      {/* ============================================================ */ }
-  {/* PANEL 2: CUSTOMER FEEDBACK & MULTI-CHANNEL ALERT HISTORY     */ }
-  {/* ============================================================ */ }
-  <div className="records-panel">
-    <div className="support-fb-header">
-      <div>
-        <h3 className="support-fb-title">
-          💬 Ý kiến Phản hồi Khách hàng & Kênh Tiếp nhận ({feedbacks.length})
-        </h3>
-        <p className="staff-description support-fb-desc">
-          Theo dõi toàn bộ phản hồi từ khách hàng, kênh thông báo đã gửi tới nhân viên trực ban và nội dung giải đáp.
-        </p>
-      </div>
-      <button className="secondary" onClick={openAddFeedback}>
-        ＋ Thêm phản hồi mới
-      </button>
-    </div>
-
-    <table className="records-table">
-      <thead>
-        <tr className="records-heading">
-          <th className="records-cell">Khách hàng & Xe</th>
-          <th className="records-cell">Vị trí & Chỗ đỗ</th>
-          <th className="records-cell">Nội dung Ý kiến Phản hồi & Góp ý</th>
-          <th className="records-cell">Hình thức Nhân viên Nhận thông báo</th>
-          <th className="records-cell">Phản hồi từ Nhân viên</th>
-          <th className="records-cell">Trạng thái</th>
-          <th className="support-actions-heading">Thao tác</th>
-        </tr>
-      </thead>
-      <tbody>
-        {feedbacks.length === 0 ? (
-          <tr>
-            <td colSpan="7" className="records-empty">
-              Chưa có ý kiến phản hồi nào.
-            </td>
-          </tr>
-        ) : (
-          feedbacks.map((fb) => (
-              <tr key={fb.id} className="records-row">
-                <td className="records-cell">
-                  <div className="support-fb-name">{fb.customer_name}</div>
-                  <div className="support-fb-email">{fb.customer_email}</div>
-                  {fb.plate && (
-                    <span className="plate support-fb-plate">
-                      {fb.plate}
-                    </span>
-                  )}
-                </td>
-                <td className="records-cell">
-                  <div className="support-fb-zone">
-                    📍 {fb.zone_name || 'Khu A (Hầm B1)'}
-                  </div>
-                  <div className="support-fb-slot">
-                    Chỗ đỗ: Ô {fb.slot_name || 'A-05'}
-                  </div>
-                </td>
-                <td className="records-cell support-fb-msg-cell">
-                  <div className="support-fb-subject">{fb.subject}</div>
-                  <div className="support-fb-message">{fb.message}</div>
-                </td>
-              <td className="records-cell">
-                <div className="support-fb-channels-wrap">
-                  {(fb.notified_channels || ['Dashboard Bell', 'Email']).map((ch, idx) => (
-                    <span key={idx} className="support-fb-channel-tag">
-                      ✓ {ch}
-                    </span>
-                  ))}
-                </div>
-              </td>
-              <td className="records-cell support-fb-reply-cell">
-                {fb.staff_reply ? (
-                  <div className="support-fb-reply-box">
-                    <b>Trực ban:</b> {fb.staff_reply}
-                  </div>
-                ) : (
-                  <span className="support-fb-no-reply">Chưa trả lời</span>
-                )}
-              </td>
-              <td className="records-cell">
-                <span className={`support-fb-status-pill ${fb.status === 'resolved' ? 'resolved' : 'new'}`}>
-                  {fb.status === 'resolved' ? '✓ Đã phản hồi' : '⏳ Mới tiếp nhận'}
-                </span>
-              </td>
-              <td className="records-cell">
-                <div className="support-fb-actions">
-                  <button
-                    onClick={() => openReplyFeedback(fb)}
-                    className="text-button support-fb-reply-btn"
-                  >
-                    💬 Trả lời
-                  </button>
-                  <button
-                    onClick={() => handleDeleteFeedback(fb)}
-                    className="text-button error"
-                  >
-                    🗑️ Xóa
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))
-        )}
-      </tbody>
-    </table>
-  </div>
-
-  {/* ============================================================ */ }
-  {/* MODAL 1: EDIT TRANSACTION CYCLE & ATTACH VIETQR PROOF        */ }
-  {/* ============================================================ */ }
-  {
-    editingTx && (
-      <div className="dialog-overlay" onClick={() => !savingTx && setEditingTx(null)}>
-        <div
-          className="dialog-content support-dialog-tx"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="users-dialog-header">
-            <h3 className="users-dialog-title">
-              ✏️ Chu kỳ Gói thuê & Ảnh Xác thực (#{String(editingTx.id).slice(0, 8)})
+      {/* ============================================================ */}
+      {/* PANEL 2: CUSTOMER FEEDBACK & MULTI-CHANNEL ALERT HISTORY     */}
+      {/* ============================================================ */}
+      <div className="records-panel">
+        <div className="support-fb-header">
+          <div>
+            <h3 className="support-fb-title">
+              💬 Ý kiến Phản hồi Khách hàng, Thông tin Cố định & Thời gian Phản hồi ({feedbacks.length})
             </h3>
-            <button className="slot-info-close" onClick={() => setEditingTx(null)}>✕</button>
+            <p className="staff-description support-fb-desc">
+              Mọi thông tin về chủ xe, biển số, vị trí bãi đỗ, ô đỗ cố định (1 Slot = 1 Xe) và thời gian phản hồi được khóa cố định hoàn toàn từ hệ thống. Cả khách hàng và nhân viên đều theo dõi được đầy đủ thời gian gửi & thời gian phản hồi.
+            </p>
           </div>
+          <button className="secondary" onClick={openAddFeedback}>
+            ＋ Ghi nhận phản hồi theo xe cố định
+          </button>
+        </div>
 
-          <form onSubmit={handleSaveTxDetails}>
-            <div className="users-form-grid-2col">
-              <label>
-                Thời gian bắt đầu thuê (Cycle Start)
-                <input
-                  type="datetime-local"
-                  value={editTxForm.cycle_start}
-                  onChange={(e) => setEditTxForm((f) => ({ ...f, cycle_start: e.target.value }))}
-                />
-              </label>
-              <label>
-                Thời gian kết thúc thuê (Cycle End)
-                <input
-                  type="datetime-local"
-                  value={editTxForm.cycle_end}
-                  onChange={(e) => setEditTxForm((f) => ({ ...f, cycle_end: e.target.value }))}
-                />
-              </label>
-              <label>
-                Ngày giờ hệ thống duyệt (Confirmed At)
-                <input
-                  type="datetime-local"
-                  value={editTxForm.confirmed_at}
-                  onChange={(e) => setEditTxForm((f) => ({ ...f, confirmed_at: e.target.value }))}
-                />
-              </label>
-              <label>
-                Trạng thái giao dịch
-                <select
-                  value={editTxForm.status}
-                  onChange={(e) => setEditTxForm((f) => ({ ...f, status: e.target.value }))}
-                >
-                  <option value="pending">⏳ Đang xử lý (Pending)</option>
-                  <option value="completed">✓ Thành công (Completed)</option>
-                  <option value="rejected">✕ Đã từ chối (Rejected)</option>
-                  <option value="refunded">↩ Đã hoàn tiền (Refunded)</option>
-                </select>
-              </label>
+        <table className="records-table">
+          <thead>
+            <tr className="records-heading">
+              <th className="records-cell">Khách hàng & Xe (🔒 Cố định)</th>
+              <th className="records-cell">Vị trí & Chỗ đỗ (🔒 Cố định)</th>
+              <th className="records-cell">Nội dung Ý kiến Phản hồi & Góp ý</th>
+              <th className="records-cell">🕒 Thời gian Gửi & Phản hồi</th>
+              <th className="records-cell">Hình thức Nhân viên Nhận thông báo</th>
+              <th className="records-cell">Phản hồi từ Nhân viên</th>
+              <th className="records-cell">Trạng thái</th>
+              <th className="support-actions-heading">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {feedbacks.length === 0 ? (
+              <tr>
+                <td colSpan="8" className="records-empty">
+                  Chưa có ý kiến phản hồi nào.
+                </td>
+              </tr>
+            ) : (
+              feedbacks.map((fb) => {
+                const staffReplies = Array.isArray(fb.replies)
+                  ? fb.replies.filter((r) => r.sender === 'staff')
+                  : [];
+                const replyTime =
+                  fb.replied_at ||
+                  (staffReplies.length > 0 ? staffReplies[staffReplies.length - 1].created_at : null);
+
+                return (
+                  <tr key={fb.id} className="records-row">
+                    <td className="records-cell">
+                      <div className="support-fb-name">🔒 {fb.customer_name}</div>
+                      <div className="support-fb-email">{fb.customer_email}</div>
+                      {fb.plate && (
+                        <span className="plate support-fb-plate">
+                          {fb.plate}
+                        </span>
+                      )}
+                      {fb.vehicle_info && (
+                        <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
+                          {fb.vehicle_info}
+                        </div>
+                      )}
+                    </td>
+                    <td className="records-cell">
+                      <div className="support-fb-zone">
+                        📍 {fb.zone_name || 'Khu A (Hầm B1)'}
+                      </div>
+                      <div className="support-fb-slot">
+                        🔒 Chỗ đỗ: Ô {(fb.slot_name || 'A-05').replace(/^Ô\s*/i, '')}
+                      </div>
+                    </td>
+                    <td className="records-cell support-fb-msg-cell">
+                      <div className="support-fb-subject">{fb.subject}</div>
+                      <div className="support-fb-message">{fb.message}</div>
+                    </td>
+                    <td className="records-cell support-cycle-cell">
+                      <div>
+                        <b>🕒 Khách gửi:</b>{' '}
+                        <span style={{ color: '#0f172a', fontWeight: 600 }}>
+                          {formatFbDateTime(fb.created_at)}
+                        </span>
+                      </div>
+                      <div style={{ marginTop: '4px' }}>
+                        <b>🕒 NV phản hồi:</b>{' '}
+                        {replyTime ? (
+                          <span className="support-cycle-confirmed" style={{ display: 'inline' }}>
+                            {formatFbDateTime(replyTime)}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#b45309', fontSize: '11.5px', fontWeight: 600 }}>
+                            ⏳ Chưa phản hồi
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="records-cell">
+                      <div className="support-fb-channels-wrap">
+                        {(fb.notified_channels || ['Dashboard Bell', 'Email']).map((ch, idx) => (
+                          <span key={idx} className="support-fb-channel-tag">
+                            ✓ {ch}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="records-cell support-fb-reply-cell">
+                      {fb.staff_reply ? (
+                        <div className="support-fb-reply-box">
+                          <div>
+                            <b>Trực ban:</b> {fb.staff_reply}
+                          </div>
+                          {replyTime && (
+                            <div style={{ fontSize: '11px', color: '#047857', marginTop: '4px', fontWeight: 600 }}>
+                              🕒 Phản hồi lúc: {formatFbDateTime(replyTime)}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="support-fb-no-reply">Chưa trả lời</span>
+                      )}
+                    </td>
+                    <td className="records-cell">
+                      <span className={`support-fb-status-pill ${fb.status === 'resolved' ? 'resolved' : 'new'}`}>
+                        {fb.status === 'resolved' ? '✓ Đã phản hồi' : '⏳ Mới tiếp nhận'}
+                      </span>
+                    </td>
+                    <td className="records-cell">
+                      <div className="support-fb-actions">
+                        <button
+                          onClick={() => openReplyFeedback(fb)}
+                          className="text-button support-fb-reply-btn"
+                        >
+                          💬 Trả lời
+                        </button>
+                        <button
+                          onClick={() => handleDeleteFeedback(fb)}
+                          className="text-button error"
+                        >
+                          🗑️ Xóa
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ============================================================ */}
+      {/* MODAL 1: EDIT TRANSACTION CYCLE & ATTACH VIETQR PROOF        */}
+      {/* ============================================================ */}
+      {editingTx && (
+        <div className="dialog-overlay" onClick={() => !savingTx && setEditingTx(null)}>
+          <div
+            className="dialog-content support-dialog-tx"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="users-dialog-header">
+              <h3 className="users-dialog-title">
+                🔒 Thông tin Chu kỳ Gói thuê Cố định & Ảnh Xác thực (#{String(editingTx.id).slice(0, 8)})
+              </h3>
+              <button className="slot-info-close" onClick={() => setEditingTx(null)}>✕</button>
             </div>
 
-            <div className="support-proof-box">
-              <div className="support-proof-header">
-                <span className="support-proof-header-title">
-                  🧾 Ảnh biên lai xác thực chuyển khoản
-                </span>
-                <button
-                  type="button"
-                  className="secondary support-sample-receipt-btn"
-                  onClick={() =>
-                    setEditTxForm((f) => ({
-                      ...f,
-                      status: 'completed',
-                      payment_proof: buildSampleVietQrReceipt({
-                        customerName: (editingTx.profiles?.name || 'NGUYỄN MINH TUẤN').toUpperCase(),
-                        amount: editingTx.amount,
-                        txId: String(editingTx.id).slice(0, 8).toUpperCase()
-                      })
-                    }))
-                  }
-                >
-                  ⚡ Tạo nhanh biên lai VietQR mẫu cho giao dịch này
-                </button>
+            <div
+              style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                marginBottom: '12px',
+                fontSize: '12px',
+                color: '#166534',
+                fontWeight: 600
+              }}
+            >
+              🔒 Thông tin khách hàng, gói cước và mốc thời gian chu kỳ thuê được hệ thống lấy cố định hoàn toàn (không thể chỉnh sửa thủ công).
+            </div>
+
+            <form onSubmit={handleSaveTxDetails}>
+              <div className="users-form-grid-2col">
+                <label>
+                  🔒 Khách hàng & Gói cước (Cố định)
+                  <input
+                    type="text"
+                    value={`${editingTx.profiles?.name || 'Khách hàng'} — ${editingTx.plan_name || 'Gói tháng'} (${Number(editingTx.amount || 0).toLocaleString('vi-VN')} đ)`}
+                    readOnly
+                    disabled
+                    tabIndex={-1}
+                    className="user-support-input-ro"
+                  />
+                </label>
+                <label>
+                  🔒 Thời gian đặt gói (Cố định)
+                  <input
+                    type="text"
+                    value={editingTx.created_at ? formatFbDateTime(editingTx.created_at) : '-'}
+                    readOnly
+                    disabled
+                    tabIndex={-1}
+                    className="user-support-input-ro"
+                  />
+                </label>
+                <label>
+                  🔒 Thời gian bắt đầu thuê (Cycle Start - Cố định)
+                  <input
+                    type="datetime-local"
+                    value={editTxForm.cycle_start}
+                    readOnly
+                    disabled
+                    tabIndex={-1}
+                    className="user-support-input-ro"
+                  />
+                </label>
+                <label>
+                  🔒 Thời gian kết thúc thuê (Cycle End - Cố định)
+                  <input
+                    type="datetime-local"
+                    value={editTxForm.cycle_end}
+                    readOnly
+                    disabled
+                    tabIndex={-1}
+                    className="user-support-input-ro"
+                  />
+                </label>
+                <label>
+                  🔒 Ngày giờ hệ thống duyệt (Confirmed At - Cố định)
+                  <input
+                    type="datetime-local"
+                    value={editTxForm.confirmed_at}
+                    readOnly
+                    disabled
+                    tabIndex={-1}
+                    className="user-support-input-ro"
+                  />
+                </label>
+                <label>
+                  Trạng thái đối soát giao dịch
+                  <select
+                    value={editTxForm.status}
+                    onChange={(e) => setEditTxForm((f) => ({ ...f, status: e.target.value }))}
+                  >
+                    <option value="pending">⏳ Đang xử lý (Pending)</option>
+                    <option value="completed">✓ Thành công (Completed)</option>
+                    <option value="rejected">✕ Đã từ chối (Rejected)</option>
+                    <option value="refunded">↩ Đã hoàn tiền (Refunded)</option>
+                  </select>
+                </label>
               </div>
 
-              {editTxForm.payment_proof ? (
-                <div className="support-proof-img-wrap">
-                  <img
-                    src={editTxForm.payment_proof}
-                    alt="Biên lai"
-                    className="support-proof-img"
-                  />
-                </div>
-              ) : (
-                <div className="support-proof-empty">
-                  Chưa có ảnh xác thực giao dịch
-                </div>
-              )}
-
-              <input
-                type="file"
-                accept="image/*"
-                className="support-proof-file-input"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    if (typeof reader.result === 'string') {
-                      setEditTxForm((f) => ({ ...f, payment_proof: reader.result }));
+              <div className="support-proof-box">
+                <div className="support-proof-header">
+                  <span className="support-proof-header-title">
+                    🧾 Ảnh biên lai xác thực chuyển khoản
+                  </span>
+                  <button
+                    type="button"
+                    className="secondary support-sample-receipt-btn"
+                    onClick={() =>
+                      setEditTxForm((f) => ({
+                        ...f,
+                        status: 'completed',
+                        payment_proof: buildSampleVietQrReceipt({
+                          customerName: (editingTx.profiles?.name || 'NGUYỄN MINH TUẤN').toUpperCase(),
+                          amount: editingTx.amount,
+                          txId: String(editingTx.id).slice(0, 8).toUpperCase()
+                        })
+                      }))
                     }
-                  };
-                  reader.readAsDataURL(file);
-                }}
-              />
-            </div>
+                  >
+                    ⚡ Tạo nhanh biên lai VietQR mẫu cho giao dịch này
+                  </button>
+                </div>
 
-            <div className="users-dialog-actions users-dialog-actions-mt">
-              <button type="button" className="secondary" onClick={() => setEditingTx(null)}>
-                Hủy
-              </button>
-              <button type="submit" className="primary" disabled={savingTx}>
-                {savingTx ? 'Đang lưu...' : '💾 Lưu chu kỳ & Ảnh xác thực'}
-              </button>
-            </div>
-          </form>
+                {editTxForm.payment_proof ? (
+                  <div className="support-proof-img-wrap">
+                    <img
+                      src={editTxForm.payment_proof}
+                      alt="Biên lai"
+                      className="support-proof-img"
+                    />
+                  </div>
+                ) : (
+                  <div className="support-proof-empty">
+                    Chưa có ảnh xác thực giao dịch
+                  </div>
+                )}
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="support-proof-file-input"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      if (typeof reader.result === 'string') {
+                        setEditTxForm((f) => ({ ...f, payment_proof: reader.result }));
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </div>
+
+              <div className="users-dialog-actions users-dialog-actions-mt">
+                <button type="button" className="secondary" onClick={() => setEditingTx(null)}>
+                  Hủy
+                </button>
+                <button type="submit" className="primary" disabled={savingTx}>
+                  {savingTx ? 'Đang lưu...' : '💾 Lưu Ảnh xác thực & Trạng thái'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
-    )
-  }
+      )}
 
-  {/* ============================================================ */ }
-  {/* MODAL 2: ADD / REPLY CUSTOMER FEEDBACK                       */ }
-  {/* ============================================================ */ }
-  {
-    showFbModal && (
-      <div className="dialog-overlay" onClick={() => setShowFbModal(false)}>
-        <div
-          className="dialog-content support-dialog-fb"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <h3 className="users-dialog-title">
-            {replyingFb ? `💬 Phản hồi khách hàng: ${replyingFb.customer_name}` : '＋ Ghi nhận Ý kiến Phản hồi Khách hàng'}
-          </h3>
-          <form onSubmit={handleSaveFeedback}>
-            {!replyingFb ? (
-              <>
-                <div className="users-form-grid-2col">
-                  <label>
-                    Họ tên khách hàng *
+      {/* ============================================================ */}
+      {/* MODAL 2: ADD / REPLY CUSTOMER FEEDBACK (ALL RETRIEVED INFO LOCKED) */}
+      {/* ============================================================ */}
+      {showFbModal && (
+        <div className="dialog-overlay" onClick={() => setShowFbModal(false)}>
+          <div
+            className="dialog-content support-dialog-fb"
+            style={{ maxWidth: '680px', width: '95%' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="users-dialog-header">
+              <h3 className="users-dialog-title">
+                {replyingFb
+                  ? `💬 Phản hồi Ý kiến Khách hàng: ${replyingFb.customer_name} (${replyingFb.plate})`
+                  : '＋ Ghi nhận Ý kiến Phản hồi (Thông tin Xe & Vị trí Bãi đỗ Cố định)'}
+              </h3>
+              <button className="slot-info-close" onClick={() => setShowFbModal(false)}>✕</button>
+            </div>
+
+            <div
+              style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                marginBottom: '12px',
+                fontSize: '12px',
+                color: '#166534',
+                fontWeight: 600
+              }}
+            >
+              🔒 Mọi thông tin được trích xuất từ hệ thống (Khách hàng, Biển số xe, Khu vực bãi đỗ, Chỗ đỗ cố định 1 Slot = 1 Xe và Thời gian phản hồi) đều cố định hoàn toàn, không thể chỉnh sửa.
+            </div>
+
+            <form onSubmit={handleSaveFeedback}>
+              {!replyingFb ? (
+                <>
+                  <label style={{ display: 'block', marginBottom: '10px', fontWeight: 600, fontSize: '13px' }}>
+                    Chọn Phương tiện & Khách hàng đã đăng ký cố định trên hệ thống
+                    <select
+                      value={fbForm.plate}
+                      onChange={(e) => handleSelectRegisteredCustomer(e.target.value)}
+                      style={{ width: '100%', padding: '9px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 600, marginTop: '4px' }}
+                    >
+                      {registeredCustomerOptions.map((c) => (
+                        <option key={c.plate} value={c.plate}>
+                          {c.plate} — {c.customer_name} | Vị trí: {c.zone_name} — Ô cố định: {c.slot_name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="users-form-grid-2col">
+                    <label>
+                      🔒 Họ tên khách hàng (Cố định)
+                      <input
+                        value={`${fbForm.customer_name} (${fbForm.customer_email})`}
+                        readOnly
+                        disabled
+                        tabIndex={-1}
+                        className="user-support-input-ro"
+                      />
+                    </label>
+                    <label>
+                      🔒 Biển số & Phương tiện (Cố định)
+                      <input
+                        value={`${fbForm.plate}${fbForm.vehicle_info ? ` — ${fbForm.vehicle_info}` : ''}`}
+                        readOnly
+                        disabled
+                        tabIndex={-1}
+                        className="user-support-input-ro"
+                      />
+                    </label>
+                    <label>
+                      🔒 Vị trí khu vực bãi đỗ (Cố định - Không sửa)
+                      <input
+                        value={fbForm.zone_name}
+                        readOnly
+                        disabled
+                        tabIndex={-1}
+                        className="user-support-input-ro"
+                      />
+                    </label>
+                    <label>
+                      🔒 Chỗ đỗ cố định 1 Slot = 1 Xe (Không sửa)
+                      <input
+                        value={`Ô ${(fbForm.slot_name || 'A-05').replace(/^Ô\s*/i, '')}`}
+                        readOnly
+                        disabled
+                        tabIndex={-1}
+                        className="user-support-input-slot"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="users-form-grid-2col" style={{ marginTop: '8px' }}>
+                    <label>
+                      🔒 Tiêu đề phản hồi (Cố định theo vị trí & xe)
+                      <input
+                        value={fbForm.subject}
+                        readOnly
+                        disabled
+                        tabIndex={-1}
+                        className="user-support-input-ro"
+                      />
+                    </label>
+                    <label>
+                      🕒 Thời gian tiếp nhận phản hồi (Cố định)
+                      <input
+                        value={formatFbDateTime(new Date().toISOString())}
+                        readOnly
+                        disabled
+                        tabIndex={-1}
+                        className="user-support-input-ro"
+                      />
+                    </label>
+                  </div>
+
+                  <label style={{ display: 'block', marginTop: '10px' }}>
+                    Nội dung ý kiến khách hàng *
                     <input
-                      value={fbForm.customer_name}
-                      onChange={(e) => setFbForm((f) => ({ ...f, customer_name: e.target.value }))}
-                      placeholder="Nguyễn Văn A"
+                      value={fbForm.message}
+                      onChange={(e) => setFbForm((f) => ({ ...f, message: e.target.value }))}
+                      placeholder="Nhập nội dung phản hồi của khách hàng..."
                       required
                     />
                   </label>
+                </>
+              ) : (
+                <>
+                  {/* Locked Customer, Vehicle, Zone, Slot & Timestamps Grid */}
+                  <div className="users-form-grid-2col" style={{ marginBottom: '12px' }}>
+                    <label>
+                      🔒 Khách hàng & Email (Cố định)
+                      <input
+                        value={`${replyingFb.customer_name} (${replyingFb.customer_email || 'customer@htparking.vn'})`}
+                        readOnly
+                        disabled
+                        tabIndex={-1}
+                        className="user-support-input-ro"
+                      />
+                    </label>
+                    <label>
+                      🔒 Biển số xe cố định (Không sửa)
+                      <input
+                        value={`${replyingFb.plate}${replyingFb.vehicle_info ? ` (${replyingFb.vehicle_info})` : ''}`}
+                        readOnly
+                        disabled
+                        tabIndex={-1}
+                        className="user-support-input-ro"
+                      />
+                    </label>
+                    <label>
+                      🔒 Vị trí khu vực bãi đỗ (Cố định - Không sửa)
+                      <input
+                        value={replyingFb.zone_name || 'Khu A (Hầm B1)'}
+                        readOnly
+                        disabled
+                        tabIndex={-1}
+                        className="user-support-input-ro"
+                      />
+                    </label>
+                    <label>
+                      🔒 Chỗ đỗ cố định 1 Slot = 1 Xe (Không sửa)
+                      <input
+                        value={`Ô ${(replyingFb.slot_name || 'A-05').replace(/^Ô\s*/i, '')}`}
+                        readOnly
+                        disabled
+                        tabIndex={-1}
+                        className="user-support-input-slot"
+                      />
+                    </label>
+                    <label>
+                      🕒 Thời gian khách gửi ý kiến (Cố định)
+                      <input
+                        value={formatFbDateTime(replyingFb.created_at)}
+                        readOnly
+                        disabled
+                        tabIndex={-1}
+                        className="user-support-input-ro"
+                      />
+                    </label>
+                    <label>
+                      🕒 Thời gian Nhân viên phản hồi (Cố định)
+                      <input
+                        value={
+                          replyingFb.replied_at
+                            ? formatFbDateTime(replyingFb.replied_at)
+                            : `${formatFbDateTime(new Date().toISOString())} (Ghi nhận khi gửi)`
+                        }
+                        readOnly
+                        disabled
+                        tabIndex={-1}
+                        className="user-support-input-ro"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="support-reply-quote-box">
+                    <div>
+                      <b>🔒 Tiêu đề cố định:</b> {replyingFb.subject}
+                    </div>
+                    <div className="support-reply-quote-text">“{replyingFb.message}”</div>
+                  </div>
+
+                  {/* Conversation history with timestamps */}
+                  {Array.isArray(replyingFb.replies) && replyingFb.replies.length > 0 && (
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                        🕒 Nhật ký hội thoại & Thời gian phản hồi:
+                      </div>
+                      <div style={{ display: 'grid', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
+                        {replyingFb.replies.map((r, i) => (
+                          <div
+                            key={r.id || i}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              background: r.sender === 'staff' ? '#ecfdf5' : '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              gap: '8px'
+                            }}
+                          >
+                            <span>
+                              <b>{r.sender === 'staff' ? '🛡️ Nhân viên:' : '👤 Khách hàng:'}</b> {r.text}
+                            </span>
+                            <span style={{ color: '#047857', fontWeight: 600, whiteSpace: 'nowrap', fontSize: '11px' }}>
+                              🕒 {formatFbDateTime(r.created_at || replyingFb.created_at)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <label>
-                    Biển số xe
+                    Nội dung phản hồi của Nhân viên trực ban *
                     <input
-                      value={fbForm.plate}
-                      onChange={(e) => setFbForm((f) => ({ ...f, plate: e.target.value }))}
-                      placeholder="30G-688.86"
+                      value={fbForm.staff_reply}
+                      onChange={(e) => setFbForm((f) => ({ ...f, staff_reply: e.target.value }))}
+                      placeholder="Nhập câu trả lời gửi tới khách hàng (Thời gian phản hồi sẽ tự động đính kèm)..."
+                      required
+                      autoFocus
                     />
                   </label>
-                </div>
-                <label>
-                  Tiêu đề phản hồi *
-                  <input
-                    value={fbForm.subject}
-                    onChange={(e) => setFbForm((f) => ({ ...f, subject: e.target.value }))}
-                    placeholder="VD: Yêu cầu kiểm tra gói thuê tháng / Đánh giá hầm xe"
-                    required
-                  />
-                </label>
-                <label>
-                  Nội dung ý kiến khách hàng *
-                  <input
-                    value={fbForm.message}
-                    onChange={(e) => setFbForm((f) => ({ ...f, message: e.target.value }))}
-                    placeholder="Nhập nội dung phản hồi..."
-                    required
-                  />
-                </label>
-              </>
-            ) : (
-              <>
-                <div className="support-reply-quote-box">
-                  <div><b>Ý kiến của khách:</b> {replyingFb.subject}</div>
-                  <div className="support-reply-quote-text">“{replyingFb.message}”</div>
-                </div>
-                <label>
-                  Nội dung phản hồi của Nhân viên *
-                  <input
-                    value={fbForm.staff_reply}
-                    onChange={(e) => setFbForm((f) => ({ ...f, staff_reply: e.target.value }))}
-                    placeholder="Nhập câu trả lời gửi tới khách hàng..."
-                    required
-                    autoFocus
-                  />
-                </label>
-              </>
-            )}
+                </>
+              )}
 
-            <div className="users-dialog-actions users-dialog-actions-mt16">
-              <button type="button" className="secondary" onClick={() => setShowFbModal(false)}>
-                Hủy
-              </button>
-              <button type="submit" className="primary">
-                {replyingFb ? 'Gửi phản hồi' : 'Lưu & Báo đa kênh'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    )
-  }
-
-  {/* Proof Preview Modal */ }
-  {
-    previewProof && (
-      <div className="slot-picker-overlay users-kyc-overlay" onClick={() => setPreviewProof(null)}>
-        <div className="slot-picker-dialog support-dialog-preview" onClick={(e) => e.stopPropagation()}>
-          <h3>Ảnh Bằng chứng Chuyển khoản</h3>
-          <img
-            src={previewProof}
-            alt="Proof Preview"
-            className="support-preview-img"
-          />
-          <div>
-            <button className="secondary" onClick={() => setPreviewProof(null)}>
-              Đóng
-            </button>
+              <div className="users-dialog-actions users-dialog-actions-mt16">
+                <button type="button" className="secondary" onClick={() => setShowFbModal(false)}>
+                  Hủy
+                </button>
+                <button type="submit" className="primary">
+                  {replyingFb ? '📨 Gửi phản hồi & Ghi nhận thời gian' : '💾 Lưu & Báo đa kênh'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
-    )
-  }
-    </div >
+      )}
+
+      {/* Proof Preview Modal */}
+      {previewProof && (
+        <div className="slot-picker-overlay users-kyc-overlay" onClick={() => setPreviewProof(null)}>
+          <div className="slot-picker-dialog support-dialog-preview" onClick={(e) => e.stopPropagation()}>
+            <h3>Ảnh Bằng chứng Chuyển khoản</h3>
+            <img
+              src={previewProof}
+              alt="Proof Preview"
+              className="support-preview-img"
+            />
+            <div>
+              <button className="secondary" onClick={() => setPreviewProof(null)}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

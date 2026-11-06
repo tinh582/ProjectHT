@@ -1,5 +1,6 @@
 import express from 'express';
 import { HttpError, requireText, requireId } from '../../http.js';
+import { runSql, sqlVal, sqlSet, sqlValues } from '../../nativeSql.js';
 
 const router = express.Router();
 
@@ -24,11 +25,15 @@ function inferDurationDays(planType = '') {
 }
 
 // 1. READ ALL PRICING PLANS
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT * FROM public.pricing_configs ORDER BY created_at ASC;
 router.get('/', async (req, res) => {
-  const { data, error } = await req.db
-    .from('pricing_configs')
-    .select('*')
-    .order('created_at', { ascending: true });
+  const { data, error } = await runSql(
+    req.db,
+    `SELECT *
+     FROM public.pricing_configs
+     ORDER BY created_at ASC;`
+  );
   if (error) throw error;
 
   const enriched = (data || []).map((p) => {
@@ -48,6 +53,8 @@ router.get('/', async (req, res) => {
 });
 
 // 2. CREATE NEW PRICING PLAN
+// Copy-pasteable Supabase SQL Editor query:
+// INSERT INTO public.pricing_configs (plan_type, price) VALUES ('Gói Tháng Ô tô', 900000);
 router.post('/', async (req, res) => {
   const plan_type = requireText(req.body.plan_type, 'Plan name');
   const price = Number(req.body.price);
@@ -69,12 +76,18 @@ router.post('/', async (req, res) => {
 
   pricingMetaCache.set(plan_type, { vehicle_type, duration_days, description });
 
-  const { error } = await req.db.from('pricing_configs').insert([{ plan_type, price }]);
+  const { error } = await runSql(
+    req.db,
+    `INSERT INTO public.pricing_configs ${sqlValues({ plan_type, price })};`,
+    { insertArray: true }
+  );
   if (error) throw error;
   res.json({ success: true });
 });
 
 // 3. UPDATE EXISTING PRICING PLAN
+// Copy-pasteable Supabase SQL Editor query:
+// UPDATE public.pricing_configs SET plan_type = 'Gói Tháng Ô tô', price = 900000 WHERE id = '<PLAN_UUID>';
 router.put('/:id', async (req, res) => {
   const id = requireId(req.params.id);
   const plan_type = requireText(req.body.plan_type, 'Plan name');
@@ -98,19 +111,27 @@ router.put('/:id', async (req, res) => {
   pricingMetaCache.set(String(id), { vehicle_type, duration_days, description });
   pricingMetaCache.set(plan_type, { vehicle_type, duration_days, description });
 
-  const { error } = await req.db
-    .from('pricing_configs')
-    .update({ plan_type, price })
-    .eq('id', id);
+  const { error } = await runSql(
+    req.db,
+    `UPDATE public.pricing_configs
+     SET ${sqlSet({ plan_type, price })}
+     WHERE id = ${sqlVal(id)};`
+  );
 
   if (error) throw error;
   res.json({ success: true, message: 'Đã cập nhật gói cước thành công!' });
 });
 
 // 4. DELETE PRICING PLAN
+// Copy-pasteable Supabase SQL Editor query:
+// DELETE FROM public.pricing_configs WHERE id = '<PLAN_UUID>';
 router.delete('/:id', async (req, res) => {
   const id = requireId(req.params.id);
-  const { error } = await req.db.from('pricing_configs').delete().eq('id', id);
+  const { error } = await runSql(
+    req.db,
+    `DELETE FROM public.pricing_configs
+     WHERE id = ${sqlVal(id)};`
+  );
   if (error) throw error;
   pricingMetaCache.delete(String(id));
   res.json({ success: true });

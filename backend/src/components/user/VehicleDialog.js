@@ -1,6 +1,7 @@
 import express from 'express';
-import { HttpError, requireId, requireText, rpc } from '../../http.js';
+import { HttpError, requireId, requireText } from '../../http.js';
 import { extractLicensePlate } from '../../roboflow.js';
+import { runSql, sqlVal, sqlValues } from '../../nativeSql.js';
 
 const router = express.Router();
 
@@ -10,9 +11,12 @@ function vehicleFields(input = {}, isCreate = false) {
   const months = Number(input.months);
   if (!Number.isInteger(months) || months < 1 || months > 120) throw new HttpError(400, 'Months must be between 1 and 120.');
   const fields = {
-    type, months,
-    brand: requireText(input.brand, 'Brand'), model: requireText(input.model, 'Model'),
-    color: requireText(input.color, 'Color'), plate: requireText(input.plate, 'Plate', 30).toUpperCase(),
+    type,
+    months,
+    brand: requireText(input.brand, 'Brand'),
+    model: requireText(input.model, 'Model'),
+    color: requireText(input.color, 'Color'),
+    plate: requireText(input.plate, 'Plate', 30).toUpperCase()
   };
 
   if (isCreate && !input.image) {
@@ -40,25 +44,29 @@ router.post('/extract-plate', async (req, res) => {
   res.json({ success: true, plate: result.plate });
 });
 
+// Copy-pasteable Supabase SQL Editor query:
+// INSERT INTO public.vehicles (type, months, brand, model, color, plate, image, user_id) VALUES ('Ô tô', 1, 'Mercedes', 'C300', 'Đen', '30G-688.86', '<BASE64>', '<USER_UUID>') RETURNING *;
 router.post('/', async (req, res) => {
   const fields = vehicleFields(req.body.vehicle, true);
-  const insertQuery = req.db.from('vehicles').insert({ ...fields, user_id: req.user.id });
-  let createdVehicle = null;
-  if (typeof insertQuery.select === 'function') {
-    const { data, error } = await insertQuery.select().maybeSingle();
-    if (error) throw error;
-    createdVehicle = data;
-  } else {
-    const { error } = await insertQuery;
-    if (error) throw error;
-  }
-  res.json({ success: true, vehicle: createdVehicle });
+  const { data: createdVehicle, error } = await runSql(
+    req.db,
+    `INSERT INTO public.vehicles ${sqlValues({ ...fields, user_id: req.user.id })}
+     RETURNING *;`,
+    { maybeSingle: true }
+  );
+  if (error) throw error;
+  res.json({ success: true, vehicle: createdVehicle || null });
 });
 
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT public.edit_parking_vehicle('<USER_UUID>', '<VEHICLE_UUID>', '{"type":"Ô tô"}'::jsonb, FALSE);
 router.put('/:id', async (req, res) => {
-  await rpc(req.db, 'edit_parking_vehicle', {
-    p_user_id: req.user.id, p_vehicle_id: requireId(req.params.id), p_fields: vehicleFields(req.body.vehicle, false), p_delete: false,
-  });
+  const vehId = requireId(req.params.id);
+  const fields = vehicleFields(req.body.vehicle, false);
+  await runSql(
+    req.db,
+    `SELECT public.edit_parking_vehicle(${sqlVal(req.user.id)}, ${sqlVal(vehId)}, ${sqlVal(fields)}, FALSE);`
+  );
   res.json({ success: true });
 });
 

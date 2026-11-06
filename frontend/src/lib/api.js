@@ -1,18 +1,51 @@
 const baseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 let refreshRequest;
 
+const RETRYABLE_STATUSES = new Set([408, 425, 429, 502, 503, 504, 520, 521, 522, 523, 524]);
+
 export function clearSession() {
   for (const key of ['token', 'refresh_token', 'user']) localStorage.removeItem(key);
 }
 
-async function send(path, options) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-  try {
-    return await fetch(`${baseUrl}${path}`, { ...options, signal: options.signal || controller.signal });
-  } finally {
-    clearTimeout(timeout);
+/**
+ * Sends an HTTP request with automatic retry and exponential backoff on transient
+ * network drops or Supabase/gateway 502/503/504 responses so users never have to
+ * click a second or third time.
+ */
+async function send(path, options = {}, { maxRetries = 2, baseDelayMs = 200 } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch(`${baseUrl}${path}`, {
+        ...options,
+        signal: options.signal || controller.signal
+      });
+      clearTimeout(timeout);
+
+      if (attempt < maxRetries && RETRYABLE_STATUSES.has(response.status)) {
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      return response;
+    } catch (err) {
+      clearTimeout(timeout);
+      lastError = err;
+      if (options.signal?.aborted) {
+        throw err;
+      }
+      if (attempt < maxRetries) {
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      throw err;
+    }
   }
+  throw lastError;
 }
 
 async function refreshSession() {

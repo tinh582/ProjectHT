@@ -102,15 +102,62 @@ export default function AdminZones() {
     }
   };
 
-  // Summary KPIs
+  // Summary KPIs (Detailed breakdown for Admin: Total, Rented, Occupied, Rented-Outside, Empty, Maintenance)
   const summaryStats = useMemo(() => {
     const allSlots = Object.values(slotsByZone).flat();
     const totalZones = zones.length;
     const totalCapacity = zones.reduce((acc, z) => acc + Number(z.total_capacity || 0), 0);
+    const totalSlotsCreated = allSlots.length;
+    const occupiedSlots = allSlots.filter((s) => s.status === 'occupied').length;
+    const rentedOnlySlots = allSlots.filter((s) => s.status === 'rented').length;
+    const totalRentedSlots = occupiedSlots + rentedOnlySlots;
     const emptySlots = allSlots.filter((s) => !s.status || s.status === 'empty' || s.status === 'available').length;
-    const occupiedOrRented = allSlots.filter((s) => s.status === 'rented' || s.status === 'occupied').length;
-    return { totalZones, totalCapacity, totalSlotsCreated: allSlots.length, emptySlots, occupiedOrRented };
+    const maintenanceSlots = allSlots.filter((s) => s.status === 'maintenance').length;
+    const baseTotal = totalSlotsCreated > 0 ? totalSlotsCreated : totalCapacity || 1;
+    const rentalRate = totalSlotsCreated > 0 || totalCapacity > 0 ? Math.round((totalRentedSlots / baseTotal) * 100) : 0;
+    const occupancyRate = totalSlotsCreated > 0 || totalCapacity > 0 ? Math.round((occupiedSlots / baseTotal) * 100) : 0;
+    const emptyRate = totalSlotsCreated > 0 || totalCapacity > 0 ? Math.round((emptySlots / baseTotal) * 100) : 0;
+
+    return {
+      totalZones,
+      totalCapacity,
+      totalSlotsCreated,
+      totalRentedSlots,
+      occupiedSlots,
+      rentedOnlySlots,
+      emptySlots,
+      maintenanceSlots,
+      occupiedOrRented: totalRentedSlots,
+      rentalRate,
+      occupancyRate,
+      emptyRate
+    };
   }, [zones, slotsByZone]);
+
+  const getZoneBreakdown = (z) => {
+    const zSlots = slotsByZone[z.id] || [];
+    const totalSlots = zSlots.length;
+    const totalCapacity = Number(z.total_capacity || totalSlots || 0);
+    const occupied = zSlots.filter((s) => s.status === 'occupied').length;
+    const rentedOnly = zSlots.filter((s) => s.status === 'rented').length;
+    const totalRented = occupied + rentedOnly;
+    const empty = zSlots.filter((s) => !s.status || s.status === 'empty' || s.status === 'available').length;
+    const maintenance = zSlots.filter((s) => s.status === 'maintenance').length;
+    const base = totalSlots > 0 ? totalSlots : totalCapacity || 1;
+    const rentalRate = Math.round((totalRented / base) * 100);
+    const occupancyRate = Math.round((occupied / base) * 100);
+    return {
+      totalCapacity,
+      totalSlots,
+      totalRented,
+      occupied,
+      rentedOnly,
+      empty,
+      maintenance,
+      rentalRate,
+      occupancyRate
+    };
+  };
 
   // Filtered zones
   const filteredZones = useMemo(() => {
@@ -341,44 +388,126 @@ export default function AdminZones() {
         </div>
       </div>
 
-      {/* KPI Summary Cards */}
+      {/* KPI Summary Cards (6 Specific Metrics for Admin) */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '14px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))',
+          gap: '12px',
           marginBottom: '18px'
         }}
       >
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>TỔNG KHU VỰC (ZONES)</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
-            {summaryStats.totalZones}
+        <div className="panel" style={{ padding: '14px 16px', marginBottom: 0, borderLeft: '4px solid #0f172a' }}>
+          <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 700 }}>1. TỔNG SỐ Ô / SỨC CHỨA</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
+            {summaryStats.totalSlotsCreated} <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>/ {summaryStats.totalCapacity} chỗ</span>
           </div>
-          <div style={{ fontSize: '12px', color: '#059669' }}>Sức chứa thiết kế: {summaryStats.totalCapacity} xe</div>
+          <div style={{ fontSize: '11.5px', color: '#059669' }}>
+            Tổng cộng <b>{summaryStats.totalZones} khu vực</b> đỗ xe
+          </div>
         </div>
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Ô ĐỖ CÒN TRỐNG THỜI GIAN THỰC</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#059669', marginTop: '4px' }}>
-            {summaryStats.emptySlots}
+
+        <div className="panel" style={{ padding: '14px 16px', marginBottom: 0, borderLeft: '4px solid #2563eb' }}>
+          <div style={{ fontSize: '11.5px', color: '#1d4ed8', fontWeight: 700 }}>2. ĐÃ CHO THUÊ (TỔNG)</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: '#2563eb', marginTop: '4px' }}>
+            {summaryStats.totalRentedSlots} <span style={{ fontSize: '13px', fontWeight: 600 }}>ô ({summaryStats.rentalRate}%)</span>
           </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Sẵn sàng khóa cố định 1 Slot = 1 Xe</div>
+          <div style={{ fontSize: '11.5px', color: '#64748b' }}>
+            Gồm <b>{summaryStats.occupiedSlots}</b> đang đỗ + <b>{summaryStats.rentedOnlySlots}</b> giữ chỗ
+          </div>
         </div>
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Ô ĐÃ THUÊ / ĐANG CÓ XE ĐỖ</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#2563eb', marginTop: '4px' }}>
-            {summaryStats.occupiedOrRented}
+
+        <div className="panel" style={{ padding: '14px 16px', marginBottom: 0, borderLeft: '4px solid #dc2626' }}>
+          <div style={{ fontSize: '11.5px', color: '#b91c1c', fontWeight: 700 }}>3. ĐANG ĐỖ TRONG BÃI</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: '#dc2626', marginTop: '4px' }}>
+            {summaryStats.occupiedSlots} <span style={{ fontSize: '13px', fontWeight: 600 }}>xe ({summaryStats.occupancyRate}%)</span>
           </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>0% Overbooking • Ràng buộc biển số</div>
+          <div style={{ fontSize: '11.5px', color: '#64748b' }}>Xe thực tế đang có mặt trong bãi</div>
         </div>
-        <div className="panel" style={{ padding: '16px', marginBottom: 0 }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>HỆ THỐNG THOÁT NƯỚC & CẢM BIẾN</div>
-          <div style={{ fontSize: '18px', fontWeight: 800, color: '#059669', marginTop: '6px' }}>
-            💧 Khô ráo 100%
+
+        <div className="panel" style={{ padding: '14px 16px', marginBottom: 0, borderLeft: '4px solid #7c3aed' }}>
+          <div style={{ fontSize: '11.5px', color: '#6d28d9', fontWeight: 700 }}>4. ĐÃ THUÊ (XE Ở NGOÀI)</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: '#7c3aed', marginTop: '4px' }}>
+            {summaryStats.rentedOnlySlots} <span style={{ fontSize: '13px', fontWeight: 600 }}>ô giữ cố định</span>
           </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Bơm chống ngập 3 cấp • Camera AI 24/7</div>
+          <div style={{ fontSize: '11.5px', color: '#64748b' }}>Khóa cố định 1 Slot = 1 Xe (Chờ xe vào)</div>
+        </div>
+
+        <div className="panel" style={{ padding: '14px 16px', marginBottom: 0, borderLeft: '4px solid #059669' }}>
+          <div style={{ fontSize: '11.5px', color: '#047857', fontWeight: 700 }}>5. Ô CÒN TRỐNG</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: '#059669', marginTop: '4px' }}>
+            {summaryStats.emptySlots} <span style={{ fontSize: '13px', fontWeight: 600 }}>ô ({summaryStats.emptyRate}%)</span>
+          </div>
+          <div style={{ fontSize: '11.5px', color: '#64748b' }}>Sẵn sàng cho khách đăng ký thuê mới</div>
+        </div>
+
+        <div className="panel" style={{ padding: '14px 16px', marginBottom: 0, borderLeft: '4px solid #d97706' }}>
+          <div style={{ fontSize: '11.5px', color: '#b45309', fontWeight: 700 }}>6. BẢO TRÌ & HẠ TẦNG</div>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: '#d97706', marginTop: '4px' }}>
+            {summaryStats.maintenanceSlots} ô bảo trì
+          </div>
+          <div style={{ fontSize: '11.5px', color: '#059669', fontWeight: 600 }}>💧 Chống ngập Khô ráo 100%</div>
         </div>
       </div>
+
+      {/* Detailed Zone Breakdown Table for Admin */}
+      {zones.length > 0 && (
+        <div className="panel" style={{ marginBottom: '18px', padding: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+            <h3 style={{ margin: 0, fontSize: '15px', color: '#0f172a' }}>
+              📊 Bảng Tổng hợp Số lượng Vị trí theo Từng Khu vực (Thuê bao nhiêu • Đỗ bao nhiêu • Trống bao nhiêu)
+            </h3>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>
+              Tổng cộng: <b>{summaryStats.totalSlotsCreated}</b> ô • Đã thuê: <b>{summaryStats.totalRentedSlots}</b> • Đang đỗ: <b>{summaryStats.occupiedSlots}</b> • Trống: <b>{summaryStats.emptySlots}</b>
+            </span>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data-table" style={{ margin: 0, fontSize: '13px' }}>
+              <thead>
+                <tr>
+                  <th>Khu vực (Zone)</th>
+                  <th>Loại xe</th>
+                  <th>Sức chứa</th>
+                  <th>Số ô trên sơ đồ</th>
+                  <th>🔵 Đã thuê (Tổng)</th>
+                  <th>🔴 Đang đỗ (Trong bãi)</th>
+                  <th>🟣 Đã thuê (Ngoài bãi)</th>
+                  <th>🟢 Còn trống</th>
+                  <th>🟠 Bảo trì</th>
+                  <th>Tỷ lệ Thuê / Đỗ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {zones.map((z) => {
+                  const st = getZoneBreakdown(z);
+                  return (
+                    <tr key={z.id}>
+                      <td><strong>{z.zone_name}</strong></td>
+                      <td>{z.vehicle_type === 'Ô tô' ? '🚗 Ô tô' : '🛵 Xe máy'}</td>
+                      <td><b>{st.totalCapacity}</b> chỗ</td>
+                      <td><b>{st.totalSlots}</b> ô</td>
+                      <td style={{ color: '#2563eb', fontWeight: 700 }}>{st.totalRented} ô ({st.rentalRate}%)</td>
+                      <td style={{ color: '#dc2626', fontWeight: 700 }}>{st.occupied} xe ({st.occupancyRate}%)</td>
+                      <td style={{ color: '#7c3aed', fontWeight: 700 }}>{st.rentedOnly} ô</td>
+                      <td style={{ color: '#059669', fontWeight: 700 }}>{st.empty} ô</td>
+                      <td style={{ color: '#d97706', fontWeight: 700 }}>{st.maintenance} ô</td>
+                      <td style={{ minWidth: '140px' }}>
+                        <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden', display: 'flex' }}>
+                          <div style={{ width: `${st.occupancyRate}%`, background: '#dc2626' }} title={`Đang đỗ: ${st.occupied} xe`} />
+                          <div style={{ width: `${Math.max(0, st.rentalRate - st.occupancyRate)}%`, background: '#3b82f6' }} title={`Đã thuê (ngoài bãi): ${st.rentedOnly} ô`} />
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
+                          Thuê: <b>{st.totalRented}/{st.totalSlots || st.totalCapacity}</b> • Đỗ: <b>{st.occupied}</b> • Trống: <b>{st.empty}</b>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="panel">
         {errorMsg && <p className="error" role="alert">{errorMsg}</p>}
@@ -457,6 +586,7 @@ export default function AdminZones() {
               const st = s.status || 'empty';
               return st === slotFilter;
             });
+            const zStats = getZoneBreakdown(z);
 
             return (
               <div key={z.id} className="zone-card" style={{ border: '1px solid #cbd5e1', borderRadius: '12px' }}>
@@ -481,10 +611,36 @@ export default function AdminZones() {
                         🔒 1 Slot = 1 Xe cố định
                       </span>
                     </div>
-                    <p className="zone-summary" style={{ marginTop: '4px' }}>
-                      Sức chứa thiết kế: <b>{z.total_capacity}</b> | Số ô trên sơ đồ: <b>{rawSlots.length}</b> | Đang sử dụng:{' '}
-                      <b>{z.current_occupancy || rawSlots.filter((s) => s.status && s.status !== 'empty').length}</b>
-                    </p>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '8px',
+                        flexWrap: 'wrap',
+                        marginTop: '6px',
+                        fontSize: '12px'
+                      }}
+                    >
+                      <span style={{ background: '#f1f5f9', color: '#0f172a', padding: '3px 9px', borderRadius: '6px', fontWeight: 700 }}>
+                        Sức chứa: {zStats.totalCapacity} • Sơ đồ: {zStats.totalSlots} ô
+                      </span>
+                      <span style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '3px 9px', borderRadius: '6px', fontWeight: 700 }}>
+                        🔵 Đã thuê: {zStats.totalRented}/{zStats.totalSlots || zStats.totalCapacity} ô ({zStats.rentalRate}%)
+                      </span>
+                      <span style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', padding: '3px 9px', borderRadius: '6px', fontWeight: 700 }}>
+                        🔴 Đang đỗ: {zStats.occupied} xe ({zStats.occupancyRate}%)
+                      </span>
+                      <span style={{ background: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe', padding: '3px 9px', borderRadius: '6px', fontWeight: 700 }}>
+                        🟣 Đã thuê (Ngoài bãi): {zStats.rentedOnly} ô
+                      </span>
+                      <span style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '3px 9px', borderRadius: '6px', fontWeight: 700 }}>
+                        🟢 Còn trống: {zStats.empty} ô
+                      </span>
+                      {zStats.maintenance > 0 && (
+                        <span style={{ background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', padding: '3px 9px', borderRadius: '6px', fontWeight: 700 }}>
+                          🟠 Bảo trì: {zStats.maintenance} ô
+                        </span>
+                      )}
+                    </div>
 
                     {/* Technical Infrastructure Badges */}
                     <div

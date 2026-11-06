@@ -79,11 +79,11 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
     const formData = new FormData(e.target);
     const vehicle = {
       user_id: userId,
-      type: formData.get('type'),
+      type: formData.get('type') || vehicleToEdit?.type || 'Ô tô',
       brand: formData.get('brand'),
       model: formData.get('model'),
       color: formData.get('color'),
-      plate: plate.trim().toUpperCase(),
+      plate: (plate || vehicleToEdit?.plate || '').trim().toUpperCase(),
       months: parseInt(formData.get('months')),
     };
 
@@ -172,20 +172,34 @@ export default function VehicleDialog({ userId, onClose, onSaved, vehicleToEdit 
             </div>
 
             <label style={{ gridColumn: '1 / -1' }}>
-              Biển số xe <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>(Tự động điền bởi AI hoặc nhập dự phòng)</span>
+              Biển số xe{' '}
+              <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>
+                {isEditMode
+                  ? '(🔒 Cố định theo hồ sơ đăng ký - Không thể chỉnh sửa)'
+                  : '(Tự động điền bởi AI hoặc nhập dự phòng)'}
+              </span>
               <input
                 name="plate"
                 value={plate}
-                onChange={(e) => setPlate(e.target.value.toUpperCase())}
-                readOnly={scanSuccess && !scanError}
+                onChange={(e) => {
+                  if (!isEditMode) setPlate(e.target.value.toUpperCase());
+                }}
+                readOnly={isEditMode || (scanSuccess && !scanError)}
+                disabled={isEditMode}
                 placeholder={isScanning ? 'Đang nhận diện biển số xe...' : 'Ví dụ: 51A-123.45'}
-                className={scanSuccess && !scanError ? 'plate-readonly-input' : ''}
+                className={isEditMode || (scanSuccess && !scanError) ? 'plate-readonly-input user-support-input-ro' : ''}
                 required
               />
             </label>
 
-            <label>Loại phương tiện
-              <select name="type" defaultValue={vehicleToEdit?.type || 'Ô tô'}>
+            <label>
+              Loại phương tiện {isEditMode ? '(🔒 Cố định)' : ''}
+              <select
+                name="type"
+                defaultValue={vehicleToEdit?.type || 'Ô tô'}
+                disabled={isEditMode}
+                className={isEditMode ? 'user-support-input-ro' : ''}
+              >
                 <option value="Ô tô">Ô tô</option>
                 <option value="Xe máy">Xe máy</option>
               </select>

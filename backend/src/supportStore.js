@@ -47,6 +47,7 @@ export const feedbackStore = [
     customer_name: 'Nguyễn Minh Tuấn',
     customer_email: 'minhtuan.nguyen@htparking.vn',
     plate: '30G-688.86',
+    vehicle_info: 'Mercedes C300 (Ô tô)',
     zone_name: 'Khu A (Hầm B1)',
     slot_name: 'A-05',
     category: 'GENERAL_FEEDBACK',
@@ -54,9 +55,20 @@ export const feedbackStore = [
     message: 'Nhờ ban quản lý kiểm tra vệ sinh và vạch kẻ tại Khu A - Chỗ đỗ A-05.',
     notified_channels: ['Dashboard Realtime Bell', 'Email SMTP', 'SMS Alert'],
     status: 'resolved',
+    is_fixed: true,
     staff_reply: 'Ban quản lý đã tiếp nhận phản hồi và cử nhân viên vệ sinh ngay tại Khu A - Ô A-05 cho anh!',
+    replied_at: new Date(Date.now() - 110 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 110 * 60 * 1000).toISOString(),
     replies: [
       {
+        id: 'rep-101-1',
+        sender: 'customer',
+        author: 'Nguyễn Minh Tuấn',
+        text: 'Nhờ ban quản lý kiểm tra vệ sinh và vạch kẻ tại Khu A - Chỗ đỗ A-05.',
+        created_at: new Date(Date.now() - 120 * 60 * 1000).toISOString()
+      },
+      {
+        id: 'rep-101-2',
         sender: 'staff',
         author: 'Nhân viên trực ban',
         text: 'Ban quản lý đã tiếp nhận phản hồi và cử nhân viên vệ sinh ngay tại Khu A - Ô A-05 cho anh!',
@@ -71,6 +83,7 @@ export const feedbackStore = [
     customer_name: 'Trần Thanh Hương',
     customer_email: 'thanhhuong.tran@htparking.vn',
     plate: '30E-456.78',
+    vehicle_info: 'Honda CR-V (Ô tô)',
     zone_name: 'Khu B (Hầm B1)',
     slot_name: 'B-08',
     category: 'GENERAL_FEEDBACK',
@@ -78,8 +91,19 @@ export const feedbackStore = [
     message: 'Hôm qua mưa rất to nhưng vị trí Khu B - Ô đỗ B-08 hoàn toàn khô ráo, cảm ơn đội ngũ kỹ thuật bãi xe!',
     notified_channels: ['Dashboard Realtime Bell', 'Email SMTP', 'SMS Alert'],
     status: 'open',
+    is_fixed: true,
     staff_reply: '',
-    replies: [],
+    replied_at: null,
+    updated_at: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+    replies: [
+      {
+        id: 'rep-102-1',
+        sender: 'customer',
+        author: 'Trần Thanh Hương',
+        text: 'Hôm qua mưa rất to nhưng vị trí Khu B - Ô đỗ B-08 hoàn toàn khô ráo, cảm ơn đội ngũ kỹ thuật bãi xe!',
+        created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString()
+      }
+    ],
     created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString()
   }
 ];

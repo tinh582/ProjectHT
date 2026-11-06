@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { apiFetch } from '../../lib/api';
 import NotificationMenu from '../user/NotificationMenu';
 import StaffCheckin from './StaffCheckin';
@@ -6,10 +6,18 @@ import StaffCamera from './StaffCamera';
 import StaffExceptions from './StaffExceptions';
 import StaffSupport from './StaffSupport';
 import StaffSlotMap from './StaffSlotMap';
+import { classifyStaffNotificationTab, computeStaffTabBadges } from '../../lib/tabNotifications';
 
 export default function StaffDashboard({ session, onBackToLanding }) {
   const [activeTab, setActiveTab] = useState('checkin');
   const [notifications, setNotifications] = useState([]);
+  const [seenNotifIds, setSeenNotifIds] = useState(() => new Set());
+  const [liveCounts, setLiveCounts] = useState({
+    pendingTxCount: 0,
+    openFeedbackCount: 0,
+    openIncidentCount: 0,
+    maintenanceSlotCount: 0
+  });
   const [staffStatus, setStaffStatus] = useState({
     loading: true,
     confirmed: true,
@@ -24,9 +32,82 @@ export default function StaffDashboard({ session, onBackToLanding }) {
   useEffect(() => {
     checkStaffEmailConfirmation();
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000);
+    fetchStaffLiveBadgeCounts();
+    const interval = setInterval(() => {
+      fetchNotifications();
+      fetchStaffLiveBadgeCounts();
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  const fetchStaffLiveBadgeCounts = async () => {
+    try {
+      const [txRes, fbRes, incRes, mapRes] = await Promise.all([
+        apiFetch('/api/components/staff/StaffSupport?page=1&pageSize=25'),
+        apiFetch('/api/components/staff/StaffSupport/feedbacks'),
+        apiFetch('/api/components/staff/StaffExceptions/incidents'),
+        apiFetch('/api/components/staff/StaffSlotMap')
+      ]);
+
+      let pendingTxCount = 0;
+      let openFeedbackCount = 0;
+      let openIncidentCount = 0;
+      let maintenanceSlotCount = 0;
+
+      if (txRes.ok) {
+        const txData = await txRes.json();
+        const items = Array.isArray(txData?.items) ? txData.items : Array.isArray(txData) ? txData : [];
+        pendingTxCount = items.filter((t) => t.status === 'pending').length;
+      }
+      if (fbRes.ok) {
+        const fbData = await fbRes.json();
+        const items = Array.isArray(fbData) ? fbData : [];
+        openFeedbackCount = items.filter((f) => f.status !== 'resolved').length;
+      }
+      if (incRes.ok) {
+        const incData = await incRes.json();
+        const items = Array.isArray(incData) ? incData : [];
+        openIncidentCount = items.filter((i) => i.status !== 'resolved').length;
+      }
+      if (mapRes.ok) {
+        const mapData = await mapRes.json();
+        maintenanceSlotCount = Number(mapData?.summary?.maintenanceSlots || 0);
+      }
+
+      setLiveCounts({
+        pendingTxCount,
+        openFeedbackCount,
+        openIncidentCount,
+        maintenanceSlotCount
+      });
+    } catch {
+      // Ignore badge polling error
+    }
+  };
+
+  const tabBadges = useMemo(
+    () =>
+      computeStaffTabBadges({
+        notifications,
+        ...liveCounts,
+        seenNotifIds
+      }),
+    [notifications, liveCounts, seenNotifIds]
+  );
+
+  const handleSelectStaffTab = (tab) => {
+    setActiveTab(tab);
+    setSeenNotifIds((prev) => {
+      const next = new Set(prev);
+      notifications.forEach((n) => {
+        if (classifyStaffNotificationTab(n) === tab && n?.id) {
+          next.add(n.id);
+        }
+      });
+      return next;
+    });
+    fetchStaffLiveBadgeCounts();
+  };
 
   const checkStaffEmailConfirmation = async () => {
     if (!session?.user?.email && !session?.user?.id) {
@@ -141,11 +222,26 @@ export default function StaffDashboard({ session, onBackToLanding }) {
           HT<span> PARKING</span>
         </a>
         <p className="nav-label">NHÂN VIÊN</p>
-        <div className={`nav-item ${activeTab === 'camera' ? 'active' : ''}`} onClick={() => setActiveTab('camera')}>📹 <span>Giám sát Camera</span></div>
-        <div className={`nav-item ${activeTab === 'map' ? 'active' : ''}`} onClick={() => setActiveTab('map')}>🗺️ <span>Sơ đồ bãi đỗ</span></div>
-        <div className={`nav-item ${activeTab === 'exception' ? 'active' : ''}`} onClick={() => setActiveTab('exception')}>⚠️ <span>Xử lý lỗi</span></div>
-        <div className={`nav-item ${activeTab === 'support' ? 'active' : ''}`} onClick={() => setActiveTab('support')}>🎧 <span>Hỗ trợ khách hàng</span></div>
-        <div className={`nav-item ${activeTab === 'checkin' ? 'active' : ''}`} onClick={() => setActiveTab('checkin')}>⏱️ <span>Check in/out</span></div>
+        <div className={`nav-item ${activeTab === 'camera' ? 'active' : ''}`} onClick={() => handleSelectStaffTab('camera')}>
+          📹 <span>Giám sát Camera</span>
+          {tabBadges.camera > 0 && <span className="nav-tab-badge">{tabBadges.camera}</span>}
+        </div>
+        <div className={`nav-item ${activeTab === 'map' ? 'active' : ''}`} onClick={() => handleSelectStaffTab('map')}>
+          🗺️ <span>Sơ đồ bãi đỗ</span>
+          {tabBadges.map > 0 && <span className="nav-tab-badge">{tabBadges.map}</span>}
+        </div>
+        <div className={`nav-item ${activeTab === 'exception' ? 'active' : ''}`} onClick={() => handleSelectStaffTab('exception')}>
+          ⚠️ <span>Xử lý lỗi</span>
+          {tabBadges.exception > 0 && <span className="nav-tab-badge">{tabBadges.exception}</span>}
+        </div>
+        <div className={`nav-item ${activeTab === 'support' ? 'active' : ''}`} onClick={() => handleSelectStaffTab('support')}>
+          🎧 <span>Hỗ trợ khách hàng</span>
+          {tabBadges.support > 0 && <span className="nav-tab-badge">{tabBadges.support}</span>}
+        </div>
+        <div className={`nav-item ${activeTab === 'checkin' ? 'active' : ''}`} onClick={() => handleSelectStaffTab('checkin')}>
+          ⏱️ <span>Check in/out</span>
+          {tabBadges.checkin > 0 && <span className="nav-tab-badge">{tabBadges.checkin}</span>}
+        </div>
         
         <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
           <div

@@ -1,7 +1,8 @@
+import { runSql, sqlVal } from './nativeSql.js';
+
 /**
  * Helper utilities to determine subscription and customer account activation status.
  */
-
 export async function getSubscriptionStatus(db, userId) {
   if (!db || !userId) {
     return { isActive: false, expiryDate: null, hasPending: false, latestTransaction: null };
@@ -11,13 +12,17 @@ export async function getSubscriptionStatus(db, userId) {
   let error = null;
 
   try {
-    const res = await db.from('transactions')
-      .select('id, plan_name, amount, created_at, confirmed_at, cycle_start, cycle_end, verified_by, status')
-      .eq('user_id', userId)
-      .eq('status', 'completed')
-      .order('confirmed_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Copy-pasteable Supabase SQL Editor query:
+    // SELECT id, plan_name, amount, created_at, confirmed_at, cycle_start, cycle_end, verified_by, status FROM public.transactions WHERE user_id = '<USER_UUID>' AND status = 'completed' ORDER BY confirmed_at DESC LIMIT 1;
+    const res = await runSql(
+      db,
+      `SELECT id, plan_name, amount, created_at, confirmed_at, cycle_start, cycle_end, verified_by, status
+       FROM public.transactions
+       WHERE user_id = ${sqlVal(userId)} AND status = 'completed'
+       ORDER BY confirmed_at DESC
+       LIMIT 1;`,
+      { maybeSingle: true }
+    );
     data = res.data;
     error = res.error;
   } catch (e) {
@@ -26,26 +31,30 @@ export async function getSubscriptionStatus(db, userId) {
 
   if (error && error.code === '42703') {
     try {
-      const fallback = await db.from('transactions')
-        .select('id, plan_name, amount, created_at, status')
-        .eq('user_id', userId)
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const fallback = await runSql(
+        db,
+        `SELECT id, plan_name, amount, created_at, status
+         FROM public.transactions
+         WHERE user_id = ${sqlVal(userId)} AND status = 'completed'
+         ORDER BY created_at DESC
+         LIMIT 1;`,
+        { maybeSingle: true }
+      );
       data = fallback.data;
     } catch (_) {}
   }
 
   let hasPending = false;
   try {
-    const { data: pendingData } = await db.from('transactions')
-      .select('id, plan_name, amount, created_at')
-      .eq('user_id', userId)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data: pendingData } = await runSql(
+      db,
+      `SELECT id, plan_name, amount, created_at
+       FROM public.transactions
+       WHERE user_id = ${sqlVal(userId)} AND status = 'pending'
+       ORDER BY created_at DESC
+       LIMIT 1;`,
+      { maybeSingle: true }
+    );
     if (pendingData) {
       hasPending = true;
     }
@@ -71,7 +80,7 @@ export async function getSubscriptionStatus(db, userId) {
     isActive,
     expiryDate,
     hasPending,
-    latestTransaction: data || null,
+    latestTransaction: data || null
   };
 }
 

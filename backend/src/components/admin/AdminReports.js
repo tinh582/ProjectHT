@@ -1,22 +1,53 @@
 import express from 'express';
-import { rpc } from '../../http.js';
+import { runSql, sqlVal } from '../../nativeSql.js';
 const router = express.Router();
 
+// Copy-pasteable Supabase SQL Editor queries:
+// 1) SELECT public.parking_report('Asia/Ho_Chi_Minh');
+// 2) SELECT id, zone_name, total_capacity, current_occupancy, drainage_status, sensor_status, cctv_coverage, lighting_status FROM public.parking_zones WHERE vehicle_type = 'Ô tô';
+// 3) SELECT id, status, zone_id FROM public.parking_slots WHERE status IN ('empty', 'rented', 'occupied');
+// 4) SELECT ps.id, ps.vehicle_id, ps.status, v.type FROM public.parking_sessions ps INNER JOIN public.vehicles v ON v.id = ps.vehicle_id WHERE v.type = 'Ô tô' AND ps.status = 'active';
+// 5) SELECT id, amount, plan_name, confirmed_at, created_at FROM public.transactions WHERE status = 'completed';
 router.get(['/', '/car-metrics'], async (req, res) => {
   const p_time_zone = process.env.REPORT_TIME_ZONE || 'Asia/Ho_Chi_Minh';
-  
+
   let baseReport = {};
   try {
-    baseReport = await rpc(req.db, 'parking_report', { p_time_zone });
+    const rpcRes = await runSql(
+      req.db,
+      `SELECT public.parking_report(${sqlVal(p_time_zone)});`
+    );
+    baseReport = rpcRes.data || {};
   } catch (err) {
     console.warn('Base parking_report rpc failed, computing fallback report:', err.message);
   }
 
   const [carZones, carSlots, carSessions, activeSubscriptions] = await Promise.all([
-    req.db.from('parking_zones').select('id, zone_name, total_capacity, current_occupancy, drainage_status, sensor_status, cctv_coverage, lighting_status').eq('vehicle_type', 'Ô tô'),
-    req.db.from('parking_slots').select('id, status, zone_id').in('status', ['empty', 'rented', 'occupied']),
-    req.db.from('parking_sessions').select('id, vehicle_id, status, vehicles!inner(type)').eq('vehicles.type', 'Ô tô').eq('status', 'active'),
-    req.db.from('transactions').select('id, amount, plan_name, confirmed_at, created_at').eq('status', 'completed'),
+    runSql(
+      req.db,
+      `SELECT id, zone_name, total_capacity, current_occupancy, drainage_status, sensor_status, cctv_coverage, lighting_status
+       FROM public.parking_zones
+       WHERE vehicle_type = 'Ô tô';`
+    ),
+    runSql(
+      req.db,
+      `SELECT id, status, zone_id
+       FROM public.parking_slots
+       WHERE status IN ('empty', 'rented', 'occupied');`
+    ),
+    runSql(
+      req.db,
+      `SELECT ps.id, ps.vehicle_id, ps.status, v.type
+       FROM public.parking_sessions ps
+       INNER JOIN public.vehicles v ON v.id = ps.vehicle_id
+       WHERE v.type = 'Ô tô' AND ps.status = 'active';`
+    ),
+    runSql(
+      req.db,
+      `SELECT id, amount, plan_name, confirmed_at, created_at
+       FROM public.transactions
+       WHERE status = 'completed';`
+    )
   ]);
 
   const carZoneData = Array.isArray(carZones.data) ? carZones.data : [];

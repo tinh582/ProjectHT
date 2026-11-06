@@ -1,8 +1,10 @@
 import express from 'express';
-import { HttpError, requireText } from '../http.js';
+import { HttpError, requireText, withSupabaseRetry } from '../http.js';
 import { userDocumentsStore } from '../supportStore.js';
+import { runSql, sqlVal, sqlSet, sqlValues } from '../nativeSql.js';
 import {
   validateRealEmailAddress,
+  validatePhone10Digits,
   issueAndSendEmailOtp,
   verifyEmailOtpCode,
   isEmailOtpVerified,
@@ -40,13 +42,15 @@ router.post('/verify-otp', async (req, res) => {
 });
 
 // 3. Complete Account Registration
+// Copy-pasteable Supabase SQL Editor query:
+// INSERT INTO public.profiles (id, name, email, role, phone, address, kyc_status, email_verified, privacy_accepted) VALUES ('<USER_UUID>', 'Nguyen Van A', 'a@gmail.com', 'user', '0901234567', 'TP.HCM', 'unverified', true, true) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email, phone = EXCLUDED.phone;
 router.post('/', async (req, res) => {
   const rawEmail = requireText(req.body.email, 'Email');
   const email = await validateRealEmailAddress(rawEmail);
   requireText(req.body.password, 'Password', 1024);
   const password = req.body.password;
   const name = requireText(req.body.full_name, 'Full name');
-  const phone = req.body.phone || null;
+  const phone = validatePhone10Digits(req.body.phone);
   const address = req.body.address || null;
   const id_card_front = req.body.id_card_front || null;
   const id_card_back = req.body.id_card_back || null;
@@ -54,10 +58,6 @@ router.post('/', async (req, res) => {
   const driver_license_back = req.body.driver_license_back || null;
 
   if (password.length < 8) throw new HttpError(400, 'Mật khẩu phải có ít nhất 8 ký tự.');
-
-  if (phone && !/^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(phone.replace(/\s+/g, ''))) {
-    throw new HttpError(400, 'Số điện thoại không đúng định dạng Việt Nam.');
-  }
 
   // Enforce OTP verification when registering from the client flow
   const otpConfirmed = isEmailOtpVerified(email, req.body.otp);
@@ -68,13 +68,16 @@ router.post('/', async (req, res) => {
     );
   }
 
-  const { data, error } = await req.createAuthClient().auth.signUp({
-    email,
-    password,
-    options: {
-      data: { full_name: name, phone, address }
-    }
-  });
+  const authClient = req.createAuthClient();
+  const { data, error } = await withSupabaseRetry(() =>
+    authClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: name, phone, address }
+      }
+    })
+  );
 
   if (error) throw new HttpError(400, error.message);
 
@@ -109,18 +112,27 @@ router.post('/', async (req, res) => {
     };
 
     try {
-      await req.db.from('profiles').upsert(profileRow, { onConflict: 'id', ignoreDuplicates: false });
+      await runSql(
+        req.db,
+        `INSERT INTO public.profiles ${sqlValues(profileRow)}
+         ON CONFLICT (id) DO UPDATE SET ${sqlSet(profileRow)};`
+      );
     } catch {
-      // Fallback if driver_license columns do not exist in DB schema
       const fallbackRow = { ...profileRow };
       delete fallbackRow.driver_license_front;
       delete fallbackRow.driver_license_back;
       try {
-        await req.db.from('profiles').upsert(fallbackRow, { onConflict: 'id', ignoreDuplicates: false });
+        await runSql(
+          req.db,
+          `INSERT INTO public.profiles ${sqlValues(fallbackRow)}
+           ON CONFLICT (id) DO UPDATE SET ${sqlSet(fallbackRow)};`
+        );
       } catch {
-        await req.db.from('profiles').upsert(
-          { id: data.user.id, name, email, role: 'user' },
-          { onConflict: 'id', ignoreDuplicates: true }
+        const minRow = { id: data.user.id, name, email, role: 'user' };
+        await runSql(
+          req.db,
+          `INSERT INTO public.profiles ${sqlValues(minRow)}
+           ON CONFLICT (id) DO NOTHING;`
         );
       }
     }
@@ -130,6 +142,8 @@ router.post('/', async (req, res) => {
 });
 
 // 4. Staff Account Email Confirmation Status Check
+// Copy-pasteable Supabase SQL Editor query:
+// SELECT id, name, email, role, email_verified FROM public.profiles WHERE email = 'staff@htparking.vn' LIMIT 1;
 router.get('/staff-status', async (req, res) => {
   const email = String(req.query.email || '').trim().toLowerCase();
   const userId = String(req.query.userId || '').trim();
@@ -137,18 +151,24 @@ router.get('/staff-status', async (req, res) => {
 
   try {
     if (userId) {
-      const { data } = await req.db
-        .from('profiles')
-        .select('id, name, email, role, email_verified')
-        .eq('id', userId)
-        .maybeSingle();
+      const { data } = await runSql(
+        req.db,
+        `SELECT id, name, email, role, email_verified
+         FROM public.profiles
+         WHERE id = ${sqlVal(userId)}
+         LIMIT 1;`,
+        { maybeSingle: true }
+      );
       if (data) profile = data;
     } else if (email) {
-      const { data } = await req.db
-        .from('profiles')
-        .select('id, name, email, role, email_verified')
-        .eq('email', email)
-        .maybeSingle();
+      const { data } = await runSql(
+        req.db,
+        `SELECT id, name, email, role, email_verified
+         FROM public.profiles
+         WHERE email = ${sqlVal(email)}
+         LIMIT 1;`,
+        { maybeSingle: true }
+      );
       if (data) profile = data;
     }
   } catch {
@@ -162,7 +182,7 @@ router.get('/staff-status', async (req, res) => {
   });
 });
 
-// 5. Direct Email Link Confirmation for Staff Account (GET /api/components/Register/confirm-staff?email=...&token=...)
+// 5. Direct Email Link Confirmation for Staff Account
 router.get('/confirm-staff', async (req, res) => {
   const email = String(req.query.email || '').trim().toLowerCase();
   const token = String(req.query.token || '').trim();
@@ -170,12 +190,21 @@ router.get('/confirm-staff', async (req, res) => {
 
   const record = confirmStaffAccountByTokenOrOtp({ email, token, otp });
 
-  // Sync confirmed status to profiles table
   try {
     if (record.userId) {
-      await req.db.from('profiles').update({ email_verified: true }).eq('id', record.userId);
+      await runSql(
+        req.db,
+        `UPDATE public.profiles
+         SET email_verified = TRUE
+         WHERE id = ${sqlVal(record.userId)};`
+      );
     } else if (record.email) {
-      await req.db.from('profiles').update({ email_verified: true }).eq('email', record.email);
+      await runSql(
+        req.db,
+        `UPDATE public.profiles
+         SET email_verified = TRUE
+         WHERE email = ${sqlVal(record.email)};`
+      );
     }
   } catch {
     // Ignore if optional column missing
@@ -205,7 +234,7 @@ router.get('/confirm-staff', async (req, res) => {
 </html>`);
 });
 
-// 6. Confirm Staff Account via 6-digit OTP from Email (POST /api/components/Register/confirm-staff)
+// 6. Confirm Staff Account via 6-digit OTP from Email
 router.post('/confirm-staff', async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const userId = req.body.userId || null;
@@ -215,9 +244,19 @@ router.post('/confirm-staff', async (req, res) => {
 
   try {
     if (record.userId) {
-      await req.db.from('profiles').update({ email_verified: true }).eq('id', record.userId);
+      await runSql(
+        req.db,
+        `UPDATE public.profiles
+         SET email_verified = TRUE
+         WHERE id = ${sqlVal(record.userId)};`
+      );
     } else if (record.email) {
-      await req.db.from('profiles').update({ email_verified: true }).eq('email', record.email);
+      await runSql(
+        req.db,
+        `UPDATE public.profiles
+         SET email_verified = TRUE
+         WHERE email = ${sqlVal(record.email)};`
+      );
     }
   } catch {
     // Ignore if optional column missing
@@ -232,7 +271,7 @@ router.post('/confirm-staff', async (req, res) => {
   });
 });
 
-// 7. Resend Staff Confirmation Email (POST /api/components/Register/resend-staff-confirm)
+// 7. Resend Staff Confirmation Email
 router.post('/resend-staff-confirm', async (req, res) => {
   const email = requireText(req.body.email, 'Email');
   const userId = req.body.userId || null;
