@@ -39,9 +39,11 @@ export default function App() {
         });
 
         if (response.ok) {
-          const data = await response.json();
-          setSession({ user: data.user });
-          setRole(data.role);
+          const data = await response.json().catch(() => ({}));
+          if (data?.user) {
+            setSession({ user: data.user });
+            setRole(data.role);
+          }
         } else if (response.status === 401 || response.status === 403) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');

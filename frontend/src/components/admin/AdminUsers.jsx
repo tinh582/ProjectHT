@@ -173,7 +173,12 @@ export default function AdminUsers({ session }) {
     e.preventDefault();
     setAddError('');
     if (addForm.phone.trim() && !/^\d{10}$/.test(addForm.phone.trim())) {
-      setAddError('Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).');
+      const len = addForm.phone.trim().length;
+      setAddError(
+        len < 10
+          ? `Số điện thoại mới có ${len}/10 chữ số (còn thiếu ${10 - len} số). Vui lòng nhập đủ đúng 10 chữ số (ví dụ: 0901234567).`
+          : 'Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).'
+      );
       return;
     }
     setAddLoading(true);
@@ -326,7 +331,12 @@ export default function AdminUsers({ session }) {
     e.preventDefault();
     if (!editingUser) return;
     if (editForm.phone.trim() && !/^\d{10}$/.test(editForm.phone.trim())) {
-      setEditError('Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).');
+      const len = editForm.phone.trim().length;
+      setEditError(
+        len < 10
+          ? `Số điện thoại mới có ${len}/10 chữ số (còn thiếu ${10 - len} số). Vui lòng nhập đủ đúng 10 chữ số (ví dụ: 0901234567).`
+          : 'Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).'
+      );
       return;
     }
     setEditLoading(true);
@@ -768,18 +778,33 @@ export default function AdminUsers({ session }) {
                 </label>
 
                 <label className="users-name-field">
-                  Số điện thoại (10 chữ số)
+                  Số điện thoại (Đúng 10 chữ số)
                   <input
                     type="tel"
                     inputMode="numeric"
                     maxLength={10}
-                    minLength={10}
-                    pattern="[0-9]{10}"
                     value={editForm.phone}
                     onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
                     className="users-input"
                     placeholder="0901234567 (Đúng 10 số)"
+                    style={
+                      editForm.phone.length > 0 && editForm.phone.length < 10
+                        ? { borderColor: '#dc2626', background: '#fef2f2' }
+                        : editForm.phone.length === 10
+                        ? { borderColor: '#059669' }
+                        : undefined
+                    }
                   />
+                  {editForm.phone.length > 0 && editForm.phone.length < 10 && (
+                    <span style={{ display: 'block', fontSize: '11px', color: '#dc2626', fontWeight: 600, marginTop: '3px' }}>
+                      ⚠️ Mới nhập {editForm.phone.length}/10 số (thiếu {10 - editForm.phone.length} chữ số)
+                    </span>
+                  )}
+                  {editForm.phone.length === 10 && (
+                    <span style={{ display: 'block', fontSize: '11px', color: '#059669', fontWeight: 600, marginTop: '3px' }}>
+                      ✓ Đã đủ 10/10 chữ số hợp lệ
+                    </span>
+                  )}
                 </label>
 
                 <label className="users-name-field">
@@ -1226,18 +1251,33 @@ export default function AdminUsers({ session }) {
                 </label>
 
                 <label className="users-name-field">
-                  Số điện thoại (10 chữ số)
+                  Số điện thoại (Đúng 10 chữ số)
                   <input
                     type="tel"
                     inputMode="numeric"
                     maxLength={10}
-                    minLength={10}
-                    pattern="[0-9]{10}"
                     value={addForm.phone}
                     onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
                     className="users-input"
                     placeholder="0901234567 (Đúng 10 số)"
+                    style={
+                      addForm.phone.length > 0 && addForm.phone.length < 10
+                        ? { borderColor: '#dc2626', background: '#fef2f2' }
+                        : addForm.phone.length === 10
+                        ? { borderColor: '#059669' }
+                        : undefined
+                    }
                   />
+                  {addForm.phone.length > 0 && addForm.phone.length < 10 && (
+                    <span style={{ display: 'block', fontSize: '11px', color: '#dc2626', fontWeight: 600, marginTop: '3px' }}>
+                      ⚠️ Mới nhập {addForm.phone.length}/10 số (thiếu {10 - addForm.phone.length} chữ số)
+                    </span>
+                  )}
+                  {addForm.phone.length === 10 && (
+                    <span style={{ display: 'block', fontSize: '11px', color: '#059669', fontWeight: 600, marginTop: '3px' }}>
+                      ✓ Đã đủ 10/10 chữ số hợp lệ
+                    </span>
+                  )}
                 </label>
 
                 <label className="users-name-field">

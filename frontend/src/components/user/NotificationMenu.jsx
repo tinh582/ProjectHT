@@ -1,12 +1,29 @@
 import React, { useState } from 'react';
 
-export default function NotificationMenu({ notifications = [], onReplyNotification }) {
+export default function NotificationMenu({
+  notifications = [],
+  seenNotifIds,
+  onMarkAllRead,
+  onReplyNotification
+}) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const unreadCount = notifications.filter((notification) => !notification.is_read).length;
+  const unreadCount = notifications.filter(
+    (notification) =>
+      !notification.is_read &&
+      (!seenNotifIds || !seenNotifIds.has(String(notification.id)))
+  ).length;
+
+  const handleToggleOpen = () => {
+    const nextOpen = !isNotifOpen;
+    setIsNotifOpen(nextOpen);
+    if (nextOpen && unreadCount > 0 && typeof onMarkAllRead === 'function') {
+      onMarkAllRead();
+    }
+  };
 
   return (
     <div className="notification-menu">
-      <span onClick={() => setIsNotifOpen(!isNotifOpen)} className="notification-toggle" title="Thông báo & Nhắc nhở">
+      <span onClick={handleToggleOpen} className="notification-toggle" title="Thông báo & Nhắc nhở">
         🔔
       </span>
       {unreadCount > 0 && <span className="notification-count">{unreadCount}</span>}

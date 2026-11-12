@@ -29,11 +29,11 @@ export default function Landing({
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        const res = await fetch('/api/components/user/UserSlotPicker?vehicleType=car', {
+        const res = await fetch('/api/components/user/UserSlotPicker/car', {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok && mounted) {
-          const data = await res.json();
+          const data = await res.json().catch(() => ({}));
           if (Array.isArray(data.slots) && data.slots.length > 0) {
             const freeCars = data.slots.filter((s) => s.status === 'available').length;
             setLiveStats((prev) => ({

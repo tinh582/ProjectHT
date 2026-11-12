@@ -18,8 +18,10 @@ export default function Login({ onSwitchToRegister, onSwitchToLanding, onLoginSu
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Login failed');
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.session) {
+        throw new Error(data.error || 'Kết nối tạm thời gián đoạn, vui lòng thử lại.');
+      }
       localStorage.setItem('token', data.session.access_token);
       localStorage.setItem('refresh_token', data.session.refresh_token);
       localStorage.setItem('user', JSON.stringify(data.user));

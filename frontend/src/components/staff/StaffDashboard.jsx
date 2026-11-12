@@ -6,18 +6,18 @@ import StaffCamera from './StaffCamera';
 import StaffExceptions from './StaffExceptions';
 import StaffSupport from './StaffSupport';
 import StaffSlotMap from './StaffSlotMap';
-import { classifyStaffNotificationTab, computeStaffTabBadges } from '../../lib/tabNotifications';
+import {
+  classifyStaffNotificationTab,
+  computeStaffTabBadges,
+  loadSeenSet,
+  saveSeenSet
+} from '../../lib/tabNotifications';
 
 export default function StaffDashboard({ session, onBackToLanding }) {
+  const notifStorageKey = `ht_seen_notifs_${session?.user?.id || 'staff'}`;
   const [activeTab, setActiveTab] = useState('checkin');
   const [notifications, setNotifications] = useState([]);
-  const [seenNotifIds, setSeenNotifIds] = useState(() => new Set());
-  const [liveCounts, setLiveCounts] = useState({
-    pendingTxCount: 0,
-    openFeedbackCount: 0,
-    openIncidentCount: 0,
-    maintenanceSlotCount: 0
-  });
+  const [seenNotifIds, setSeenNotifIds] = useState(() => loadSeenSet(notifStorageKey));
   const [staffStatus, setStaffStatus] = useState({
     loading: true,
     confirmed: true,
@@ -29,84 +29,79 @@ export default function StaffDashboard({ session, onBackToLanding }) {
   const [confirmSuccess, setConfirmSuccess] = useState('');
   const [confirming, setConfirming] = useState(false);
 
+  const markNotificationsRead = async (idsToMark = null) => {
+    const targetIds = Array.isArray(idsToMark)
+      ? idsToMark.filter(Boolean).map(String)
+      : notifications.filter((n) => n?.id && !n.is_read).map((n) => String(n.id));
+
+    if (targetIds.length === 0) return;
+
+    setSeenNotifIds((prev) => {
+      const next = new Set(prev);
+      targetIds.forEach((id) => next.add(id));
+      saveSeenSet(notifStorageKey, next);
+      return next;
+    });
+
+    const idSet = new Set(targetIds);
+    setNotifications((prev) =>
+      prev.map((n) => (idSet.has(String(n?.id)) ? { ...n, is_read: true } : n))
+    );
+
+    if (session?.user?.id) {
+      try {
+        await apiFetch(`/api/components/user/Dashboard/notifications/${session.user.id}/read-all`, {
+          method: 'PUT',
+          body: JSON.stringify(Array.isArray(idsToMark) ? { ids: targetIds } : {})
+        });
+      } catch {
+        // Ignore network failure since localStorage already persisted seen state
+      }
+    }
+  };
+
   useEffect(() => {
     checkStaffEmailConfirmation();
     fetchNotifications();
-    fetchStaffLiveBadgeCounts();
     const interval = setInterval(() => {
       fetchNotifications();
-      fetchStaffLiveBadgeCounts();
     }, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  const fetchStaffLiveBadgeCounts = async () => {
-    try {
-      const [txRes, fbRes, incRes, mapRes] = await Promise.all([
-        apiFetch('/api/components/staff/StaffSupport?page=1&pageSize=25'),
-        apiFetch('/api/components/staff/StaffSupport/feedbacks'),
-        apiFetch('/api/components/staff/StaffExceptions/incidents'),
-        apiFetch('/api/components/staff/StaffSlotMap')
-      ]);
+  useEffect(() => {
+    const unreadInActiveTab = notifications
+      .filter(
+        (n) =>
+          n?.id &&
+          !n.is_read &&
+          !seenNotifIds.has(String(n.id)) &&
+          classifyStaffNotificationTab(n) === activeTab
+      )
+      .map((n) => String(n.id));
 
-      let pendingTxCount = 0;
-      let openFeedbackCount = 0;
-      let openIncidentCount = 0;
-      let maintenanceSlotCount = 0;
-
-      if (txRes.ok) {
-        const txData = await txRes.json();
-        const items = Array.isArray(txData?.items) ? txData.items : Array.isArray(txData) ? txData : [];
-        pendingTxCount = items.filter((t) => t.status === 'pending').length;
-      }
-      if (fbRes.ok) {
-        const fbData = await fbRes.json();
-        const items = Array.isArray(fbData) ? fbData : [];
-        openFeedbackCount = items.filter((f) => f.status !== 'resolved').length;
-      }
-      if (incRes.ok) {
-        const incData = await incRes.json();
-        const items = Array.isArray(incData) ? incData : [];
-        openIncidentCount = items.filter((i) => i.status !== 'resolved').length;
-      }
-      if (mapRes.ok) {
-        const mapData = await mapRes.json();
-        maintenanceSlotCount = Number(mapData?.summary?.maintenanceSlots || 0);
-      }
-
-      setLiveCounts({
-        pendingTxCount,
-        openFeedbackCount,
-        openIncidentCount,
-        maintenanceSlotCount
-      });
-    } catch {
-      // Ignore badge polling error
+    if (unreadInActiveTab.length > 0) {
+      markNotificationsRead(unreadInActiveTab);
     }
-  };
+  }, [activeTab, notifications]);
 
   const tabBadges = useMemo(
     () =>
       computeStaffTabBadges({
         notifications,
-        ...liveCounts,
         seenNotifIds
       }),
-    [notifications, liveCounts, seenNotifIds]
+    [notifications, seenNotifIds]
   );
 
   const handleSelectStaffTab = (tab) => {
     setActiveTab(tab);
-    setSeenNotifIds((prev) => {
-      const next = new Set(prev);
-      notifications.forEach((n) => {
-        if (classifyStaffNotificationTab(n) === tab && n?.id) {
-          next.add(n.id);
-        }
-      });
-      return next;
-    });
-    fetchStaffLiveBadgeCounts();
+    const tabNotifIds = notifications
+      .filter((n) => n?.id && classifyStaffNotificationTab(n) === tab)
+      .map((n) => String(n.id));
+    if (tabNotifIds.length > 0) {
+      markNotificationsRead(tabNotifIds);
+    }
   };
 
   const checkStaffEmailConfirmation = async () => {
@@ -266,7 +261,11 @@ export default function StaffDashboard({ session, onBackToLanding }) {
             >
               🏠 Về Trang chủ
             </button>
-            <NotificationMenu notifications={notifications} />
+            <NotificationMenu
+              notifications={notifications}
+              seenNotifIds={seenNotifIds}
+              onMarkAllRead={() => markNotificationsRead(null)}
+            />
             <span id="user-name">{session?.user?.email}</span>
             <button id="logout" className="text-button" onClick={handleLogout}>Đăng xuất</button>
           </div>

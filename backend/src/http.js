@@ -71,7 +71,11 @@ export function isTransientSupabaseError(error) {
     msg.includes('timed out') ||
     msg.includes('timeout') ||
     msg.includes('econnreset') ||
+    msg.includes('econnrefused') ||
+    msg.includes('epipe') ||
     msg.includes('eai_again') ||
+    msg.includes('terminated') ||
+    msg.includes('unexpected end of json input') ||
     msg.includes('bad gateway') ||
     msg.includes('service unavailable') ||
     msg.includes('gateway timeout') ||

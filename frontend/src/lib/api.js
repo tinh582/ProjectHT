@@ -9,10 +9,10 @@ export function clearSession() {
 
 /**
  * Sends an HTTP request with automatic retry and exponential backoff on transient
- * network drops or Supabase/gateway 502/503/504 responses so users never have to
- * click a second or third time.
+ * network drops, empty-body proxy resets (ECONNRESET -> 500 empty), or gateway 502/503/504
+ * responses so users never have to click a second or third time.
  */
-async function send(path, options = {}, { maxRetries = 2, baseDelayMs = 200 } = {}) {
+async function send(path, options = {}, { maxRetries = 3, baseDelayMs = 180 } = {}) {
   let lastError;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const controller = new AbortController();
@@ -24,10 +24,21 @@ async function send(path, options = {}, { maxRetries = 2, baseDelayMs = 200 } = 
       });
       clearTimeout(timeout);
 
-      if (attempt < maxRetries && RETRYABLE_STATUSES.has(response.status)) {
-        const delay = baseDelayMs * Math.pow(2, attempt);
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
+      if (attempt < maxRetries) {
+        if (RETRYABLE_STATUSES.has(response.status)) {
+          const delay = baseDelayMs * Math.pow(2, attempt);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        // Detect Vite http-proxy ECONNRESET (which returns HTTP 500 with an empty text/plain body)
+        if (response.status >= 500) {
+          const textPreview = await response.clone().text().catch(() => '');
+          if (!textPreview.trim()) {
+            const delay = baseDelayMs * Math.pow(2, attempt);
+            await new Promise((r) => setTimeout(r, delay));
+            continue;
+          }
+        }
       }
 
       return response;
@@ -103,6 +114,28 @@ export async function apiFetch(path, options = {}) {
       ? 'Yêu cầu quá thời gian. Vui lòng thử lại.' : 'Không thể kết nối máy chủ. Vui lòng thử lại.' }), {
       status: 503, headers: { 'Content-Type': 'application/json' },
     });
+  }
+  if (response && response.status !== 204 && response.status !== 304) {
+    const rawText = await response.clone().text().catch(() => '');
+    let isValidJson = false;
+    if (rawText.trim()) {
+      try {
+        JSON.parse(rawText);
+        isValidJson = true;
+      } catch {
+        isValidJson = false;
+      }
+    }
+    if (!isValidJson) {
+      const fallbackBody = response.ok
+        ? {}
+        : { error: rawText.trim() || 'Kết nối máy chủ tạm thời gián đoạn. Vui lòng thử lại.' };
+      response = new Response(JSON.stringify(fallbackBody), {
+        status: response.status === 500 && !rawText.trim() ? 503 : response.status,
+        statusText: response.statusText,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   }
   if (!response.ok) {
     const data = await response.clone().json().catch(() => ({}));

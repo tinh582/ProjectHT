@@ -204,8 +204,13 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding, onRegiste
         setError('Vui lòng đồng ý với Điều khoản Bảo mật Dữ liệu & Zero-Data Retention.');
         return;
       }
-      if (phone.trim() && !/^\d{10}$/.test(phone.trim())) {
-        setError('Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).');
+      if (!phone.trim() || !/^\d{10}$/.test(phone.trim())) {
+        const len = phone.trim().length;
+        setError(
+          len > 0 && len < 10
+            ? `Số điện thoại mới có ${len}/10 chữ số (còn thiếu ${10 - len} số). Vui lòng nhập đủ đúng 10 chữ số (ví dụ: 0901234567).`
+            : 'Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).'
+        );
         return;
       }
       if (!emailVerified && !otpCode.trim()) {
@@ -431,17 +436,32 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding, onRegiste
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <label>
-                    Số điện thoại (10 số)
+                    Số điện thoại (Đúng 10 số)
                     <input
                       type="tel"
                       inputMode="numeric"
                       maxLength={10}
-                      minLength={10}
-                      pattern="[0-9]{10}"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                       placeholder="0901234567 (Đúng 10 số)"
+                      style={
+                        phone.length > 0 && phone.length < 10
+                          ? { borderColor: '#dc2626', background: '#fef2f2' }
+                          : phone.length === 10
+                          ? { borderColor: '#059669' }
+                          : undefined
+                      }
                     />
+                    {phone.length > 0 && phone.length < 10 && (
+                      <span style={{ display: 'block', fontSize: '11px', color: '#dc2626', fontWeight: 600, marginTop: '3px' }}>
+                        ⚠️ Mới nhập {phone.length}/10 số (thiếu {10 - phone.length} chữ số)
+                      </span>
+                    )}
+                    {phone.length === 10 && (
+                      <span style={{ display: 'block', fontSize: '11px', color: '#059669', fontWeight: 600, marginTop: '3px' }}>
+                        ✓ Đã đủ 10/10 chữ số hợp lệ
+                      </span>
+                    )}
                   </label>
                   <label>
                     Địa chỉ cư trú

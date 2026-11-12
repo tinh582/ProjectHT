@@ -9,7 +9,13 @@ import ParkingHistoryDialog from './ParkingHistoryDialog';
 import UserProfileDialog from './UserProfileDialog';
 import ActivationPricing from './ActivationPricing';
 import UserSupportCenter from './UserSupportCenter';
-import { classifyUserNotificationTab, computeUserTabBadges } from '../../lib/tabNotifications';
+import {
+  classifyUserNotificationTab,
+  computeUserTabBadges,
+  getTicketReplyKey,
+  loadSeenSet,
+  saveSeenSet
+} from '../../lib/tabNotifications';
 
 export default function Dashboard({ session, onBackToLanding }) {
   const [vehicles, setVehicles] = useState([]);
@@ -26,16 +32,49 @@ export default function Dashboard({ session, onBackToLanding }) {
   const [allSessions, setAllSessions] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  const notifStorageKey = `ht_seen_notifs_${session?.user?.id || 'guest'}`;
+  const replyStorageKey = `ht_seen_replies_${session?.user?.id || 'guest'}`;
   const [notifications, setNotifications] = useState([]);
   const [supportTickets, setSupportTickets] = useState([]);
-  const [seenNotifIds, setSeenNotifIds] = useState(() => new Set());
-  const [seenTicketReplies, setSeenTicketReplies] = useState(() => new Set());
+  const [seenNotifIds, setSeenNotifIds] = useState(() => loadSeenSet(notifStorageKey));
+  const [seenTicketReplies, setSeenTicketReplies] = useState(() => loadSeenSet(replyStorageKey));
   const [activeTab, setActiveTab] = useState('vehicles');
   const [hasActivePlan, setHasActivePlan] = useState(false);
   const [checkingSub, setCheckingSub] = useState(true);
   const [lockNotice, setLockNotice] = useState(null);
 
   const parkedVehicleIds = new Set(activeVehicleIds);
+
+  const markNotificationsRead = async (idsToMark = null) => {
+    const targetIds = Array.isArray(idsToMark)
+      ? idsToMark.filter(Boolean).map(String)
+      : notifications.filter((n) => n?.id && !n.is_read).map((n) => String(n.id));
+
+    if (targetIds.length === 0) return;
+
+    setSeenNotifIds((prev) => {
+      const next = new Set(prev);
+      targetIds.forEach((id) => next.add(id));
+      saveSeenSet(notifStorageKey, next);
+      return next;
+    });
+
+    const idSet = new Set(targetIds);
+    setNotifications((prev) =>
+      prev.map((n) => (idSet.has(String(n?.id)) ? { ...n, is_read: true } : n))
+    );
+
+    if (session?.user?.id) {
+      try {
+        await apiFetch(`/api/components/user/Dashboard/notifications/${session.user.id}/read-all`, {
+          method: 'PUT',
+          body: JSON.stringify(Array.isArray(idsToMark) ? { ids: targetIds } : {})
+        });
+      } catch {
+        // Ignore network failure since localStorage already persisted seen state
+      }
+    }
+  };
 
   useEffect(() => {
     checkSubscription();
@@ -47,6 +86,31 @@ export default function Dashboard({ session, onBackToLanding }) {
     }, 10000);
     return () => clearInterval(timer);
   }, []);
+
+  // Automatically mark notifications belonging to the currently active tab as seen
+  useEffect(() => {
+    const unreadInActiveTab = notifications
+      .filter((n) => n?.id && !n.is_read && !seenNotifIds.has(String(n.id)) && classifyUserNotificationTab(n) === activeTab)
+      .map((n) => String(n.id));
+
+    if (unreadInActiveTab.length > 0) {
+      markNotificationsRead(unreadInActiveTab);
+    }
+
+    if (activeTab === 'support' && supportTickets.length > 0) {
+      const newReplyKeys = supportTickets
+        .map((t) => getTicketReplyKey(t))
+        .filter((k) => k && !seenTicketReplies.has(k));
+      if (newReplyKeys.length > 0) {
+        setSeenTicketReplies((prev) => {
+          const next = new Set(prev);
+          newReplyKeys.forEach((k) => next.add(k));
+          saveSeenSet(replyStorageKey, next);
+          return next;
+        });
+      }
+    }
+  }, [activeTab, notifications, supportTickets]);
 
   const fetchSupportTickets = async () => {
     try {
@@ -187,24 +251,22 @@ export default function Dashboard({ session, onBackToLanding }) {
     setLockNotice(null);
     setActiveTab(tab);
 
-    // Mark notifications routed to this tab as seen
-    setSeenNotifIds((prev) => {
-      const next = new Set(prev);
-      notifications.forEach((n) => {
-        if (classifyUserNotificationTab(n) === tab && n?.id) {
-          next.add(n.id);
-        }
-      });
-      return next;
-    });
+    // Mark notifications routed to this tab as read & persist in localStorage + DB
+    const tabNotifIds = notifications
+      .filter((n) => n?.id && classifyUserNotificationTab(n) === tab)
+      .map((n) => String(n.id));
+    if (tabNotifIds.length > 0) {
+      markNotificationsRead(tabNotifIds);
+    }
 
     if (tab === 'support') {
       setSeenTicketReplies((prev) => {
         const next = new Set(prev);
         supportTickets.forEach((t) => {
-          const replyKey = `${t?.id}_${t?.replied_at || t?.replies?.length || 0}`;
-          next.add(replyKey);
+          const replyKey = getTicketReplyKey(t);
+          if (replyKey) next.add(replyKey);
         });
+        saveSeenSet(replyStorageKey, next);
         return next;
       });
     }
@@ -357,7 +419,12 @@ export default function Dashboard({ session, onBackToLanding }) {
             >
               🏠 Về Trang chủ
             </button>
-            <NotificationMenu notifications={notifications} onReplyNotification={handleOpenSupportWithPrefill} />
+            <NotificationMenu
+              notifications={notifications}
+              seenNotifIds={seenNotifIds}
+              onMarkAllRead={() => markNotificationsRead(null)}
+              onReplyNotification={handleOpenSupportWithPrefill}
+            />
             <span id="user-name">{session.user.email}</span>
             <button id="logout" className="text-button" onClick={handleLogout}>
               Đăng xuất

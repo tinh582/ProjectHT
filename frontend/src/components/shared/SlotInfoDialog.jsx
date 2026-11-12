@@ -61,70 +61,69 @@ export default function SlotInfoDialog({ slot, onClose }) {
           }`}
         >
           {slot.status === 'empty'
-            ? '🟢 ĐANG TRỐNG (Chưa có xe thuê)'
+            ? '🟢 ĐANG TRỐNG'
             : slot.status === 'rented'
-            ? '🔵 ĐÃ CHO THUÊ CỐ ĐỊNH (Khách tạm thời chưa vào bãi)'
-            : slot.status === 'maintenance'
-            ? '🟠 ĐANG BẢO TRÌ KỸ THUẬT'
-            : '🔴 ĐANG ĐỖ TRONG BÃI (Xe đã thuê & đang đỗ tại ô)'}
+            ? '🟡 ĐÃ THUÊ (Xe đang ở ngoài)'
+            : '🔴 ĐANG ĐỖ TRONG BÃI'}
         </span>
 
         {loading ? (
-          <p style={{ marginTop: '16px' }}>Đang tải thông tin...</p>
+          <p style={{ marginTop: '12px' }}>Đang tải thông tin...</p>
         ) : slot.vehicle_id && vehicle ? (
           <div>
-            {/* Real-time Entry/Exit Time Information for Staff/Admin */}
-            <div className="slot-info-parking-time-box">
-              <h4 className="slot-info-time-title">⏱️ Trạng thái Đỗ xe Thực tế</h4>
+            {/* Compact Entry/Exit Time Information */}
+            <div className="slot-info-parking-time-box" style={{ padding: '10px 12px', marginBottom: '10px' }}>
               {activeSession ? (
-                <div className="slot-time-active">
-                  <div className="slot-time-row">
-                    <span className="parking-time-icon">🟢</span>
-                    <span className="slot-time-label">Thời gian vào bãi:</span>
-                    <strong className="slot-time-value">{formatTime(activeSession.entry_time)}</strong>
-                  </div>
-                  <div className="slot-time-row" style={{ marginTop: '4px' }}>
-                    <span className="parking-time-icon">⏳</span>
-                    <span className="slot-time-label">Thời gian ra bãi:</span>
-                    <span className="slot-time-ongoing">Đang đỗ trong bãi</span>
-                  </div>
+                <div className="slot-time-active" style={{ fontSize: '12.5px' }}>
+                  <div>🟢 <b>Giờ vào bãi:</b> {formatTime(activeSession.entry_time)}</div>
+                  <div style={{ marginTop: '3px', color: '#059669', fontWeight: 700 }}>⏳ Đang đỗ trong bãi</div>
                 </div>
               ) : recentSessions.length > 0 ? (
-                <div className="slot-time-history">
-                  <div className="slot-time-row">
-                    <span className="parking-time-icon">🏁</span>
-                    <span className="slot-time-label">Lần đỗ gần nhất:</span>
-                  </div>
-                  <div className="slot-time-subrow">
-                    <span>Vào: <strong>{formatTime(recentSessions[0].entry_time)}</strong></span>
-                    <span>Ra: <strong>{formatTime(recentSessions[0].exit_time)}</strong></span>
+                <div className="slot-time-history" style={{ fontSize: '12.5px' }}>
+                  <div>🏁 <b>Lần đỗ gần nhất:</b></div>
+                  <div style={{ marginTop: '2px' }}>
+                    Vào: <strong>{formatTime(recentSessions[0].entry_time)}</strong> • Ra: <strong>{formatTime(recentSessions[0].exit_time)}</strong>
                   </div>
                 </div>
               ) : (
-                <p className="slot-time-none">Đã giữ chỗ thuê cố định • Chưa có phiên ra/vào nào được ghi nhận.</p>
+                <p className="slot-time-none" style={{ margin: 0, fontSize: '12.5px' }}>
+                  Đã thuê cố định • Chưa có lượt ra/vào bãi.
+                </p>
               )}
             </div>
 
-            <h3 className="slot-info-section-title">🚗 Thông tin Phương tiện đăng ký</h3>
-            <div className="slot-info-vehicle-details">
-              <b className="slot-info-label">Biển số cố định:</b> <span className="slot-info-plate">{vehicle.plate}</span>
-              <b className="slot-info-label">Loại xe:</b> <span>{vehicle.type}</span>
-              <b className="slot-info-label">Hãng / Mẫu xe:</b> <span>{vehicle.brand} {vehicle.model}</span>
-              <b className="slot-info-label">Màu sắc:</b> <span>{vehicle.color || 'Tiêu chuẩn'}</span>
+            <h3 className="slot-info-section-title">🚗 Phương tiện đăng ký</h3>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '10px' }}>
+              <div className="slot-info-vehicle-details" style={{ flex: 1, marginBottom: 0 }}>
+                <b className="slot-info-label">Biển số:</b> <span className="slot-info-plate">{vehicle.plate}</span>
+                <b className="slot-info-label">Loại xe:</b> <span>{vehicle.type}</span>
+                <b className="slot-info-label">Hãng / Mẫu:</b> <span>{vehicle.brand} {vehicle.model}</span>
+                <b className="slot-info-label">Màu sắc:</b> <span>{vehicle.color || 'Tiêu chuẩn'}</span>
+              </div>
+              {vehicle.image && (
+                <img
+                  src={vehicle.image}
+                  alt="Xe"
+                  style={{
+                    width: '120px',
+                    height: '84px',
+                    objectFit: 'contain',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    flexShrink: 0
+                  }}
+                />
+              )}
             </div>
 
-            {vehicle.image && (
-              <img src={vehicle.image} alt="Xe" className="slot-info-image" />
-            )}
-
-            <h3 className="slot-info-section-title">👤 Thông tin Chủ xe thuê vị trí</h3>
+            <h3 className="slot-info-section-title">👤 Chủ xe thuê vị trí</h3>
             {profile ? (
               <div className="slot-info-owner-details">
                 <b className="slot-info-label">Họ tên:</b> <span>{profile.name || 'Chưa cập nhật'}</span>
                 <b className="slot-info-label">Số điện thoại:</b> <span>{profile.phone || 'Chưa cập nhật'}</span>
                 <b className="slot-info-label">Email:</b> <span>{profile.email}</span>
                 <b className="slot-info-label">Địa chỉ:</b> <span>{profile.address || 'Chưa cập nhật'}</span>
-                <b className="slot-info-label">Mã KH:</b> <span className="slot-info-owner-id">{profile.id}</span>
               </div>
             ) : (
               <p className="slot-info-unavailable">Không tải được thông tin chủ xe.</p>
@@ -132,11 +131,15 @@ export default function SlotInfoDialog({ slot, onClose }) {
           </div>
         ) : (
           <div className="slot-info-empty">
-            {slot.status === 'maintenance'
-              ? 'Vị trí này hiện đang tạm khóa để bảo trì kỹ thuật.'
-              : 'Vị trí này hiện đang trống hoàn toàn, chưa có khách hàng nào thuê cố định.'}
+            Vị trí này hiện đang trống, chưa có phương tiện đăng ký thuê.
           </div>
         )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
+          <button type="button" className="secondary" onClick={onClose} style={{ padding: '6px 18px' }}>
+            Đóng
+          </button>
+        </div>
       </div>
     </div>
   );

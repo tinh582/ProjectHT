@@ -237,7 +237,14 @@ export default function UserProfileDialog({ session, onClose }) {
   const handleSave = async (e) => {
     e.preventDefault();
     if (phone.trim() && !/^\d{10}$/.test(phone.trim())) {
-      setMessage({ type: 'error', text: 'Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).' });
+      const len = phone.trim().length;
+      setMessage({
+        type: 'error',
+        text:
+          len < 10
+            ? `Số điện thoại mới có ${len}/10 chữ số (còn thiếu ${10 - len} số). Vui lòng nhập đủ đúng 10 chữ số (ví dụ: 0901234567).`
+            : 'Số điện thoại phải gồm đúng 10 chữ số (từ 0-9, ví dụ: 0901234567).'
+      });
       return;
     }
     setSaving(true);
@@ -484,17 +491,32 @@ export default function UserProfileDialog({ session, onClose }) {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
               <label>
-                Số điện thoại liên hệ (10 chữ số)
+                Số điện thoại liên hệ (Đúng 10 chữ số)
                 <input
                   type="tel"
                   inputMode="numeric"
                   maxLength={10}
-                  minLength={10}
-                  pattern="[0-9]{10}"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                   placeholder="0901234567 (Đúng 10 số)"
+                  style={
+                    phone.length > 0 && phone.length < 10
+                      ? { borderColor: '#dc2626', background: '#fef2f2' }
+                      : phone.length === 10
+                      ? { borderColor: '#059669' }
+                      : undefined
+                  }
                 />
+                {phone.length > 0 && phone.length < 10 && (
+                  <span style={{ display: 'block', fontSize: '11px', color: '#dc2626', fontWeight: 600, marginTop: '3px' }}>
+                    ⚠️ Mới nhập {phone.length}/10 số (thiếu {10 - phone.length} chữ số)
+                  </span>
+                )}
+                {phone.length === 10 && (
+                  <span style={{ display: 'block', fontSize: '11px', color: '#059669', fontWeight: 600, marginTop: '3px' }}>
+                    ✓ Đã đủ 10/10 chữ số hợp lệ
+                  </span>
+                )}
               </label>
               <label>
                 Địa chỉ cư trú

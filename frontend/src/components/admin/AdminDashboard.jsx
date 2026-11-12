@@ -5,66 +5,80 @@ import AdminPricing from './AdminPricing';
 import AdminZones from './AdminZones';
 import AdminUsers from './AdminUsers';
 import AdminReports from './AdminReports';
-import { classifyAdminNotificationTab, computeAdminTabBadges } from '../../lib/tabNotifications';
+import {
+  classifyAdminNotificationTab,
+  computeAdminTabBadges,
+  loadSeenSet,
+  saveSeenSet
+} from '../../lib/tabNotifications';
 
 export default function AdminDashboard({ session, onBackToLanding }) {
+  const notifStorageKey = `ht_seen_notifs_${session?.user?.id || 'admin'}`;
   const [activeTab, setActiveTab] = useState('pricing');
   const [notifications, setNotifications] = useState([]);
-  const [seenNotifIds, setSeenNotifIds] = useState(() => new Set());
-  const [adminCounts, setAdminCounts] = useState({
-    pendingKycCount: 0,
-    pendingStaffConfirmCount: 0,
-    maintenanceSlotCount: 0,
-    pendingTxCount: 0
-  });
+  const [seenNotifIds, setSeenNotifIds] = useState(() => loadSeenSet(notifStorageKey));
+
+  const markNotificationsRead = async (idsToMark = null) => {
+    const targetIds = Array.isArray(idsToMark)
+      ? idsToMark.filter(Boolean).map(String)
+      : notifications.filter((n) => n?.id && !n.is_read).map((n) => String(n.id));
+
+    if (targetIds.length === 0) return;
+
+    setSeenNotifIds((prev) => {
+      const next = new Set(prev);
+      targetIds.forEach((id) => next.add(id));
+      saveSeenSet(notifStorageKey, next);
+      return next;
+    });
+
+    const idSet = new Set(targetIds);
+    setNotifications((prev) =>
+      prev.map((n) => (idSet.has(String(n?.id)) ? { ...n, is_read: true } : n))
+    );
+
+    if (session?.user?.id) {
+      try {
+        await apiFetch(`/api/components/user/Dashboard/notifications/${session.user.id}/read-all`, {
+          method: 'PUT',
+          body: JSON.stringify(Array.isArray(idsToMark) ? { ids: targetIds } : {})
+        });
+      } catch {
+        // Ignore network failure since localStorage already persisted seen state
+      }
+    }
+  };
 
   useEffect(() => {
-    fetchAdminNotificationsAndCounts();
-    const timer = setInterval(fetchAdminNotificationsAndCounts, 10000);
+    fetchAdminNotifications();
+    const timer = setInterval(fetchAdminNotifications, 10000);
     return () => clearInterval(timer);
   }, []);
 
-  const fetchAdminNotificationsAndCounts = async () => {
+  useEffect(() => {
+    const unreadInActiveTab = notifications
+      .filter(
+        (n) =>
+          n?.id &&
+          !n.is_read &&
+          !seenNotifIds.has(String(n.id)) &&
+          classifyAdminNotificationTab(n) === activeTab
+      )
+      .map((n) => String(n.id));
+
+    if (unreadInActiveTab.length > 0) {
+      markNotificationsRead(unreadInActiveTab);
+    }
+  }, [activeTab, notifications]);
+
+  const fetchAdminNotifications = async () => {
+    if (!session?.user?.id) return;
     try {
-      const requests = [
-        apiFetch('/api/components/admin/AdminUsers?page=1&pageSize=50'),
-        apiFetch('/api/components/admin/AdminZones/summary')
-      ];
-      if (session?.user?.id) {
-        requests.push(apiFetch(`/api/components/user/Dashboard/notifications/${session.user.id}`));
-      }
-
-      const [usersRes, mapSummaryRes, notifRes] = await Promise.all(requests);
-
-      let pendingKycCount = 0;
-      let pendingStaffConfirmCount = 0;
-      let maintenanceSlotCount = 0;
-
-      if (usersRes?.ok) {
-        const uData = await usersRes.json();
-        const items = Array.isArray(uData?.items) ? uData.items : Array.isArray(uData) ? uData : [];
-        pendingKycCount = items.filter((u) => u.kyc_status === 'pending').length;
-        pendingStaffConfirmCount = items.filter(
-          (u) => u.role === 'staff' && (u.staff_confirmation_status === 'pending' || u.email_verified === false)
-        ).length;
-      }
-
-      if (mapSummaryRes?.ok) {
-        const mData = await mapSummaryRes.json();
-        maintenanceSlotCount = Number(mData?.summary?.maintenanceSlots || 0);
-      }
-
+      const notifRes = await apiFetch(`/api/components/user/Dashboard/notifications/${session.user.id}`);
       if (notifRes?.ok) {
         const nData = await notifRes.json();
         setNotifications(Array.isArray(nData) ? nData : []);
       }
-
-      setAdminCounts((prev) => ({
-        ...prev,
-        pendingKycCount,
-        pendingStaffConfirmCount,
-        maintenanceSlotCount
-      }));
     } catch {
       // Ignore badge polling error
     }
@@ -74,24 +88,19 @@ export default function AdminDashboard({ session, onBackToLanding }) {
     () =>
       computeAdminTabBadges({
         notifications,
-        ...adminCounts,
         seenNotifIds
       }),
-    [notifications, adminCounts, seenNotifIds]
+    [notifications, seenNotifIds]
   );
 
   const handleSelectAdminTab = (tab) => {
     setActiveTab(tab);
-    setSeenNotifIds((prev) => {
-      const next = new Set(prev);
-      notifications.forEach((n) => {
-        if (classifyAdminNotificationTab(n) === tab && n?.id) {
-          next.add(n.id);
-        }
-      });
-      return next;
-    });
-    fetchAdminNotificationsAndCounts();
+    const tabNotifIds = notifications
+      .filter((n) => n?.id && classifyAdminNotificationTab(n) === tab)
+      .map((n) => String(n.id));
+    if (tabNotifIds.length > 0) {
+      markNotificationsRead(tabNotifIds);
+    }
   };
 
   const handleLogout = async () => {
@@ -160,7 +169,11 @@ export default function AdminDashboard({ session, onBackToLanding }) {
             >
               🏠 Về Trang chủ
             </button>
-            <NotificationMenu notifications={notifications} />
+            <NotificationMenu
+              notifications={notifications}
+              seenNotifIds={seenNotifIds}
+              onMarkAllRead={() => markNotificationsRead(null)}
+            />
             <span id="user-name">{session?.user?.email}</span>
             <button id="logout" className="text-button" onClick={handleLogout}>Đăng xuất</button>
           </div>

@@ -1330,6 +1330,14 @@ dialog::backdrop {
     border-radius: 2px;
     border: 1px solid #ccc;
     background: #fff;
+    padding: 0;
+}
+.legend-box.empty {
+    width: 12px;
+    height: 12px;
+    padding: 0;
+    border: 1px solid #ccc;
+    background: #fff;
 }
 .legend-box.rented {
     background: #fef9c3;
@@ -1350,8 +1358,9 @@ dialog::backdrop {
     gap: 8px;
 }
 .slot-box {
-    width: 60px;
-    height: 60px;
+    width: 64px;
+    height: 64px;
+    padding: 4px;
     border-radius: 6px;
     display: flex;
     flex-direction: column;
@@ -1360,6 +1369,13 @@ dialog::backdrop {
     transition: transform 0.1s;
     background: #fff;
     border: 1px solid #ccc;
+}
+.slot-box.empty {
+    width: 64px;
+    height: 64px;
+    padding: 4px;
+    border: 1px solid #ccc;
+    background: #fff;
 }
 .slot-box.rented {
     background: #fef9c3;
@@ -1479,41 +1495,54 @@ div.slot-info-overlay {
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
     z-index: 1000;
 }
 
 div.slot-info-dialog {
     background: #fff;
-    padding: 30px;
+    padding: 20px 24px;
     border-radius: 12px;
-    width: 400px;
-    max-width: 90vw;
+    width: 480px;
+    max-width: 92vw;
+    max-height: 86vh;
+    overflow-y: auto;
+    box-sizing: border-box;
     position: relative;
+    box-shadow: 0 20px 35px rgba(0,0,0,0.18);
 }
 
 button.slot-info-close,
 button.slot-info-close:hover {
     position: absolute;
-    top: 15px;
-    right: 15px;
-    background: transparent;
+    top: 14px;
+    right: 14px;
+    background: #f1f5f9;
     border: none;
-    font-size: 18px;
+    border-radius: 6px;
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 h2.slot-info-title {
     margin-top: 0;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
+    font-size: 18px;
 }
 
 span.slot-info-status {
     display: inline-block;
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
     font-size: 12px;
     font-weight: bold;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
 }
 
 span.slot-info-status.is-empty {
@@ -1533,16 +1562,17 @@ span.slot-info-status.is-occupied {
 
 h3.slot-info-section-title {
     border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
-    margin-bottom: 15px;
+    padding-bottom: 6px;
+    margin: 12px 0 10px;
+    font-size: 14px;
 }
 
 div.slot-info-vehicle-details {
     display: grid;
-    grid-template-columns: 100px 1fr;
-    gap: 10px;
-    font-size: 14px;
-    margin-bottom: 20px;
+    grid-template-columns: 110px 1fr;
+    gap: 6px 10px;
+    font-size: 13px;
+    margin-bottom: 10px;
 }
 
 b.slot-info-label {
@@ -1556,17 +1586,19 @@ span.slot-info-plate {
 
 img.slot-info-image {
     width: 100%;
-    height: 150px;
-    object-fit: cover;
+    max-height: 110px;
+    object-fit: contain;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 div.slot-info-owner-details {
     display: grid;
-    grid-template-columns: 100px 1fr;
-    gap: 10px;
-    font-size: 14px;
+    grid-template-columns: 110px 1fr;
+    gap: 6px 10px;
+    font-size: 13px;
 }
 
 span.slot-info-owner-id {

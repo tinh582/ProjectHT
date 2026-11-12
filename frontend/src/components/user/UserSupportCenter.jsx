@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../../lib/api';
+import { getTicketReplyKey, loadSeenSet, saveSeenSet } from '../../lib/tabNotifications';
 
 function formatDateTime(ts) {
   if (!ts) return '-';
@@ -40,6 +41,27 @@ export default function UserSupportCenter({ session, vehicles = [], prefill = nu
 
   const [replyDrafts, setReplyDrafts] = useState({});
   const [sendingReplyId, setSendingReplyId] = useState(null);
+  const subtabStorageKey = `ht_seen_subtab_replies_${session?.user?.id || 'guest'}`;
+  const [seenSubtabReplies, setSeenSubtabReplies] = useState(() => loadSeenSet(subtabStorageKey));
+
+  // Mark replies in the currently selected mode as seen
+  useEffect(() => {
+    if (tickets.length === 0) return;
+    const modeTickets = tickets.filter((t) =>
+      mode === 'SPOT_INTRUSION' ? t.category === 'SPOT_INTRUSION' : t.category !== 'SPOT_INTRUSION'
+    );
+    const keysToMark = modeTickets
+      .map((t) => getTicketReplyKey(t))
+      .filter((k) => k && !seenSubtabReplies.has(k));
+    if (keysToMark.length > 0) {
+      setSeenSubtabReplies((prev) => {
+        const next = new Set(prev);
+        keysToMark.forEach((k) => next.add(k));
+        saveSeenSet(subtabStorageKey, next);
+        return next;
+      });
+    }
+  }, [mode, tickets]);
 
   // Live clock for fixed system submission timestamp preview
   useEffect(() => {
@@ -234,30 +256,48 @@ export default function UserSupportCenter({ session, vehicles = [], prefill = nu
         {/* Left: Form with Strictly Fixed Read-Only Vehicle, Zone, Slot & Timestamp Info */}
         <div className="panel user-support-panel">
           <div className="user-support-tabs">
-            <button
-              type="button"
-              onClick={() => setMode('GENERAL_FEEDBACK')}
-              className={`user-support-tab-btn ${mode === 'GENERAL_FEEDBACK' ? 'active-feedback' : ''}`}
-            >
-              💬 Ý kiến phản hồi & Góp ý
-              {tickets.filter((t) => t.category !== 'SPOT_INTRUSION' && (t.replied_at || t.staff_reply)).length > 0 && (
-                <span className="nav-tab-badge inline-subtab">
-                  {tickets.filter((t) => t.category !== 'SPOT_INTRUSION' && (t.replied_at || t.staff_reply)).length}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('SPOT_INTRUSION')}
-              className={`user-support-tab-btn ${mode === 'SPOT_INTRUSION' ? 'active-intrusion' : ''}`}
-            >
-              🚨 Báo sự cố tại vị trí đỗ
-              {tickets.filter((t) => t.category === 'SPOT_INTRUSION' && (t.replied_at || t.staff_reply)).length > 0 && (
-                <span className="nav-tab-badge inline-subtab">
-                  {tickets.filter((t) => t.category === 'SPOT_INTRUSION' && (t.replied_at || t.staff_reply)).length}
-                </span>
-              )}
-            </button>
+            {(() => {
+              const unseenFeedbackCount = tickets.filter(
+                (t) =>
+                  t.category !== 'SPOT_INTRUSION' &&
+                  t.user_id !== null &&
+                  !t.is_demo &&
+                  (t.replied_at || t.staff_reply) &&
+                  !seenSubtabReplies.has(getTicketReplyKey(t))
+              ).length;
+              const unseenIntrusionCount = tickets.filter(
+                (t) =>
+                  t.category === 'SPOT_INTRUSION' &&
+                  t.user_id !== null &&
+                  !t.is_demo &&
+                  (t.replied_at || t.staff_reply) &&
+                  !seenSubtabReplies.has(getTicketReplyKey(t))
+              ).length;
+              return (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setMode('GENERAL_FEEDBACK')}
+                    className={`user-support-tab-btn ${mode === 'GENERAL_FEEDBACK' ? 'active-feedback' : ''}`}
+                  >
+                    💬 Ý kiến phản hồi & Góp ý
+                    {unseenFeedbackCount > 0 && (
+                      <span className="nav-tab-badge inline-subtab">{unseenFeedbackCount}</span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('SPOT_INTRUSION')}
+                    className={`user-support-tab-btn ${mode === 'SPOT_INTRUSION' ? 'active-intrusion' : ''}`}
+                  >
+                    🚨 Báo sự cố tại vị trí đỗ
+                    {unseenIntrusionCount > 0 && (
+                      <span className="nav-tab-badge inline-subtab">{unseenIntrusionCount}</span>
+                    )}
+                  </button>
+                </>
+              );
+            })()}
           </div>
 
           <div

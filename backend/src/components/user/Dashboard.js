@@ -199,13 +199,23 @@ router.get('/notifications/:userId', async (req, res) => {
 // UPDATE public.notifications SET is_read = TRUE WHERE user_id = '<USER_UUID>';
 router.put('/notifications/:userId/read-all', async (req, res) => {
   requireSelf(req, req.params.userId);
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(Boolean) : [];
   try {
-    await runSql(
-      req.db,
-      `UPDATE public.notifications
-       SET is_read = TRUE
-       WHERE user_id = ${sqlVal(req.user.id)};`
-    );
+    if (ids.length > 0) {
+      await runSql(
+        req.db,
+        `UPDATE public.notifications
+         SET is_read = TRUE
+         WHERE user_id = ${sqlVal(req.user.id)} AND id IN ${sqlList(ids)};`
+      );
+    } else {
+      await runSql(
+        req.db,
+        `UPDATE public.notifications
+         SET is_read = TRUE
+         WHERE user_id = ${sqlVal(req.user.id)};`
+      );
+    }
   } catch {
     // Ignore in mock environment
   }

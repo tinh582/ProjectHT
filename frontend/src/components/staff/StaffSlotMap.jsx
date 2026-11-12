@@ -166,159 +166,67 @@ export default function StaffSlotMap() {
     <div>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">FACILITY MAP • REAL-TIME CAPACITY, RENTAL & OCCUPANCY</p>
-          <h1>Sơ đồ Bãi đỗ & Thống kê Chi tiết Vị trí<span>.</span></h1>
+          <p className="eyebrow">QUẢN LÝ VỊ TRÍ ĐỖ</p>
+          <h1>Sơ đồ Bãi đỗ<span>.</span></h1>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button className="secondary" onClick={expandAll}>
-            ▼ Mở rộng tất cả khu
+            ▼ Mở tất cả
           </button>
           <button className="secondary" onClick={collapseAll}>
-            ▲ Thu gọn tất cả
+            ▲ Thu gọn
           </button>
           <button className="primary" onClick={fetchZonesAndSlots}>
-            ↻ Làm mới sơ đồ
+            ↻ Làm mới
           </button>
         </div>
       </div>
 
-      {/* 1. OVERALL KPI CARDS (6 SPECIFIC METRICS FOR STAFF) */}
+      {/* 1. CONCISE 4-CARD SUMMARY (TOTAL, RENTED, PARKED, EMPTY) */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: '12px',
           marginBottom: '18px'
         }}
       >
         <div className="panel" style={{ padding: '14px 16px', marginBottom: 0, borderLeft: '4px solid #0f172a' }}>
-          <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 700 }}>1. TỔNG SỐ Ô / SỨC CHỨA</div>
+          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>TỔNG SỐ Ô</div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
-            {metrics.totalSlots} <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>/ {metrics.totalCapacity} chỗ</span>
-          </div>
-          <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '2px' }}>
-            Trên tổng số <b>{metrics.totalZones} khu vực</b> hoạt động
+            {metrics.totalSlots}{' '}
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
+              ô ({metrics.totalZones} khu vực)
+            </span>
           </div>
         </div>
 
         <div className="panel" style={{ padding: '14px 16px', marginBottom: 0, borderLeft: '4px solid #2563eb' }}>
-          <div style={{ fontSize: '11.5px', color: '#1d4ed8', fontWeight: 700 }}>2. ĐÃ CHO THUÊ (TỔNG)</div>
+          <div style={{ fontSize: '12px', color: '#1d4ed8', fontWeight: 700 }}>ĐÃ CHO THUÊ</div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: '#2563eb', marginTop: '4px' }}>
-            {metrics.totalRentedSlots} <span style={{ fontSize: '13px', fontWeight: 600 }}>ô ({metrics.rentalRate}%)</span>
-          </div>
-          <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '2px' }}>
-            Gồm <b>{metrics.occupiedSlots}</b> đang đỗ + <b>{metrics.rentedOnlySlots}</b> giữ chỗ
+            {metrics.totalRentedSlots}{' '}
+            <span style={{ fontSize: '13px', fontWeight: 600 }}>ô ({metrics.rentalRate}%)</span>
           </div>
         </div>
 
         <div className="panel" style={{ padding: '14px 16px', marginBottom: 0, borderLeft: '4px solid #dc2626' }}>
-          <div style={{ fontSize: '11.5px', color: '#b91c1c', fontWeight: 700 }}>3. ĐANG ĐỖ TRONG BÃI</div>
+          <div style={{ fontSize: '12px', color: '#b91c1c', fontWeight: 700 }}>ĐANG ĐỖ TRONG BÃI</div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: '#dc2626', marginTop: '4px' }}>
-            {metrics.occupiedSlots} <span style={{ fontSize: '13px', fontWeight: 600 }}>xe ({metrics.occupancyRate}%)</span>
-          </div>
-          <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '2px' }}>
-            Xe thực tế đang có mặt tại ô đỗ
-          </div>
-        </div>
-
-        <div className="panel" style={{ padding: '14px 16px', marginBottom: 0, borderLeft: '4px solid #7c3aed' }}>
-          <div style={{ fontSize: '11.5px', color: '#6d28d9', fontWeight: 700 }}>4. ĐÃ THUÊ (XE Ở NGOÀI)</div>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: '#7c3aed', marginTop: '4px' }}>
-            {metrics.rentedOnlySlots} <span style={{ fontSize: '13px', fontWeight: 600 }}>ô giữ cố định</span>
-          </div>
-          <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '2px' }}>
-            Đã có chủ thuê (1 Slot = 1 Xe), chờ xe vào
+            {metrics.occupiedSlots}{' '}
+            <span style={{ fontSize: '13px', fontWeight: 600 }}>
+              xe (Ngoài bãi: {metrics.rentedOnlySlots})
+            </span>
           </div>
         </div>
 
         <div className="panel" style={{ padding: '14px 16px', marginBottom: 0, borderLeft: '4px solid #059669' }}>
-          <div style={{ fontSize: '11.5px', color: '#047857', fontWeight: 700 }}>5. Ô CÒN TRỐNG</div>
+          <div style={{ fontSize: '12px', color: '#047857', fontWeight: 700 }}>CÒN TRỐNG</div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: '#059669', marginTop: '4px' }}>
-            {metrics.emptySlots} <span style={{ fontSize: '13px', fontWeight: 600 }}>ô ({metrics.emptyRate}%)</span>
-          </div>
-          <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '2px' }}>
-            Chưa có khách thuê • Sẵn sàng đăng ký mới
-          </div>
-        </div>
-
-        <div className="panel" style={{ padding: '14px 16px', marginBottom: 0, borderLeft: '4px solid #d97706' }}>
-          <div style={{ fontSize: '11.5px', color: '#b45309', fontWeight: 700 }}>6. ĐANG BẢO TRÌ</div>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: '#d97706', marginTop: '4px' }}>
-            {metrics.maintenanceSlots} <span style={{ fontSize: '13px', fontWeight: 600 }}>ô khóa KT</span>
-          </div>
-          <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '2px' }}>
-            Tạm ngưng nhận xe để kiểm tra kỹ thuật
+            {metrics.emptySlots}{' '}
+            <span style={{ fontSize: '13px', fontWeight: 600 }}>ô ({metrics.emptyRate}%)</span>
           </div>
         </div>
       </div>
-
-      {/* 2. DETAILED BREAKDOWN TABLE BY ZONE */}
-      {zones.length > 0 && (
-        <div className="panel" style={{ marginBottom: '18px', padding: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-            <h3 style={{ margin: 0, fontSize: '15px', color: '#0f172a' }}>
-              📊 Bảng Thống kê Chi tiết Số lượng theo Từng Khu vực (Thuê bao nhiêu • Đỗ bao nhiêu • Trống bao nhiêu)
-            </h3>
-            <span style={{ fontSize: '12px', color: '#64748b' }}>
-              Cập nhật thời gian thực từ cơ sở dữ liệu
-            </span>
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table" style={{ margin: 0, fontSize: '13px' }}>
-              <thead>
-                <tr>
-                  <th>Khu vực (Zone)</th>
-                  <th>Loại xe</th>
-                  <th>Sức chứa</th>
-                  <th>Tổng số ô</th>
-                  <th>🔵 Đã thuê (Tổng)</th>
-                  <th>🔴 Đang đỗ (Trong bãi)</th>
-                  <th>🟣 Đã thuê (Ngoài bãi)</th>
-                  <th>🟢 Còn trống</th>
-                  <th>🟠 Bảo trì</th>
-                  <th>Tỷ lệ Thuê / Đỗ thực tế</th>
-                </tr>
-              </thead>
-              <tbody>
-                {zones.map((z) => {
-                  const st = getZoneStats(z);
-                  return (
-                    <tr key={z.id}>
-                      <td><strong>{z.zone_name}</strong></td>
-                      <td>{z.vehicle_type === 'Ô tô' ? '🚗 Ô tô' : '🛵 Xe máy'}</td>
-                      <td><b>{st.totalCapacity}</b> chỗ</td>
-                      <td><b>{st.totalSlots}</b> ô</td>
-                      <td style={{ color: '#2563eb', fontWeight: 700 }}>{st.totalRented} ô ({st.rentalRate}%)</td>
-                      <td style={{ color: '#dc2626', fontWeight: 700 }}>{st.occupied} xe ({st.occupancyRate}%)</td>
-                      <td style={{ color: '#7c3aed', fontWeight: 700 }}>{st.rentedOnly} ô</td>
-                      <td style={{ color: '#059669', fontWeight: 700 }}>{st.empty} ô</td>
-                      <td style={{ color: '#d97706', fontWeight: 700 }}>{st.maintenance} ô</td>
-                      <td style={{ minWidth: '150px' }}>
-                        <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden', display: 'flex' }}>
-                          <div
-                            style={{ width: `${st.occupancyRate}%`, background: '#dc2626' }}
-                            title={`Đang đỗ: ${st.occupied} xe`}
-                          />
-                          <div
-                            style={{
-                              width: `${Math.max(0, st.rentalRate - st.occupancyRate)}%`,
-                              background: '#3b82f6'
-                            }}
-                            title={`Đã thuê (ngoài bãi): ${st.rentedOnly} ô`}
-                          />
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
-                          Thuê: <b>{st.totalRented}/{st.totalSlots || st.totalCapacity}</b> • Đỗ: <b>{st.occupied}</b> • Trống: <b>{st.empty}</b>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* 3. INTERACTIVE SLOT MAP BY ZONE */}
       <div className="panel">
@@ -360,11 +268,10 @@ export default function StaffSlotMap() {
               style={{ margin: 0, padding: '8px 12px' }}
             >
               <option value="all">Tất cả trạng thái ({metrics.totalSlots} ô)</option>
-              <option value="empty">🟢 Chỉ hiện Ô còn trống ({metrics.emptySlots} ô)</option>
-              <option value="all_rented">🔵 Tất cả Ô đã thuê ({metrics.totalRentedSlots} ô)</option>
+              <option value="empty">🟢 Ô còn trống ({metrics.emptySlots} ô)</option>
+              <option value="all_rented">🔵 Tất cả ô đã thuê ({metrics.totalRentedSlots} ô)</option>
               <option value="occupied">🔴 Đang đỗ trong bãi ({metrics.occupiedSlots} xe)</option>
-              <option value="rented">🟣 Đã thuê - Xe ở ngoài ({metrics.rentedOnlySlots} ô)</option>
-              <option value="maintenance">🟠 Đang bảo trì ({metrics.maintenanceSlots} ô)</option>
+              <option value="rented">🟡 Đã thuê - Xe ở ngoài ({metrics.rentedOnlySlots} ô)</option>
             </select>
           </div>
         </div>
@@ -384,97 +291,23 @@ export default function StaffSlotMap() {
                 <div key={z.id} className="zone-card" style={{ border: '1px solid #cbd5e1', borderRadius: '12px' }}>
                   <div className="zone-header" style={{ flexWrap: 'wrap', gap: '12px' }}>
                     <div style={{ flex: 1 }}>
-                      <div className="zone-heading-row" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                      <div className="zone-heading-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <h3 className="zone-title">{z.zone_name}</h3>
                         <span className="zone-type-badge">
                           {z.vehicle_type === 'Ô tô' ? '🚗 Ô tô' : '🛵 Xe máy'}
                         </span>
-                        <span
-                          style={{
-                            fontSize: '11.5px',
-                            background: '#f1f5f9',
-                            color: '#0f172a',
-                            padding: '2px 10px',
-                            borderRadius: '999px',
-                            fontWeight: 700
-                          }}
-                        >
-                          Sức chứa: {st.totalCapacity} chỗ • Sơ đồ: {st.totalSlots} ô
+                        <span style={{ background: '#f1f5f9', color: '#0f172a', padding: '3px 9px', borderRadius: '6px', fontSize: '12px', fontWeight: 700 }}>
+                          Tổng: {st.totalSlots || st.totalCapacity} ô
                         </span>
-                      </div>
-
-                      {/* Specific Per-Zone Breakdown Badges */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: '8px',
-                          flexWrap: 'wrap',
-                          marginTop: '8px',
-                          fontSize: '12px'
-                        }}
-                      >
-                        <span
-                          style={{
-                            background: '#eff6ff',
-                            color: '#1d4ed8',
-                            border: '1px solid #bfdbfe',
-                            padding: '3px 10px',
-                            borderRadius: '6px',
-                            fontWeight: 700
-                          }}
-                        >
-                          🔵 Đã thuê: {st.totalRented}/{st.totalSlots || st.totalCapacity} ô ({st.rentalRate}%)
+                        <span style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '3px 9px', borderRadius: '6px', fontSize: '12px', fontWeight: 700 }}>
+                          Đã thuê: {st.totalRented} ô
                         </span>
-                        <span
-                          style={{
-                            background: '#fef2f2',
-                            color: '#b91c1c',
-                            border: '1px solid #fecaca',
-                            padding: '3px 10px',
-                            borderRadius: '6px',
-                            fontWeight: 700
-                          }}
-                        >
-                          🔴 Đang đỗ trong bãi: {st.occupied} xe ({st.occupancyRate}%)
+                        <span style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', padding: '3px 9px', borderRadius: '6px', fontSize: '12px', fontWeight: 700 }}>
+                          Đang đỗ: {st.occupied} xe
                         </span>
-                        <span
-                          style={{
-                            background: '#f5f3ff',
-                            color: '#6d28d9',
-                            border: '1px solid #ddd6fe',
-                            padding: '3px 10px',
-                            borderRadius: '6px',
-                            fontWeight: 700
-                          }}
-                        >
-                          🟣 Đã thuê (Xe ở ngoài): {st.rentedOnly} ô
+                        <span style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '3px 9px', borderRadius: '6px', fontSize: '12px', fontWeight: 700 }}>
+                          Trống: {st.empty} ô
                         </span>
-                        <span
-                          style={{
-                            background: '#ecfdf5',
-                            color: '#047857',
-                            border: '1px solid #a7f3d0',
-                            padding: '3px 10px',
-                            borderRadius: '6px',
-                            fontWeight: 700
-                          }}
-                        >
-                          🟢 Còn trống: {st.empty} ô
-                        </span>
-                        {st.maintenance > 0 && (
-                          <span
-                            style={{
-                              background: '#fffbeb',
-                              color: '#b45309',
-                              border: '1px solid #fde68a',
-                              padding: '3px 10px',
-                              borderRadius: '6px',
-                              fontWeight: 700
-                            }}
-                          >
-                            🟠 Bảo trì: {st.maintenance} ô
-                          </span>
-                        )}
                       </div>
                     </div>
 
@@ -483,7 +316,7 @@ export default function StaffSlotMap() {
                         onClick={() => toggleZone(z.id)}
                         className="secondary zone-action-button"
                       >
-                        {isExpanded ? '▲ Thu gọn Bản đồ Slot' : `🗺️ Xem Bản đồ Slot (${rawSlots.length} ô)`}
+                        {isExpanded ? '▲ Thu gọn' : `🗺️ Mở sơ đồ (${rawSlots.length} ô)`}
                       </button>
                     )}
                   </div>
@@ -497,21 +330,21 @@ export default function StaffSlotMap() {
                           alignItems: 'center',
                           flexWrap: 'wrap',
                           gap: '10px',
-                          marginBottom: '10px'
+                          marginBottom: '12px'
                         }}
                       >
                         <div style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>
-                          Hiển thị {visibleSlots.length}/{rawSlots.length} vị trí — Nhấn vào ô đỗ bất kỳ để xem Chủ xe, SĐT, Biển số & Giờ ra/vào
+                          Hiển thị {visibleSlots.length}/{rawSlots.length} vị trí — Nhấn vào ô để xem thông tin xe & chủ xe
                         </div>
                         <div className="slot-legend" style={{ margin: 0 }}>
                           <span className="legend-item">
                             <div className="legend-box empty"></div> Trống ({st.empty})
                           </span>
                           <span className="legend-item">
-                            <div className="legend-box rented"></div> Đã thuê - Chưa vào ({st.rentedOnly})
+                            <div className="legend-box rented"></div> Đã thuê ({st.rentedOnly})
                           </span>
                           <span className="legend-item">
-                            <div className="legend-box occupied"></div> Đang đỗ trong bãi ({st.occupied})
+                            <div className="legend-box occupied"></div> Đang đỗ ({st.occupied})
                           </span>
                         </div>
                       </div>
@@ -522,13 +355,10 @@ export default function StaffSlotMap() {
                           let statusLabel = 'Trống';
                           if (slot.status === 'rented') {
                             statusClass = 'rented';
-                            statusLabel = 'Đã thuê (Ngoài bãi)';
+                            statusLabel = 'Đã thuê';
                           } else if (slot.status === 'occupied') {
                             statusClass = 'occupied';
                             statusLabel = 'Đang đỗ';
-                          } else if (slot.status === 'maintenance') {
-                            statusClass = 'occupied';
-                            statusLabel = 'Bảo trì';
                           }
 
                           return (
@@ -536,11 +366,6 @@ export default function StaffSlotMap() {
                               key={slot.id}
                               onClick={() => setSelectedSlotForInfo(slot)}
                               className={`slot-box ${statusClass} clickable`}
-                              style={
-                                slot.status === 'maintenance'
-                                  ? { background: '#fef3c7', borderColor: '#f59e0b', color: '#92400e' }
-                                  : undefined
-                              }
                               title={
                                 slot.vehicles
                                   ? `${slot.slot_name} (${statusLabel}) • Biển số: ${slot.vehicles.plate}`
