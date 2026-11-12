@@ -9,6 +9,28 @@ import {
 } from '../../lib/sampleKyc';
 
 export default function UserProfileDialog({ session, onClose }) {
+  const kycStorageKey = `ht_kyc_docs_${session?.user?.id || 'default'}`;
+
+  const loadLocalKycDocs = () => {
+    try {
+      const raw = localStorage.getItem(kycStorageKey);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const saveLocalKycDocs = (docs) => {
+    try {
+      const prev = loadLocalKycDocs();
+      const next = { ...prev, ...docs };
+      localStorage.setItem(kycStorageKey, JSON.stringify(next));
+      return next;
+    } catch {
+      return docs;
+    }
+  };
+
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -20,12 +42,12 @@ export default function UserProfileDialog({ session, onClose }) {
   const [address, setAddress] = useState('');
 
   // 1. Căn cước công dân (CCCD - 2 mặt)
-  const [idFront, setIdFront] = useState(null);
-  const [idBack, setIdBack] = useState(null);
+  const [idFront, setIdFront] = useState(() => loadLocalKycDocs().id_card_front || null);
+  const [idBack, setIdBack] = useState(() => loadLocalKycDocs().id_card_back || null);
 
   // 2. Giấy phép lái xe (GPLX - 2 mặt)
-  const [driverLicenseFront, setDriverLicenseFront] = useState(null);
-  const [driverLicenseBack, setDriverLicenseBack] = useState(null);
+  const [driverLicenseFront, setDriverLicenseFront] = useState(() => loadLocalKycDocs().driver_license_front || null);
+  const [driverLicenseBack, setDriverLicenseBack] = useState(() => loadLocalKycDocs().driver_license_back || null);
 
   // Email OTP Verification states
   const [otpSent, setOtpSent] = useState(false);
@@ -37,9 +59,29 @@ export default function UserProfileDialog({ session, onClose }) {
     fetchProfile();
   }, []);
 
+  const persistDocsToBackend = async (partialDocs, extraFields = {}) => {
+    const mergedLocal = saveLocalKycDocs(partialDocs);
+    try {
+      await apiFetch(`/api/components/user/Dashboard/profile/${session.user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...extraFields,
+          id_card_front: mergedLocal.id_card_front ?? idFront,
+          id_card_back: mergedLocal.id_card_back ?? idBack,
+          driver_license_front: mergedLocal.driver_license_front ?? driverLicenseFront,
+          driver_license_back: mergedLocal.driver_license_back ?? driverLicenseBack
+        })
+      });
+    } catch {
+      // Saved locally in localStorage as fallback
+    }
+  };
+
   const fetchProfile = async () => {
     setLoading(true);
     try {
+      const localDocs = loadLocalKycDocs();
       const res = await apiFetch(`/api/components/user/Dashboard/profile/${session.user.id}`);
       if (res.ok) {
         const data = await res.json();
@@ -47,10 +89,20 @@ export default function UserProfileDialog({ session, onClose }) {
         setName(data.name || '');
         setPhone(data.phone || '');
         setAddress(data.address || '');
-        setIdFront(data.id_card_front || null);
-        setIdBack(data.id_card_back || null);
-        setDriverLicenseFront(data.driver_license_front || null);
-        setDriverLicenseBack(data.driver_license_back || null);
+        const resolvedIdFront = data.id_card_front || localDocs.id_card_front || null;
+        const resolvedIdBack = data.id_card_back || localDocs.id_card_back || null;
+        const resolvedDlFront = data.driver_license_front || localDocs.driver_license_front || null;
+        const resolvedDlBack = data.driver_license_back || localDocs.driver_license_back || null;
+        setIdFront(resolvedIdFront);
+        setIdBack(resolvedIdBack);
+        setDriverLicenseFront(resolvedDlFront);
+        setDriverLicenseBack(resolvedDlBack);
+        saveLocalKycDocs({
+          id_card_front: resolvedIdFront,
+          id_card_back: resolvedIdBack,
+          driver_license_front: resolvedDlFront,
+          driver_license_back: resolvedDlBack
+        });
       }
     } catch (e) {
       console.error('Error fetching profile:', e);
@@ -116,7 +168,7 @@ export default function UserProfileDialog({ session, onClose }) {
     }
   };
 
-  const handleFileUpload = (e, setter) => {
+  const handleFileUpload = (e, setter, docKey) => {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
@@ -124,7 +176,13 @@ export default function UserProfileDialog({ session, onClose }) {
       return;
     }
     const reader = new FileReader();
-    reader.onloadend = () => setter(reader.result);
+    reader.onloadend = () => {
+      const result = reader.result;
+      setter(result);
+      if (docKey) {
+        persistDocsToBackend({ [docKey]: result });
+      }
+    };
     reader.readAsDataURL(file);
   };
 
@@ -132,29 +190,32 @@ export default function UserProfileDialog({ session, onClose }) {
     const s = SAMPLE_KYC_PROFILES[sampleIdx] || SAMPLE_KYC_PROFILES[0];
     const targetName = name.trim() || s.name;
     const targetAddress = address.trim() || s.address;
+    const targetPhone = phone.trim() || s.phone;
+    const newFront = buildSampleCccdFront({
+      name: targetName,
+      cccdNo: s.cccdNo,
+      dob: s.dob,
+      sex: s.sex,
+      origin: s.origin,
+      address: targetAddress
+    });
+    const newBack = buildSampleCccdBack({
+      name: targetName,
+      cccdNo: s.cccdNo,
+      feature: s.feature
+    });
     setName(targetName);
-    setPhone(phone.trim() || s.phone);
+    setPhone(targetPhone);
     setAddress(targetAddress);
-    setIdFront(
-      buildSampleCccdFront({
-        name: targetName,
-        cccdNo: s.cccdNo,
-        dob: s.dob,
-        sex: s.sex,
-        origin: s.origin,
-        address: targetAddress
-      })
-    );
-    setIdBack(
-      buildSampleCccdBack({
-        name: targetName,
-        cccdNo: s.cccdNo,
-        feature: s.feature
-      })
+    setIdFront(newFront);
+    setIdBack(newBack);
+    persistDocsToBackend(
+      { id_card_front: newFront, id_card_back: newBack },
+      { name: targetName, phone: targetPhone, address: targetAddress }
     );
     setMessage({
       type: 'success',
-      text: `✓ Đã tạo tự động ảnh CCCD 2 mặt cho "${targetName}".`
+      text: `✓ Đã tạo và lưu ảnh CCCD 2 mặt cho "${targetName}".`
     });
   };
 
@@ -162,26 +223,29 @@ export default function UserProfileDialog({ session, onClose }) {
     const s = SAMPLE_KYC_PROFILES[sampleIdx] || SAMPLE_KYC_PROFILES[0];
     const targetName = name.trim() || s.name;
     const targetAddress = address.trim() || s.address;
+    const targetPhone = phone.trim() || s.phone;
+    const newDlFront = buildSampleGplxFront({
+      name: targetName,
+      gplxNo: s.gplxNo || '790195008868',
+      dob: s.dob,
+      address: targetAddress,
+      licenseClass: s.licenseClass || 'B2'
+    });
+    const newDlBack = buildSampleGplxBack({
+      gplxNo: s.gplxNo || '790195008868'
+    });
     setName(targetName);
-    setPhone(phone.trim() || s.phone);
+    setPhone(targetPhone);
     setAddress(targetAddress);
-    setDriverLicenseFront(
-      buildSampleGplxFront({
-        name: targetName,
-        gplxNo: s.gplxNo || '790195008868',
-        dob: s.dob,
-        address: targetAddress,
-        licenseClass: s.licenseClass || 'B2'
-      })
-    );
-    setDriverLicenseBack(
-      buildSampleGplxBack({
-        gplxNo: s.gplxNo || '790195008868'
-      })
+    setDriverLicenseFront(newDlFront);
+    setDriverLicenseBack(newDlBack);
+    persistDocsToBackend(
+      { driver_license_front: newDlFront, driver_license_back: newDlBack },
+      { name: targetName, phone: targetPhone, address: targetAddress }
     );
     setMessage({
       type: 'success',
-      text: `✓ Đã tạo tự động ảnh Giấy phép lái xe (GPLX) 2 mặt cho "${targetName}".`
+      text: `✓ Đã tạo và lưu ảnh Giấy phép lái xe (GPLX) 2 mặt cho "${targetName}".`
     });
   };
 
@@ -189,48 +253,52 @@ export default function UserProfileDialog({ session, onClose }) {
     const s = SAMPLE_KYC_PROFILES[sampleIdx] || SAMPLE_KYC_PROFILES[0];
     const targetName = name.trim() || s.name;
     const targetAddress = address.trim() || s.address;
+    const targetPhone = phone.trim() || s.phone;
+    const newIdFront = buildSampleCccdFront({
+      name: targetName,
+      cccdNo: s.cccdNo,
+      dob: s.dob,
+      sex: s.sex,
+      origin: s.origin,
+      address: targetAddress
+    });
+    const newIdBack = buildSampleCccdBack({
+      name: targetName,
+      cccdNo: s.cccdNo,
+      feature: s.feature
+    });
+    const newDlFront = buildSampleGplxFront({
+      name: targetName,
+      gplxNo: s.gplxNo || '790195008868',
+      dob: s.dob,
+      address: targetAddress,
+      licenseClass: s.licenseClass || 'B2'
+    });
+    const newDlBack = buildSampleGplxBack({
+      gplxNo: s.gplxNo || '790195008868'
+    });
+
     setName(targetName);
-    setPhone(phone.trim() || s.phone);
+    setPhone(targetPhone);
     setAddress(targetAddress);
+    setIdFront(newIdFront);
+    setIdBack(newIdBack);
+    setDriverLicenseFront(newDlFront);
+    setDriverLicenseBack(newDlBack);
 
-    // 1. Generate CCCD Front & Back
-    setIdFront(
-      buildSampleCccdFront({
-        name: targetName,
-        cccdNo: s.cccdNo,
-        dob: s.dob,
-        sex: s.sex,
-        origin: s.origin,
-        address: targetAddress
-      })
-    );
-    setIdBack(
-      buildSampleCccdBack({
-        name: targetName,
-        cccdNo: s.cccdNo,
-        feature: s.feature
-      })
-    );
-
-    // 2. Generate GPLX Front & Back
-    setDriverLicenseFront(
-      buildSampleGplxFront({
-        name: targetName,
-        gplxNo: s.gplxNo || '790195008868',
-        dob: s.dob,
-        address: targetAddress,
-        licenseClass: s.licenseClass || 'B2'
-      })
-    );
-    setDriverLicenseBack(
-      buildSampleGplxBack({
-        gplxNo: s.gplxNo || '790195008868'
-      })
+    persistDocsToBackend(
+      {
+        id_card_front: newIdFront,
+        id_card_back: newIdBack,
+        driver_license_front: newDlFront,
+        driver_license_back: newDlBack
+      },
+      { name: targetName, phone: targetPhone, address: targetAddress }
     );
 
     setMessage({
       type: 'success',
-      text: `✓ Đã điền đầy đủ CẢ CĂN CƯỚC CÔNG DÂN (CCCD) VÀ GIẤY PHÉP LÁI XE (GPLX) (Đủ 4 ảnh 2 mặt) cho "${targetName}". Nhấn "Lưu hồ sơ KYC" để hoàn tất!`
+      text: `✓ Đã điền và lưu đầy đủ CẢ CCCD & GPLX (Đủ 4 ảnh 2 mặt) cho "${targetName}"!`
     });
   };
 
@@ -250,6 +318,12 @@ export default function UserProfileDialog({ session, onClose }) {
     setSaving(true);
     setMessage(null);
     try {
+      saveLocalKycDocs({
+        id_card_front: idFront,
+        id_card_back: idBack,
+        driver_license_front: driverLicenseFront,
+        driver_license_back: driverLicenseBack
+      });
       const res = await apiFetch(`/api/components/user/Dashboard/profile/${session.user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -264,8 +338,11 @@ export default function UserProfileDialog({ session, onClose }) {
         })
       });
       if (res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        if (resData?.profile) {
+          setProfile(resData.profile);
+        }
         setMessage({ type: 'success', text: '✓ Cập nhật hồ sơ định danh (CCCD & GPLX) thành công!' });
-        fetchProfile();
       } else {
         const err = await res.json();
         setMessage({ type: 'error', text: err.error || 'Lỗi khi cập nhật.' });
@@ -291,6 +368,15 @@ export default function UserProfileDialog({ session, onClose }) {
         method: 'POST'
       });
       if (res.ok) {
+        try {
+          localStorage.removeItem(kycStorageKey);
+        } catch {
+          // Ignore
+        }
+        setIdFront(null);
+        setIdBack(null);
+        setDriverLicenseFront(null);
+        setDriverLicenseBack(null);
         alert('Đã xóa sạch toàn bộ dữ liệu cá nhân nhạy cảm (CCCD & GPLX) theo tiêu chuẩn Zero-Data Retention!');
         fetchProfile();
       }
@@ -618,7 +704,10 @@ export default function UserProfileDialog({ session, onClose }) {
                       />
                       <button
                         type="button"
-                        onClick={() => setIdFront(null)}
+                        onClick={() => {
+                          setIdFront(null);
+                          persistDocsToBackend({ id_card_front: null });
+                        }}
                         style={{ marginTop: '6px', color: '#dc2626', background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
                       >
                         ✕ Xóa ảnh này
@@ -641,7 +730,7 @@ export default function UserProfileDialog({ session, onClose }) {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleFileUpload(e, setIdFront)}
+                    onChange={(e) => handleFileUpload(e, setIdFront, 'id_card_front')}
                     style={{ marginTop: '6px', fontSize: '11.5px', width: '100%' }}
                   />
                 </div>
@@ -659,7 +748,10 @@ export default function UserProfileDialog({ session, onClose }) {
                       />
                       <button
                         type="button"
-                        onClick={() => setIdBack(null)}
+                        onClick={() => {
+                          setIdBack(null);
+                          persistDocsToBackend({ id_card_back: null });
+                        }}
                         style={{ marginTop: '6px', color: '#dc2626', background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
                       >
                         ✕ Xóa ảnh này
@@ -682,7 +774,7 @@ export default function UserProfileDialog({ session, onClose }) {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleFileUpload(e, setIdBack)}
+                    onChange={(e) => handleFileUpload(e, setIdBack, 'id_card_back')}
                     style={{ marginTop: '6px', fontSize: '11.5px', width: '100%' }}
                   />
                 </div>
@@ -724,7 +816,10 @@ export default function UserProfileDialog({ session, onClose }) {
                       />
                       <button
                         type="button"
-                        onClick={() => setDriverLicenseFront(null)}
+                        onClick={() => {
+                          setDriverLicenseFront(null);
+                          persistDocsToBackend({ driver_license_front: null });
+                        }}
                         style={{ marginTop: '6px', color: '#dc2626', background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
                       >
                         ✕ Xóa ảnh này
@@ -747,7 +842,7 @@ export default function UserProfileDialog({ session, onClose }) {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleFileUpload(e, setDriverLicenseFront)}
+                    onChange={(e) => handleFileUpload(e, setDriverLicenseFront, 'driver_license_front')}
                     style={{ marginTop: '6px', fontSize: '11.5px', width: '100%' }}
                   />
                 </div>
@@ -765,7 +860,10 @@ export default function UserProfileDialog({ session, onClose }) {
                       />
                       <button
                         type="button"
-                        onClick={() => setDriverLicenseBack(null)}
+                        onClick={() => {
+                          setDriverLicenseBack(null);
+                          persistDocsToBackend({ driver_license_back: null });
+                        }}
                         style={{ marginTop: '6px', color: '#dc2626', background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
                       >
                         ✕ Xóa ảnh này
@@ -788,7 +886,7 @@ export default function UserProfileDialog({ session, onClose }) {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleFileUpload(e, setDriverLicenseBack)}
+                    onChange={(e) => handleFileUpload(e, setDriverLicenseBack, 'driver_license_back')}
                     style={{ marginTop: '6px', fontSize: '11.5px', width: '100%' }}
                   />
                 </div>

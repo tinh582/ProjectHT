@@ -228,7 +228,7 @@ function applyWhereFilters(queryBuilder, filters) {
  */
 export async function runSql(db, rawSql, options = {}) {
   const cleaned = String(rawSql || '')
-    .replace(/--[^\n]*\n/g, '\n')
+    .replace(/^\s*--[^\n]*$/gm, '')
     .trim()
     .replace(/;+\s*$/, '');
 

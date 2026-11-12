@@ -4,7 +4,7 @@ import { requireId, HttpError } from '../../http.js';
 import { purgeSensitiveUserData } from '../../privacyEngine.js';
 import { issueAndSendEmailOtp, verifyEmailOtpCode, validatePhone10Digits } from '../../emailVerification.js';
 import { dispatchStaffAlert } from '../../notifications.js';
-import { feedbackStore, incidentLogStore, userDocumentsStore } from '../../supportStore.js';
+import { feedbackStore, incidentLogStore, userDocumentsStore, packKycColumnsForDb, unpackKycProfile } from '../../supportStore.js';
 import { runSql, sqlVal, sqlList, sqlSet, sqlValues } from '../../nativeSql.js';
 
 const router = express.Router();
@@ -38,12 +38,7 @@ router.get('/profile/:userId', async (req, res) => {
     data = fallback.data;
   }
 
-  const extraDocs = userDocumentsStore.get(req.user.id) || {};
-  res.json({
-    ...data,
-    driver_license_front: data?.driver_license_front || extraDocs.driver_license_front || null,
-    driver_license_back: data?.driver_license_back || extraDocs.driver_license_back || null,
-  });
+  res.json(unpackKycProfile(data || {}, req.user.id));
 });
 
 // Copy-pasteable Supabase SQL Editor query:
@@ -51,6 +46,17 @@ router.get('/profile/:userId', async (req, res) => {
 router.put('/profile/:userId', async (req, res) => {
   requireSelf(req, req.params.userId);
   const { name, phone, address, id_card_front, id_card_back, driver_license_front, driver_license_back } = req.body;
+  const prev = userDocumentsStore.get(req.user.id) || {};
+  const mergedDocs = {
+    id_card_front: id_card_front !== undefined ? id_card_front : prev.id_card_front ?? null,
+    id_card_back: id_card_back !== undefined ? id_card_back : prev.id_card_back ?? null,
+    driver_license_front:
+      driver_license_front !== undefined ? driver_license_front : prev.driver_license_front ?? null,
+    driver_license_back:
+      driver_license_back !== undefined ? driver_license_back : prev.driver_license_back ?? null
+  };
+  userDocumentsStore.set(req.user.id, mergedDocs);
+
   const updateData = {};
   if (name) updateData.name = name;
   if (phone !== undefined) updateData.phone = validatePhone10Digits(phone);
@@ -60,18 +66,9 @@ router.put('/profile/:userId', async (req, res) => {
   if (driver_license_front !== undefined) updateData.driver_license_front = driver_license_front;
   if (driver_license_back !== undefined) updateData.driver_license_back = driver_license_back;
 
-  if (driver_license_front !== undefined || driver_license_back !== undefined || id_card_front !== undefined || id_card_back !== undefined) {
-    const prev = userDocumentsStore.get(req.user.id) || {};
-    userDocumentsStore.set(req.user.id, {
-      ...prev,
-      id_card_front: id_card_front !== undefined ? id_card_front : prev.id_card_front,
-      id_card_back: id_card_back !== undefined ? id_card_back : prev.id_card_back,
-      driver_license_front: driver_license_front !== undefined ? driver_license_front : prev.driver_license_front,
-      driver_license_back: driver_license_back !== undefined ? driver_license_back : prev.driver_license_back,
-    });
-  }
-
-  const hasAnyDoc = (id_card_front && id_card_back) || (driver_license_front && driver_license_back);
+  const hasAnyDoc =
+    (mergedDocs.id_card_front && mergedDocs.id_card_back) ||
+    (mergedDocs.driver_license_front && mergedDocs.driver_license_back);
   if (hasAnyDoc) {
     updateData.kyc_status = 'pending';
   }
@@ -89,9 +86,13 @@ router.put('/profile/:userId', async (req, res) => {
     if (resDb.error) throw resDb.error;
     data = resDb.data;
   } catch {
+    const packed = packKycColumnsForDb(mergedDocs);
     const safeData = { ...updateData };
     delete safeData.driver_license_front;
     delete safeData.driver_license_back;
+    safeData.id_card_front = packed.id_card_front;
+    safeData.id_card_back = packed.id_card_back;
+
     const fallback = await runSql(
       req.db,
       `UPDATE public.profiles
@@ -104,14 +105,9 @@ router.put('/profile/:userId', async (req, res) => {
     data = fallback.data;
   }
 
-  const extraDocs = userDocumentsStore.get(req.user.id) || {};
   res.json({
     success: true,
-    profile: {
-      ...data,
-      driver_license_front: data?.driver_license_front || extraDocs.driver_license_front || null,
-      driver_license_back: data?.driver_license_back || extraDocs.driver_license_back || null,
-    }
+    profile: unpackKycProfile(data || {}, req.user.id)
   });
 });
 

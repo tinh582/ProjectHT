@@ -1,7 +1,7 @@
 import express from 'express';
 import { HttpError, pageRange, requireId, requireText, withSupabaseRetry } from '../../http.js';
 import { purgeSensitiveUserData } from '../../privacyEngine.js';
-import { userDocumentsStore } from '../../supportStore.js';
+import { userDocumentsStore, packKycColumnsForDb, unpackKycProfile } from '../../supportStore.js';
 import { runSql, sqlVal, sqlSet, sqlValues } from '../../nativeSql.js';
 import {
   validateRealEmailAddress,
@@ -62,11 +62,9 @@ router.get('/', async (req, res) => {
 
   const enrichedItems = (data || []).map((u) => {
     const staffConf = getStaffConfirmationStatus(u);
-    const extraDocs = userDocumentsStore.get(u.id) || {};
+    const unpacked = unpackKycProfile(u, u.id);
     return {
-      ...u,
-      driver_license_front: u.driver_license_front || extraDocs.driver_license_front || null,
-      driver_license_back: u.driver_license_back || extraDocs.driver_license_back || null,
+      ...unpacked,
       ...staffConf
     };
   });
@@ -118,12 +116,10 @@ router.get('/:id/details', async (req, res) => {
 
   if (!profile) throw new HttpError(404, 'Không tìm thấy tài khoản.');
 
-  const extraDocs = userDocumentsStore.get(id) || {};
+  const unpackedProfile = unpackKycProfile(profile, id);
   profile = {
-    ...profile,
-    driver_license_front: profile.driver_license_front || extraDocs.driver_license_front || null,
-    driver_license_back: profile.driver_license_back || extraDocs.driver_license_back || null,
-    ...getStaffConfirmationStatus(profile)
+    ...unpackedProfile,
+    ...getStaffConfirmationStatus(unpackedProfile)
   };
 
   let vehicles = [];
@@ -258,13 +254,38 @@ router.post('/', async (req, res) => {
   );
 
   if (profileError) {
-    const fallbackCore = { id: userId, name, email, role };
-    const { error: fallbackError } = await runSql(
+    const packed = packKycColumnsForDb({
+      id_card_front,
+      id_card_back,
+      driver_license_front,
+      driver_license_back
+    });
+    const fallbackWithDocs = {
+      id: userId,
+      name,
+      email,
+      role,
+      phone,
+      address,
+      email_verified,
+      kyc_status,
+      id_card_front: packed.id_card_front,
+      id_card_back: packed.id_card_back
+    };
+    const { error: fallbackDocsErr } = await runSql(
       req.db,
-      `INSERT INTO public.profiles ${sqlValues(fallbackCore)}
-       ON CONFLICT (id) DO UPDATE SET ${sqlSet(fallbackCore)};`
+      `INSERT INTO public.profiles ${sqlValues(fallbackWithDocs)}
+       ON CONFLICT (id) DO UPDATE SET ${sqlSet(fallbackWithDocs)};`
     );
-    if (fallbackError) throw fallbackError;
+    if (fallbackDocsErr) {
+      const fallbackCore = { id: userId, name, email, role };
+      const { error: fallbackError } = await runSql(
+        req.db,
+        `INSERT INTO public.profiles ${sqlValues(fallbackCore)}
+         ON CONFLICT (id) DO UPDATE SET ${sqlSet(fallbackCore)};`
+      );
+      if (fallbackError) throw fallbackError;
+    }
   }
 
   let staffConfirmation = null;
@@ -490,18 +511,45 @@ router.put('/:id', async (req, res) => {
   data = resUpdate.data;
 
   if (resUpdate.error) {
-    const corePayload = { name, email };
-    if (updatePayload.role) corePayload.role = updatePayload.role;
-    const fallbackUpdate = await runSql(
+    const storedDocs = userDocumentsStore.get(id) || {};
+    const packed = packKycColumnsForDb(storedDocs);
+    const safePayload = { ...updatePayload };
+    delete safePayload.driver_license_front;
+    delete safePayload.driver_license_back;
+    if (
+      req.body.id_card_front !== undefined ||
+      req.body.id_card_back !== undefined ||
+      req.body.driver_license_front !== undefined ||
+      req.body.driver_license_back !== undefined
+    ) {
+      safePayload.id_card_front = packed.id_card_front;
+      safePayload.id_card_back = packed.id_card_back;
+    }
+
+    const resSafe = await runSql(
       req.db,
       `UPDATE public.profiles
-       SET ${sqlSet(corePayload)}
+       SET ${sqlSet(safePayload)}
        WHERE id = ${sqlVal(id)}
        RETURNING id;`,
       { maybeSingle: true }
     );
-    if (fallbackUpdate.error) throw fallbackUpdate.error;
-    data = fallbackUpdate.data;
+    if (!resSafe.error && resSafe.data) {
+      data = resSafe.data;
+    } else {
+      const corePayload = { name, email };
+      if (updatePayload.role) corePayload.role = updatePayload.role;
+      const fallbackUpdate = await runSql(
+        req.db,
+        `UPDATE public.profiles
+         SET ${sqlSet(corePayload)}
+         WHERE id = ${sqlVal(id)}
+         RETURNING id;`,
+        { maybeSingle: true }
+      );
+      if (fallbackUpdate.error) throw fallbackUpdate.error;
+      data = fallbackUpdate.data;
+    }
   }
 
   if (!data) throw new HttpError(404, 'Account not found.');

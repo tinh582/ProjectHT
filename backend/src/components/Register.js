@@ -1,6 +1,6 @@
 import express from 'express';
 import { HttpError, requireText, withSupabaseRetry } from '../http.js';
-import { userDocumentsStore } from '../supportStore.js';
+import { userDocumentsStore, packKycColumnsForDb } from '../supportStore.js';
 import { runSql, sqlVal, sqlSet, sqlValues } from '../nativeSql.js';
 import {
   validateRealEmailAddress,
@@ -112,21 +112,31 @@ router.post('/', async (req, res) => {
     };
 
     try {
-      await runSql(
+      const resInsert = await runSql(
         req.db,
         `INSERT INTO public.profiles ${sqlValues(profileRow)}
          ON CONFLICT (id) DO UPDATE SET ${sqlSet(profileRow)};`
       );
+      if (resInsert.error) throw resInsert.error;
     } catch {
+      const packed = packKycColumnsForDb({
+        id_card_front,
+        id_card_back,
+        driver_license_front,
+        driver_license_back
+      });
       const fallbackRow = { ...profileRow };
       delete fallbackRow.driver_license_front;
       delete fallbackRow.driver_license_back;
+      fallbackRow.id_card_front = packed.id_card_front;
+      fallbackRow.id_card_back = packed.id_card_back;
       try {
-        await runSql(
+        const resFallback = await runSql(
           req.db,
           `INSERT INTO public.profiles ${sqlValues(fallbackRow)}
            ON CONFLICT (id) DO UPDATE SET ${sqlSet(fallbackRow)};`
         );
+        if (resFallback.error) throw resFallback.error;
       } catch {
         const minRow = { id: data.user.id, name, email, role: 'user' };
         await runSql(

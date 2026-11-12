@@ -108,6 +108,153 @@ export const feedbackStore = [
   }
 ];
 
-// Document store supporting both CCCD & Driver's License (GPLX) across user profiles
-export const userDocumentsStore = new Map();
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DOCS_CACHE_FILE = path.resolve(__dirname, '../.kyc_documents_store.json');
+
+function loadPersistedDocsMap() {
+  try {
+    if (fs.existsSync(DOCS_CACHE_FILE)) {
+      const raw = fs.readFileSync(DOCS_CACHE_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return new Map(Object.entries(parsed));
+      }
+    }
+  } catch {
+    // Ignore corrupt or missing cache file
+  }
+  return new Map();
+}
+
+function savePersistedDocsMap(map) {
+  try {
+    const obj = Object.fromEntries(map.entries());
+    fs.writeFileSync(DOCS_CACHE_FILE, JSON.stringify(obj), 'utf8');
+  } catch {
+    // Ignore write failure in read-only environments
+  }
+}
+
+class PersistentDocsMap extends Map {
+  constructor() {
+    super(loadPersistedDocsMap());
+  }
+  set(key, val) {
+    super.set(String(key), val);
+    savePersistedDocsMap(this);
+    return this;
+  }
+  get(key) {
+    return super.get(String(key));
+  }
+  delete(key) {
+    const res = super.delete(String(key));
+    savePersistedDocsMap(this);
+    return res;
+  }
+}
+
+// Document store supporting both CCCD & Driver's License (GPLX) across user profiles,
+// persisted to disk so node --watch restarts never lose uploaded GPLX images.
+export const userDocumentsStore = new PersistentDocsMap();
+
+/**
+ * Packs CCCD + GPLX into existing id_card_front / id_card_back TEXT columns
+ * when the Supabase profiles table does not yet have separate driver_license_front / driver_license_back columns.
+ */
+export function packKycColumnsForDb({
+  id_card_front,
+  id_card_back,
+  driver_license_front,
+  driver_license_back
+} = {}) {
+  const packSide = (cccdVal, gplxVal) => {
+    if (gplxVal) {
+      return JSON.stringify({
+        __ht_kyc_v1: true,
+        cccd: cccdVal || null,
+        gplx: gplxVal || null
+      });
+    }
+    return cccdVal ?? null;
+  };
+  return {
+    id_card_front: packSide(id_card_front, driver_license_front),
+    id_card_back: packSide(id_card_back, driver_license_back)
+  };
+}
+
+function unpackSideValue(rawVal) {
+  if (typeof rawVal === 'string' && rawVal.startsWith('{"__ht_kyc_v1":true')) {
+    try {
+      const parsed = JSON.parse(rawVal);
+      if (parsed && parsed.__ht_kyc_v1) {
+        return {
+          cccd: parsed.cccd || null,
+          gplx: parsed.gplx || null,
+          wasPacked: true
+        };
+      }
+    } catch {
+      // Treat as raw image string
+    }
+  }
+  return {
+    cccd: rawVal || null,
+    gplx: null,
+    wasPacked: false
+  };
+}
+
+/**
+ * Restores id_card_front, id_card_back, driver_license_front, driver_license_back
+ * from either dedicated DB columns, packed id_card_front/back JSON bundles, or persistent userDocumentsStore.
+ */
+export function unpackKycProfile(row = {}, userId = null) {
+  if (!row || typeof row !== 'object') return row;
+  const uid = String(userId || row.id || '');
+  const extraDocs = (uid && userDocumentsStore.get(uid)) || {};
+
+  const frontUnpacked = unpackSideValue(row.id_card_front);
+  const backUnpacked = unpackSideValue(row.id_card_back);
+
+  const id_card_front =
+    frontUnpacked.cccd !== null
+      ? frontUnpacked.cccd
+      : extraDocs.id_card_front !== undefined
+      ? extraDocs.id_card_front
+      : null;
+
+  const id_card_back =
+    backUnpacked.cccd !== null
+      ? backUnpacked.cccd
+      : extraDocs.id_card_back !== undefined
+      ? extraDocs.id_card_back
+      : null;
+
+  const driver_license_front =
+    row.driver_license_front ||
+    frontUnpacked.gplx ||
+    extraDocs.driver_license_front ||
+    null;
+
+  const driver_license_back =
+    row.driver_license_back ||
+    backUnpacked.gplx ||
+    extraDocs.driver_license_back ||
+    null;
+
+  return {
+    ...row,
+    id_card_front,
+    id_card_back,
+    driver_license_front,
+    driver_license_back
+  };
+}
+
 

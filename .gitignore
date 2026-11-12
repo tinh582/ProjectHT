@@ -65,6 +65,8 @@ temp/
 *.orig
 *.pid
 *.seed
+.kyc_documents_store.json
+backend/.kyc_documents_store.json
 
 # Documents
 ProjectHT Document/
