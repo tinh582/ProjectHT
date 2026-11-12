@@ -225,8 +225,8 @@ router.post('/zones/:id/slot-single', async (req, res) => {
   const zone_id = requireId(req.params.id);
   const slot_name = requireText(req.body.slot_name, 'Slot name', 40);
   const status = req.body.status || 'empty';
-  if (!['empty', 'rented', 'occupied', 'maintenance'].includes(status)) {
-    throw new HttpError(400, 'Trạng thái ô đỗ không hợp lệ.');
+  if (!['empty', 'rented', 'occupied'].includes(status)) {
+    throw new HttpError(400, 'Trạng thái ô đỗ không hợp lệ (chỉ hỗ trợ empty, rented, occupied).');
   }
 
   const { data, error } = await runSql(
@@ -247,8 +247,8 @@ router.put('/slots/:slotId', async (req, res) => {
   const status = req.body.status;
   const vehicle_id = req.body.vehicle_id === '' || req.body.vehicle_id === null ? null : req.body.vehicle_id;
 
-  if (status && !['empty', 'rented', 'occupied', 'maintenance'].includes(status)) {
-    throw new HttpError(400, 'Trạng thái ô đỗ không hợp lệ.');
+  if (status && !['empty', 'rented', 'occupied'].includes(status)) {
+    throw new HttpError(400, 'Trạng thái ô đỗ không hợp lệ (chỉ hỗ trợ empty, rented, occupied).');
   }
 
   // Enforce 1 Slot = 1 Xe constraint if assigning a vehicle
@@ -266,7 +266,7 @@ router.put('/slots/:slotId', async (req, res) => {
   if (status !== undefined) updateFields.status = status;
   if (req.body.vehicle_id !== undefined) {
     updateFields.vehicle_id = vehicle_id;
-    if (!vehicle_id && status !== 'maintenance') {
+    if (!vehicle_id) {
       updateFields.status = 'empty';
     } else if (vehicle_id && (!status || status === 'empty')) {
       updateFields.status = 'rented';
